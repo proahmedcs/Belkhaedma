@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import {
   getCustomerSavedLocations,
+  getAllPrices,
   getLatestPrices,
   getProviderJsonDocuments,
   getProviders,
@@ -89,6 +90,7 @@ export default function App() {
   const [customerReference, setCustomerReference] = useState<string>("demo-customer");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState<string>("");
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
 
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
@@ -245,6 +247,22 @@ export default function App() {
       setSelectedLocationId((current) => current ?? locationsData[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runSearch = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const providerCode = selectedProvider ?? undefined;
+      const allPrices = await getAllPrices(providerCode, false);
+      setPrices(allPrices);
+      setHasSearched(true);
+      setWizardStep(4);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to search prices.");
     } finally {
       setLoading(false);
     }
@@ -573,6 +591,9 @@ export default function App() {
                 </Text>
                 <Text style={styles.summaryText}>{serviceDate || "No date selected"}</Text>
               </View>
+              <TouchableOpacity style={styles.searchButton} onPress={runSearch}>
+                <Text style={styles.searchButtonText}>{languageMode === "ar" ? "عرض كل الأسعار" : "Search All Prices"}</Text>
+              </TouchableOpacity>
             </>
           ) : null}
 
@@ -585,8 +606,8 @@ export default function App() {
                 <Text style={styles.navText}>{languageMode === "ar" ? "التالي" : "Next"}</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.navButton} onPress={loadData}>
-                <Text style={styles.navText}>{languageMode === "ar" ? "تحديث" : "Refresh"}</Text>
+              <TouchableOpacity style={styles.navButton} onPress={runSearch}>
+                <Text style={styles.navText}>{languageMode === "ar" ? "بحث" : "Search"}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -594,7 +615,7 @@ export default function App() {
 
         <View style={styles.listCard}>
           <View style={styles.listHeader}>
-            <Text style={styles.sectionTitle}>Latest Prices</Text>
+            <Text style={styles.sectionTitle}>{hasSearched ? "All Prices" : "Latest Prices"}</Text>
           </View>
 
           {loading ? (
@@ -612,8 +633,17 @@ export default function App() {
           ) : (
             searchedPrices.map((price) => {
               const provider = providerById[price.providerId];
+              const offer = offerById[price.serviceOfferId];
               return (
                 <View style={styles.priceCard} key={price.id}>
+                  <View style={styles.packageProviderRow}>
+                    <Text style={styles.packageName}>
+                      {offer ? (languageMode === "ar" ? offer.nameAr : offer.nameEn) : "Package"}
+                    </Text>
+                    <Text style={styles.providerSideLabel}>
+                      {provider ? (languageMode === "ar" ? provider.nameAr : provider.nameEn) : "Provider"}
+                    </Text>
+                  </View>
                   <View style={styles.providerRow}>
                     {provider?.logoUrl ? (
                       <Image source={{ uri: provider.logoUrl }} style={styles.providerLogo} />
@@ -625,9 +655,7 @@ export default function App() {
                       </View>
                     )}
                     <View style={styles.providerMetaCol}>
-                      <Text style={styles.providerName}>
-                        {provider ? (languageMode === "ar" ? provider.nameAr : provider.nameEn) : "Unknown Provider"}
-                      </Text>
+                      <Text style={styles.providerName}>{provider ? (languageMode === "ar" ? provider.nameAr : provider.nameEn) : "Unknown Provider"}</Text>
                       {provider?.tinyUrl ? <Text style={styles.providerTinyUrl}>{provider.tinyUrl}</Text> : null}
                     </View>
                   </View>
@@ -859,6 +887,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 2,
   },
+  searchButton: {
+    backgroundColor: Brand.colors.primaryDark,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  searchButtonText: {
+    color: "#fff",
+    fontWeight: "800",
+  },
   listCard: {
     marginHorizontal: Brand.spacing.md,
     marginTop: 12,
@@ -917,6 +957,24 @@ const styles = StyleSheet.create({
   },
   providerName: { color: Brand.colors.textPrimary, fontWeight: "700", fontSize: 15 },
   providerTinyUrl: { color: Brand.colors.textSecondary, fontSize: 11, marginTop: 2 },
+  packageProviderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  packageName: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "800",
+    fontSize: 14,
+    flex: 1,
+    marginRight: 8,
+  },
+  providerSideLabel: {
+    color: Brand.colors.textPrimary,
+    fontWeight: "700",
+    fontSize: 13,
+  },
   row: {
     marginTop: 8,
     marginBottom: 4,

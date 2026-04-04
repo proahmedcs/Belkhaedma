@@ -24,6 +24,18 @@ export async function getLatestPrices(providerCode?: string): Promise<PriceSnaps
   return fetchJson<PriceSnapshot[]>(`/api/marketplace/prices/latest${query}`);
 }
 
+export async function getAllPrices(
+  providerCode?: string,
+  includeExpired = false
+): Promise<PriceSnapshot[]> {
+  const query = new URLSearchParams();
+  if (providerCode) {
+    query.set("providerCode", providerCode);
+  }
+  query.set("includeExpired", includeExpired ? "true" : "false");
+  return fetchJson<PriceSnapshot[]>(`/api/marketplace/prices?${query.toString()}`);
+}
+
 export async function getServiceOffers(providerCode?: string): Promise<ServiceOffer[]> {
   const query = providerCode ? `?providerCode=${encodeURIComponent(providerCode)}` : "";
   return fetchJson<ServiceOffer[]>(`/api/marketplace/offers${query}`);
