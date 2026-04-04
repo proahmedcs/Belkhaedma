@@ -1,0 +1,20 @@
+{
+  "provider_mappings": [
+    { "provider_id": "enaya", "service_id": "hourly_household", "integration_mode": "hybrid_simulated", "rank_weight": 95 },
+    { "provider_id": "tamkeen", "service_id": "hourly_household", "integration_mode": "hybrid_simulated", "rank_weight": 90 },
+    { "provider_id": "almutahidah", "service_id": "hourly_household", "integration_mode": "price_only_api", "rank_weight": 88 },
+    { "provider_id": "emdad-hr", "service_id": "hourly_household", "integration_mode": "hybrid_simulated", "rank_weight": 84 },
+    { "provider_id": "mueen", "service_id": "hourly_household", "integration_mode": "hybrid_simulated", "rank_weight": 80 },
+    { "provider_id": "esad-talents", "service_id": "monthly_resident", "integration_mode": "hybrid_simulated", "rank_weight": 86 },
+    { "provider_id": "tamkeen", "service_id": "monthly_resident", "integration_mode": "hybrid_simulated", "rank_weight": 89 },
+    { "provider_id": "enaya", "service_id": "monthly_resident", "integration_mode": "hybrid_simulated", "rank_weight": 87 },
+    { "provider_id": "almutahidah", "service_id": "monthly_resident", "integration_mode": "price_only_api", "rank_weight": 82 },
+    { "provider_id": "irc-saudi", "service_id": "monthly_resident", "integration_mode": "manual_rfq", "rank_weight": 72 },
+    { "provider_id": "eitinaa", "service_id": "monthly_resident", "integration_mode": "manual_rfq", "rank_weight": 68 },
+    { "provider_id": "tamkeen", "service_id": "business_rfq", "integration_mode": "hybrid_simulated", "rank_weight": 93 },
+    { "provider_id": "enaya", "service_id": "business_rfq", "integration_mode": "hybrid_simulated", "rank_weight": 90 },
+    { "provider_id": "esad-talents", "service_id": "business_rfq", "integration_mode": "hybrid_simulated", "rank_weight": 88 },
+    { "provider_id": "emdad-hr", "service_id": "business_rfq", "integration_mode": "hybrid_simulated", "rank_weight": 87 },
+    { "provider_id": "irc-saudi", "service_id": "business_rfq", "integration_mode": "manual_rfq", "rank_weight": 74 }
+  ]
+}

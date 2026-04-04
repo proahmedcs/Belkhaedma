@@ -1,0 +1,30 @@
+:root {
+  --panel-bg: #ffffff;
+  --bg: #f6f7fb;
+  --border: #e5e7eb;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.app-header {
+  background: #a0298e;
+  color: #ffffff;
+  padding: 16px;
+}

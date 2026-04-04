@@ -1,0 +1,35 @@
+{
+  "manifest_id": "frontend_demo_manifest_v2",
+  "app_type": "hybrid_web_demo",
+  "stack": {
+    "ui": ["HTML", "CSS", "JavaScript", "jQuery"],
+    "rtl": true,
+    "data_mode": "json_driven"
+  },
+  "routes": [
+    { "id": "home", "path": "/index.html", "journey_group": "discovery" },
+    { "id": "service_selector", "path": "/pages/service-selector.html", "journey_group": "discovery" },
+    { "id": "provider_compare", "path": "/pages/provider-compare.html", "journey_group": "discovery" },
+    { "id": "hourly_saved_addresses", "path": "/pages/hourly/saved-addresses.html", "journey_group": "hourly" },
+    { "id": "hourly_package_selection", "path": "/pages/hourly/package-selection.html", "journey_group": "hourly" },
+    { "id": "hourly_visit_schedule", "path": "/pages/hourly/visit-schedule.html", "journey_group": "hourly" },
+    { "id": "hourly_complete_data", "path": "/pages/hourly/complete-data.html", "journey_group": "hourly" },
+    { "id": "hourly_contract_preview", "path": "/pages/hourly/contract-preview.html", "journey_group": "hourly" },
+    { "id": "hourly_payment", "path": "/pages/hourly/payment.html", "journey_group": "hourly" },
+    { "id": "resident_request", "path": "/pages/monthly/resident-request.html", "journey_group": "monthly" },
+    { "id": "business_rfq_form", "path": "/pages/business/rfq-form.html", "journey_group": "business" },
+    { "id": "business_rfq_results", "path": "/pages/business/rfq-results.html", "journey_group": "business" },
+    { "id": "orders_dashboard", "path": "/pages/ops/orders-dashboard.html", "journey_group": "operations" },
+    { "id": "booking_timeline", "path": "/pages/ops/booking-timeline.html", "journey_group": "operations" },
+    { "id": "admin_provider_console", "path": "/pages/ops/admin-provider-console.html", "journey_group": "operations" }
+  ],
+  "json_loading_strategy": {
+    "app_bootstrap": [
+      "/demo-foundation/data/platform_seed_package.json",
+      "/demo-foundation/data/provider_simulation_contracts.json",
+      "/demo-foundation/data/enaya_flow_extracted.json"
+    ],
+    "client_state_store": "window.demoStore",
+    "rendering_style": "template_based_jquery_renderers"
+  }
+}

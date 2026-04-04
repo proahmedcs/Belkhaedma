@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Belkhedma Demo - Provider Compare</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/pages.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>مقارنة المزودين</h1>
+      <a href="../index.html" class="lang-toggle">العودة</a>
+    </header>
+    <main class="container">
+      <section class="panel">
+        <h2>Provider Comparison</h2>
+        <div id="compareRoot"></div>
+      </section>
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/core/state.js"></script>
+    <script src="../js/core/router.js"></script>
+    <script src="../js/core/normalizer.js"></script>
+    <script src="../js/core/ranking.js"></script>
+    <script src="../js/providers/base-provider.js"></script>
+    <script src="../js/providers/mueen-provider.js"></script>
+    <script src="../js/providers/tamkeen-provider.js"></script>
+    <script src="../js/providers/enaya-provider.js"></script>
+    <script src="../js/providers/emdad-provider.js"></script>
+    <script src="../js/core/orchestrator.js"></script>
+    <script src="../js/ui/render-common.js"></script>
+    <script src="../js/ui/render-home.js"></script>
+    <script src="../js/ui/render-results.js"></script>
+    <script src="../js/ui/render-compare.js"></script>
+    <script src="../js/ui/render-booking.js"></script>
+    <script src="../js/ui/render-rfq.js"></script>
+    <script src="../js/ui/render-recruitment.js"></script>
+    <script src="../js/features/search-form.js"></script>
+    <script src="../js/features/filters.js"></script>
+    <script src="../js/features/compare.js"></script>
+    <script src="../js/features/booking-flow.js"></script>
+    <script src="../js/features/payment-flow.js"></script>
+    <script src="../js/features/contract-flow.js"></script>
+    <script>
+      $(async function () {
+        const providers = await BelkhedmaFeatures.searchForm.loadJson("../data/providers.json");
+        BelkhedmaState.set("providers", providers);
+        BelkhedmaUi.renderCompare("#compareRoot", providers);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,150 @@
+{
+  "seed_version": "v2",
+  "generated_at_utc": "2026-04-04T00:00:00Z",
+  "currency": "SAR",
+  "providers": [
+    {
+      "provider_id": "enaya",
+      "tier": "A",
+      "display_name_ar": "شركة عناية",
+      "display_name_en": "Enaya",
+      "supports": {
+        "hourly": true,
+        "monthly_resident": true,
+        "b2b": true,
+        "recruitment": true
+      },
+      "integration_mode": "hybrid_simulated",
+      "confidence": "high"
+    },
+    {
+      "provider_id": "tamkeen",
+      "tier": "A",
+      "display_name_ar": "تمكين",
+      "display_name_en": "Tamkeen HR",
+      "supports": {
+        "hourly": true,
+        "monthly_resident": true,
+        "b2b": true,
+        "recruitment": true
+      },
+      "integration_mode": "hybrid_simulated",
+      "confidence": "high"
+    },
+    {
+      "provider_id": "almutahidah",
+      "tier": "A",
+      "display_name_ar": "المتحدة",
+      "display_name_en": "Almutahidah",
+      "supports": {
+        "hourly": true,
+        "monthly_resident": true,
+        "b2b": false,
+        "recruitment": true
+      },
+      "integration_mode": "price_only_api",
+      "confidence": "high"
+    },
+    {
+      "provider_id": "mueen",
+      "tier": "B",
+      "display_name_ar": "معين",
+      "display_name_en": "Mueen",
+      "supports": {
+        "hourly": true,
+        "monthly_resident": false,
+        "b2b": false,
+        "recruitment": false
+      },
+      "integration_mode": "hybrid_simulated",
+      "confidence": "medium"
+    },
+    {
+      "provider_id": "esad-talents",
+      "tier": "B",
+      "display_name_ar": "إسناد تالنتس",
+      "display_name_en": "Esad Talents",
+      "supports": {
+        "hourly": true,
+        "monthly_resident": true,
+        "b2b": true,
+        "recruitment": true
+      },
+      "integration_mode": "hybrid_simulated",
+      "confidence": "medium"
+    },
+    {
+      "provider_id": "emdad-hr",
+      "tier": "B",
+      "display_name_ar": "إمداد HR",
+      "display_name_en": "Emdad HR",
+      "supports": {
+        "hourly": true,
+        "monthly_resident": false,
+        "b2b": true,
+        "recruitment": false
+      },
+      "integration_mode": "hybrid_simulated",
+      "confidence": "medium"
+    },
+    {
+      "provider_id": "irc-saudi",
+      "tier": "C",
+      "display_name_ar": "IRC السعودية",
+      "display_name_en": "IRC Saudi",
+      "supports": {
+        "hourly": false,
+        "monthly_resident": true,
+        "b2b": true,
+        "recruitment": true
+      },
+      "integration_mode": "manual_rfq",
+      "confidence": "conservative"
+    },
+    {
+      "provider_id": "eitinaa",
+      "tier": "C",
+      "display_name_ar": "اعتناء",
+      "display_name_en": "Eitinaa",
+      "supports": {
+        "hourly": false,
+        "monthly_resident": true,
+        "b2b": false,
+        "recruitment": true
+      },
+      "integration_mode": "manual_rfq",
+      "confidence": "conservative"
+    }
+  ],
+  "journeys": [
+    "individual_hourly_booking",
+    "individual_resident_request",
+    "business_rfq",
+    "fallback_and_rescue"
+  ],
+  "status_timeline": [
+    "draft",
+    "requirements_captured",
+    "pricing_requested",
+    "pricing_received",
+    "provider_selected",
+    "payment_pending",
+    "paid",
+    "booking_sent",
+    "provider_confirmed",
+    "contract_generated",
+    "in_progress",
+    "completed",
+    "failed",
+    "cancelled",
+    "refunded"
+  ],
+  "error_scenarios": [
+    "provider_unavailable",
+    "no_slot",
+    "partial_quote",
+    "price_changed",
+    "payment_success_booking_failed",
+    "booking_success_payment_incomplete"
+  ]
+}
