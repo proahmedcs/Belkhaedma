@@ -6,25 +6,41 @@ import {
   Image,
   FlatList,
   SafeAreaView,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { getLatestPrices, getProviders } from "./src/services/marketplaceApi";
+import {
+  getCustomerSavedLocations,
+  getLatestPrices,
+  getProviders,
+} from "./src/services/marketplaceApi";
 import { Brand } from "./src/theme/brand";
-import { PriceSnapshot, Provider, ProviderJsonDocument } from "./src/types/marketplace";
+import {
+  CustomerSavedLocation,
+  PriceSnapshot,
+  Provider,
+  ProviderJsonDocument,
+} from "./src/types/marketplace";
 import { getProviderJsonDocuments } from "./src/services/marketplaceApi";
 
 type LanguageMode = "ar" | "en";
+type ServiceTypeFilter = "all" | "hourly" | "monthly" | "recruitment";
 
 export default function App() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [prices, setPrices] = useState<PriceSnapshot[]>([]);
   const [jsonDocuments, setJsonDocuments] = useState<ProviderJsonDocument[]>([]);
+  const [savedLocations, setSavedLocations] = useState<CustomerSavedLocation[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [searchText, setSearchText] = useState<string>("");
+  const [serviceType, setServiceType] = useState<ServiceTypeFilter>("all");
+  const [serviceDate, setServiceDate] = useState<string>("");
+  const [customerReference, setCustomerReference] = useState<string>("demo-customer");
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,19 +54,38 @@ export default function App() {
       setLoading(true);
       setError(null);
 
-      const [providersData, pricesData, docsData] = await Promise.all([
+      const [providersData, pricesData, docsData, locationsData] = await Promise.all([
         getProviders(),
         getLatestPrices(),
         getProviderJsonDocuments(undefined, false),
+        getCustomerSavedLocations(customerReference),
       ]);
 
       setProviders(providersData);
       setPrices(pricesData);
       setJsonDocuments(docsData);
+      setSavedLocations(locationsData);
+      setSelectedLocationId((current) => current ?? locationsData[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSavedLocations = async () => {
+    try {
+      const locationsData = await getCustomerSavedLocations(customerReference);
+      setSavedLocations(locationsData);
+      setSelectedLocationId((current) => {
+        if (current && locationsData.some((x) => x.id === current)) {
+          return current;
+        }
+
+        return locationsData[0]?.id ?? null;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unexpected error while loading locations.");
     }
   };
 
@@ -76,14 +111,23 @@ export default function App() {
 
   const searchedPrices = useMemo(() => {
     const q = searchText.trim().toLowerCase();
-    if (!q) {
-      return visiblePrices;
-    }
-
     return visiblePrices.filter((price) => {
       const provider = providerById[price.providerId];
       if (!provider) {
         return false;
+      }
+
+      const serviceTypeMatch =
+        serviceType === "all" ||
+        (serviceType === "hourly" && provider.supportsHourly) ||
+        (serviceType === "monthly" && provider.supportsMonthly) ||
+        (serviceType === "recruitment" && provider.supportsRecruitment);
+      if (!serviceTypeMatch) {
+        return false;
+      }
+
+      if (!q) {
+        return true;
       }
 
       const haystack = [
@@ -99,9 +143,26 @@ export default function App() {
 
       return haystack.includes(q);
     });
-  }, [searchText, visiblePrices, providerById]);
+  }, [searchText, visiblePrices, providerById, serviceType]);
 
   const allProvidersLabel = languageMode === "ar" ? "كل المزودين" : "All Providers";
+  const selectedLocation = useMemo(
+    () => savedLocations.find((x) => x.id === selectedLocationId) ?? null,
+    [savedLocations, selectedLocationId]
+  );
+  const serviceTypeLabel = (value: ServiceTypeFilter) => {
+    if (languageMode === "ar") {
+      if (value === "hourly") return "بالساعة";
+      if (value === "monthly") return "شهري";
+      if (value === "recruitment") return "استقدام";
+      return "كل الأنواع";
+    }
+
+    if (value === "hourly") return "Hourly";
+    if (value === "monthly") return "Monthly";
+    if (value === "recruitment") return "Recruitment";
+    return "All Service Types";
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -137,6 +198,104 @@ export default function App() {
             style={styles.searchInput}
             placeholderTextColor={Brand.colors.textSecondary}
           />
+          <Text style={styles.subSectionTitle}>
+            {languageMode === "ar" ? "نوع الخدمة" : "Service Type"}
+          </Text>
+          <FlatList
+            horizontal
+            data={["all", "hourly", "monthly", "recruitment"] as ServiceTypeFilter[]}
+            keyExtractor={(item) => item}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const active = serviceType === item;
+              return (
+                <TouchableOpacity
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setServiceType(item)}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {serviceTypeLabel(item)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+          <Text style={styles.subSectionTitle}>
+            {languageMode === "ar" ? "تاريخ الخدمة" : "Service Date"}
+          </Text>
+          <TextInput
+            placeholder={languageMode === "ar" ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+            value={serviceDate}
+            onChangeText={setServiceDate}
+            style={styles.searchInput}
+            placeholderTextColor={Brand.colors.textSecondary}
+          />
+          <Text style={styles.subSectionTitle}>
+            {languageMode === "ar" ? "مرجع العميل" : "Customer Reference"}
+          </Text>
+          <View style={styles.rowControls}>
+            <TextInput
+              placeholder={languageMode === "ar" ? "مثال: demo-customer" : "e.g. demo-customer"}
+              value={customerReference}
+              onChangeText={setCustomerReference}
+              style={[styles.searchInput, styles.customerInput]}
+              placeholderTextColor={Brand.colors.textSecondary}
+            />
+            <TouchableOpacity style={styles.refreshButton} onPress={loadSavedLocations}>
+              <Text style={styles.refreshText}>Load</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.subSectionTitle}>
+            {languageMode === "ar" ? "الموقع المحفوظ" : "Saved Location"}
+          </Text>
+          {savedLocations.length === 0 ? (
+            <Text style={styles.meta}>No saved locations for this customer reference.</Text>
+          ) : (
+            <FlatList
+              horizontal
+              data={savedLocations}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const active = selectedLocationId === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setSelectedLocationId(item.id)}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {item.label} - {item.city}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          )}
+          {selectedLocation ? (
+            <View style={styles.locationCard}>
+              <Text style={styles.meta}>
+                {selectedLocation.city}, {selectedLocation.district}
+              </Text>
+              <Text style={styles.meta}>
+                Lat: {selectedLocation.latitude} | Long: {selectedLocation.longitude}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!selectedLocation.googleMapsUrl) {
+                    return;
+                  }
+
+                  void Linking.openURL(selectedLocation.googleMapsUrl);
+                }}
+              >
+                <Text style={styles.mapLink}>
+                  {selectedLocation.googleMapsUrl
+                    ? "Open in Google Maps"
+                    : "No Google Maps link available"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
           <FlatList
             horizontal
             data={[
@@ -210,8 +369,8 @@ export default function App() {
                             : providerById[price.providerId].nameEn)
                         : "Unknown Provider"}
                     </Text>
-                    {providerById[price.providerId]?.providerTinyUrl ? (
-                      <Text style={styles.providerTinyUrl}>{providerById[price.providerId].providerTinyUrl}</Text>
+                    {providerById[price.providerId]?.tinyUrl ? (
+                      <Text style={styles.providerTinyUrl}>{providerById[price.providerId].tinyUrl}</Text>
                     ) : null}
                   </View>
                 </View>
@@ -230,6 +389,7 @@ export default function App() {
                 <Text style={styles.meta}>
                   Expires: {new Date(price.expiresAtUtc).toLocaleString()}
                 </Text>
+                {serviceDate ? <Text style={styles.meta}>Service Date: {serviceDate}</Text> : null}
               </View>
             ))
           )}
@@ -341,6 +501,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 8,
   },
+  subSectionTitle: {
+    color: Brand.colors.textPrimary,
+    fontWeight: "700",
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 8,
+  },
   chip: {
     borderWidth: 1,
     borderColor: Brand.colors.border,
@@ -414,6 +581,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   finalPrice: { color: Brand.colors.primaryDark, fontWeight: "800", fontSize: 18 },
+  rowControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  customerInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  locationCard: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: "#fff",
+  },
+  mapLink: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "700",
+    marginTop: 6,
+    fontSize: 12,
+  },
   originalPrice: {
     color: Brand.colors.textSecondary,
     fontSize: 12,

@@ -1,5 +1,10 @@
 import { API_BASE_URL } from "../config/api";
-import { PriceSnapshot, Provider, ProviderJsonDocument } from "../types/marketplace";
+import {
+  CustomerSavedLocation,
+  PriceSnapshot,
+  Provider,
+  ProviderJsonDocument,
+} from "../types/marketplace";
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`);
@@ -28,4 +33,16 @@ export async function getProviderJsonDocuments(
   }
   query.set("includeExpired", includeExpired ? "true" : "false");
   return fetchJson<ProviderJsonDocument[]>(`/api/marketplace/json-documents?${query.toString()}`);
+}
+
+export async function getCustomerSavedLocations(
+  customerReference: string
+): Promise<CustomerSavedLocation[]> {
+  if (!customerReference.trim()) {
+    return [];
+  }
+
+  return fetchJson<CustomerSavedLocation[]>(
+    `/api/marketplace/customers/${encodeURIComponent(customerReference)}/locations`
+  );
 }

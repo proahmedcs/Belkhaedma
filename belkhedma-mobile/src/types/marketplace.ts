@@ -11,8 +11,8 @@ export type Provider = {
   supportsRecruitment: boolean;
   integrationModeKey: string;
   websiteUrl?: string | null;
-  providerAppUrl?: string | null;
-  providerTinyUrl?: string | null;
+  appUrl?: string | null;
+  tinyUrl?: string | null;
   logoUrl?: string | null;
   notes?: string;
   isActive: boolean;
@@ -39,4 +39,17 @@ export type ProviderJsonDocument = {
   jsonContent: string;
   createdAtUtc: string;
   expiresAtUtc: string;
+};
+
+export type CustomerSavedLocation = {
+  id: string;
+  customerReference: string;
+  label: string;
+  city: string;
+  district: string;
+  latitude: number;
+  longitude: number;
+  googleMapsUrl?: string | null;
+  googlePlaceId?: string | null;
+  updatedAtUtc: string;
 };
