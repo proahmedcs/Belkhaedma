@@ -13,13 +13,15 @@ import {
 } from "react-native";
 import { getLatestPrices, getProviders } from "./src/services/marketplaceApi";
 import { Brand } from "./src/theme/brand";
-import { PriceSnapshot, Provider } from "./src/types/marketplace";
+import { PriceSnapshot, Provider, ProviderJsonDocument } from "./src/types/marketplace";
+import { getProviderJsonDocuments } from "./src/services/marketplaceApi";
 
 type LanguageMode = "ar" | "en";
 
 export default function App() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [prices, setPrices] = useState<PriceSnapshot[]>([]);
+  const [jsonDocuments, setJsonDocuments] = useState<ProviderJsonDocument[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
   const [loading, setLoading] = useState<boolean>(true);
@@ -34,10 +36,15 @@ export default function App() {
       setLoading(true);
       setError(null);
 
-      const [providersData, pricesData] = await Promise.all([getProviders(), getLatestPrices()]);
+      const [providersData, pricesData, docsData] = await Promise.all([
+        getProviders(),
+        getLatestPrices(),
+        getProviderJsonDocuments(undefined, false),
+      ]);
 
       setProviders(providersData);
       setPrices(pricesData);
+      setJsonDocuments(docsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error.");
     } finally {
@@ -184,6 +191,25 @@ export default function App() {
                 <Text style={styles.meta}>
                   Updated: {new Date(price.collectedAtUtc).toLocaleString()}
                 </Text>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.listCard}>
+          <View style={styles.listHeader}>
+            <Text style={styles.sectionTitle}>Provider JSON Documents</Text>
+          </View>
+          {jsonDocuments.length === 0 ? (
+            <Text style={styles.stateText}>No active JSON documents found.</Text>
+          ) : (
+            jsonDocuments.map((doc) => (
+              <View style={styles.priceCard} key={doc.id}>
+                <Text style={styles.providerName}>{doc.fileName}</Text>
+                <Text style={styles.meta}>Key: {doc.documentKey}</Text>
+                <Text style={styles.meta}>Provider: {doc.providerCode ?? "N/A"}</Text>
+                <Text style={styles.meta}>Created: {new Date(doc.createdAtUtc).toLocaleString()}</Text>
+                <Text style={styles.meta}>Expires: {new Date(doc.expiresAtUtc).toLocaleString()}</Text>
               </View>
             ))
           )}

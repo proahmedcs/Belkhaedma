@@ -54,15 +54,41 @@ public sealed record PriceSnapshotDto(
     DateTime CollectedAtUtc,
     DateTime ExpiresAtUtc);
 
+public sealed record ProviderJsonDocumentDto(
+    Guid Id,
+    string DocumentKey,
+    string FileName,
+    string? ProviderCode,
+    ServiceMode? ServiceMode,
+    DateTime CreatedAtUtc,
+    DateTime ExpiresAtUtc,
+    string JsonContent);
+
 public interface IMarketplaceQueryService
 {
     Task<IReadOnlyList<ProviderDto>> GetProvidersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ServiceOfferDto>> GetOffersAsync(string? providerCode, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PriceSnapshotDto>> GetLatestPricesAsync(string? providerCode, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PriceSnapshotDto>> GetAllPricesAsync(
+        string? providerCode,
+        bool includeExpired = true,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ProviderJsonDocumentDto>> GetProviderJsonDocumentsAsync(
+        string? providerCode,
+        bool includeExpired = false,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IDataCollectionService
 {
     Task CollectProviderDataAsync(string providerCode, CancellationToken cancellationToken = default);
     Task CollectAllProvidersDataAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IMarketplaceAdminService
+{
+    Task<int> SetPricesExpirationBulkAsync(string? providerCode, DateTime? expiresAtUtc, CancellationToken cancellationToken = default);
+    Task<int> SetPriceExpirationAsync(Guid priceSnapshotId, DateTime? expiresAtUtc, CancellationToken cancellationToken = default);
+    Task<int> SetJsonDocumentsExpirationBulkAsync(string? providerCode, DateTime? expiresAtUtc, CancellationToken cancellationToken = default);
+    Task<int> SetJsonDocumentExpirationAsync(Guid documentId, DateTime? expiresAtUtc, CancellationToken cancellationToken = default);
 }

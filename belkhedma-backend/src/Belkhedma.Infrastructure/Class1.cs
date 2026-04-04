@@ -115,6 +115,133 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
                 x.ExpiresAtUtc))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<ProviderJsonDocumentDto>> GetProviderJsonDocumentsAsync(
+        string? providerCode,
+        bool includeExpired,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.ProviderJsonDocuments.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(providerCode))
+        {
+            query = query.Where(x => x.ProviderCode == providerCode);
+        }
+
+        if (!includeExpired)
+        {
+            query = query.Where(x => x.ExpiresAtUtc > DateTime.UtcNow);
+        }
+
+        return await query
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Select(x => new ProviderJsonDocumentDto(
+                x.Id,
+                x.DocumentKey,
+                x.FileName,
+                x.ProviderCode,
+                x.ServiceMode,
+                x.CreatedAtUtc,
+                x.ExpiresAtUtc,
+                x.JsonContent))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<PriceSnapshotDto>> GetAllPricesAsync(string? providerCode, bool includeExpired, CancellationToken cancellationToken = default)
+    {
+        var providers = dbContext.Providers.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(providerCode))
+        {
+            providers = providers.Where(x => x.Code == providerCode);
+        }
+
+        var providerIds = await providers.Select(x => x.Id).ToListAsync(cancellationToken);
+        var query = dbContext.PriceSnapshots.AsNoTracking().Where(x => providerIds.Contains(x.ProviderId));
+
+        if (!includeExpired)
+        {
+            query = query.Where(x => x.ExpiresAtUtc > DateTime.UtcNow);
+        }
+
+        return await query
+            .OrderByDescending(x => x.CollectedAtUtc)
+            .Take(500)
+            .Select(x => new PriceSnapshotDto(
+                x.Id,
+                x.ProviderId,
+                x.ServiceOfferId,
+                x.FinalPriceSar,
+                x.OriginalPriceSar,
+                x.VatAmountSar,
+                x.SourceType,
+                x.CollectedAtUtc,
+                x.ExpiresAtUtc))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> SetPriceExpirationAsync(Guid priceSnapshotId, DateTime? expiresAtUtc, CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.PriceSnapshots.FirstOrDefaultAsync(x => x.Id == priceSnapshotId, cancellationToken);
+        if (entity is null)
+        {
+            return 0;
+        }
+
+        entity.ExpiresAtUtc = expiresAtUtc ?? DateTime.UtcNow.AddYears(50);
+        return await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<int> SetPricesExpirationBulkAsync(string? providerCode, DateTime? expiresAtUtc, CancellationToken cancellationToken = default)
+    {
+        var providers = dbContext.Providers.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(providerCode))
+        {
+            providers = providers.Where(x => x.Code == providerCode);
+        }
+
+        var providerIds = await providers.Select(x => x.Id).ToListAsync(cancellationToken);
+        var rows = await dbContext.PriceSnapshots
+            .Where(x => providerIds.Contains(x.ProviderId))
+            .ToListAsync(cancellationToken);
+
+        var newExpiry = expiresAtUtc ?? DateTime.UtcNow.AddYears(50);
+        foreach (var row in rows)
+        {
+            row.ExpiresAtUtc = newExpiry;
+        }
+
+        return await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<int> SetJsonDocumentExpirationAsync(Guid documentId, DateTime? expiresAtUtc, CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.ProviderJsonDocuments.FirstOrDefaultAsync(x => x.Id == documentId, cancellationToken);
+        if (entity is null)
+        {
+            return 0;
+        }
+
+        entity.ExpiresAtUtc = expiresAtUtc ?? DateTime.UtcNow.AddYears(50);
+        return await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<int> SetJsonDocumentsExpirationBulkAsync(string? providerCode, DateTime? expiresAtUtc, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.ProviderJsonDocuments.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(providerCode))
+        {
+            query = query.Where(x => x.ProviderCode == providerCode);
+        }
+
+        var docs = await query.ToListAsync(cancellationToken);
+        var newExpiry = expiresAtUtc ?? DateTime.UtcNow.AddYears(50);
+        foreach (var doc in docs)
+        {
+            doc.ExpiresAtUtc = newExpiry;
+        }
+
+        return await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }
 
 internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDataCollectionService

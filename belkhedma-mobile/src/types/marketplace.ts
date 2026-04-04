@@ -29,3 +29,14 @@ export type PriceSnapshot = {
   collectedAtUtc: string;
   expiresAtUtc: string;
 };
+
+export type ProviderJsonDocument = {
+  id: string;
+  documentKey: string;
+  fileName: string;
+  providerCode?: string | null;
+  serviceMode?: number | null;
+  jsonContent: string;
+  createdAtUtc: string;
+  expiresAtUtc: string;
+};

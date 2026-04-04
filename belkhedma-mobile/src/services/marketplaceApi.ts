@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../config/api";
-import { PriceSnapshot, Provider } from "../types/marketplace";
+import { PriceSnapshot, Provider, ProviderJsonDocument } from "../types/marketplace";
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`);
@@ -16,4 +16,16 @@ export async function getProviders(): Promise<Provider[]> {
 export async function getLatestPrices(providerCode?: string): Promise<PriceSnapshot[]> {
   const query = providerCode ? `?providerCode=${encodeURIComponent(providerCode)}` : "";
   return fetchJson<PriceSnapshot[]>(`/api/marketplace/prices/latest${query}`);
+}
+
+export async function getProviderJsonDocuments(
+  providerCode?: string,
+  includeExpired = true
+): Promise<ProviderJsonDocument[]> {
+  const query = new URLSearchParams();
+  if (providerCode) {
+    query.set("providerCode", providerCode);
+  }
+  query.set("includeExpired", includeExpired ? "true" : "false");
+  return fetchJson<ProviderJsonDocument[]>(`/api/marketplace/json-documents?${query.toString()}`);
 }
