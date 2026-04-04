@@ -32,7 +32,7 @@ import {
 
 type LanguageMode = "ar" | "en";
 type ServiceGroup = "hourly-cleaning" | "monthly" | "medical-services" | "mediation-services";
-type WizardStep = 0 | 1 | 2 | 3 | 4;
+type WizardStep = 0 | 1 | 2 | 3;
 type JsonDrivenOptions = {
   shifts: string[];
   nationalityGroups: string[];
@@ -601,7 +601,7 @@ export default function App() {
       const allPrices = await getAllPrices(providerCode, false);
       setPrices(allPrices);
       setHasSearched(true);
-      setWizardStep(4);
+      setWizardStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to search prices.");
     } finally {
@@ -646,15 +646,14 @@ export default function App() {
 
   const wizardSteps = [
     languageMode === "ar" ? "الخدمة" : "Service",
-    languageMode === "ar" ? "المزود" : "Provider",
-    languageMode === "ar" ? "التفاصيل" : "Details",
     languageMode === "ar" ? "الموقع" : "Location",
+    languageMode === "ar" ? "الباقات" : "Packages",
     languageMode === "ar" ? "النتائج" : "Results",
   ];
 
   const canGoNext = useMemo(() => {
     if (wizardStep === 0) return !!selectedGroup && !!selectedSubServiceId;
-    if (wizardStep === 1) return true;
+    if (wizardStep === 1) return savedLocations.length === 0 || !!selectedLocationId;
     if (wizardStep === 2) {
       return (
         !!serviceDate &&
@@ -667,7 +666,6 @@ export default function App() {
         !!selectedDeliveryWindow
       );
     }
-    if (wizardStep === 3) return savedLocations.length === 0 || !!selectedLocationId;
     return true;
   }, [
     savedLocations.length,
@@ -687,7 +685,7 @@ export default function App() {
 
   const goNext = () => {
     if (!canGoNext) return;
-    setWizardStep((prev) => Math.min(4, prev + 1) as WizardStep);
+    setWizardStep((prev) => Math.min(3, prev + 1) as WizardStep);
   };
 
   const goBack = () => {
@@ -779,42 +777,65 @@ export default function App() {
 
           {wizardStep === 1 ? (
             <>
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "المزود (اختياري)" : "Provider (optional)"}</Text>
-              <FlatList
-                horizontal
-                data={[
-                  {
-                    code: "",
-                    nameAr: languageMode === "ar" ? "كل المزودين" : "All Providers",
-                    nameEn: "All Providers",
-                    id: "",
-                    hasApiAccess: false,
-                    supportsHourly: false,
-                    supportsMonthly: false,
-                    supportsB2B: false,
-                    supportsRecruitment: false,
-                    integrationModeKey: "",
-                    isActive: true,
-                  } as Provider,
-                  ...providers,
-                ]}
-                keyExtractor={(item) => item.code || "all"}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = item.code === "" ? selectedProvider === null : selectedProvider === item.code;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedProvider(item.code === "" ? null : item.code)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                        {languageMode === "ar" ? item.nameAr : item.nameEn}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-                ListEmptyComponent={<Text style={styles.meta}>No providers found.</Text>}
-              />
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مرجع العميل" : "Customer Reference"}</Text>
+              <View style={styles.rowControls}>
+                <TextInput
+                  placeholder={languageMode === "ar" ? "مثال: demo-customer" : "e.g. demo-customer"}
+                  value={customerReference}
+                  onChangeText={setCustomerReference}
+                  style={[styles.searchInput, styles.customerInput]}
+                  placeholderTextColor={Brand.colors.textSecondary}
+                />
+                <TouchableOpacity style={styles.refreshButton} onPress={loadSavedLocations}>
+                  <Text style={styles.refreshText}>Load</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اختر موقع سابق" : "Choose Saved Location"}</Text>
+              {savedLocations.length === 0 ? (
+                <Text style={styles.meta}>No saved locations for this customer reference.</Text>
+              ) : (
+                <FlatList
+                  horizontal
+                  data={savedLocations}
+                  keyExtractor={(item) => item.id}
+                  showsHorizontalScrollIndicator={false}
+                  renderItem={({ item }) => {
+                    const active = selectedLocationId === item.id;
+                    return (
+                      <TouchableOpacity
+                        style={[styles.chip, active && styles.chipActive]}
+                        onPress={() => setSelectedLocationId(item.id)}
+                      >
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                          {item.label} - {item.city}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              )}
+
+              {selectedLocation ? (
+                <View style={styles.locationCard}>
+                  <Text style={styles.meta}>
+                    {selectedLocation.city}, {selectedLocation.district}
+                  </Text>
+                  <Text style={styles.meta}>
+                    Lat: {selectedLocation.latitude} | Long: {selectedLocation.longitude}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (!selectedLocation.googleMapsUrl) return;
+                      void Linking.openURL(selectedLocation.googleMapsUrl);
+                    }}
+                  >
+                    <Text style={styles.mapLink}>
+                      {selectedLocation.googleMapsUrl ? "Open in Google Maps" : "No Google Maps link"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
             </>
           ) : null}
 
@@ -1085,9 +1106,9 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 4 ? (
+          {wizardStep === 3 ? (
             <>
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "بحث المزود" : "Provider Search"}</Text>
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "تصفية المزود (اختياري)" : "Provider Filter (optional)"}</Text>
               <TextInput
                 placeholder={languageMode === "ar" ? "ابحث عن مزود..." : "Search providers..."}
                 value={searchText}
@@ -1121,7 +1142,7 @@ export default function App() {
             <TouchableOpacity style={[styles.navButton, wizardStep === 0 && styles.navButtonDisabled]} onPress={goBack}>
               <Text style={styles.navText}>{languageMode === "ar" ? "السابق" : "Back"}</Text>
             </TouchableOpacity>
-            {wizardStep < 4 ? (
+            {wizardStep < 3 ? (
               <TouchableOpacity style={[styles.navButton, !canGoNext && styles.navButtonDisabled]} onPress={goNext}>
                 <Text style={styles.navText}>{languageMode === "ar" ? "التالي" : "Next"}</Text>
               </TouchableOpacity>
