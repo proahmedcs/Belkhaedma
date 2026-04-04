@@ -2135,21 +2135,63 @@ export default function App() {
 
         <View style={styles.settingsCard}>
           <Text style={styles.sectionTitle}>{languageMode === "ar" ? "الإعدادات" : "Settings"}</Text>
-          <Text style={styles.settingsBreadcrumb}>
-            {languageMode === "ar" ? "الحساب > الملف الشخصي > اللغة" : "Account > Profile > Language"}
-          </Text>
-          <View style={styles.settingsLangRow}>
-            <TouchableOpacity
-              style={[styles.settingsLangButton, languageMode === "en" && styles.settingsLangButtonActive]}
-              onPress={() => setLanguageMode("en")}
-            >
-              <Text style={[styles.settingsLangText, languageMode === "en" && styles.settingsLangTextActive]}>English</Text>
+          <View style={styles.settingsSection}>
+            <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "حسابي" : "Account"}</Text>
+            <TouchableOpacity style={styles.settingsRow}>
+              <View style={styles.settingsRowRight}>
+                <Text style={styles.settingsRowIcon}>👤</Text>
+                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "ملفي الشخصي" : "Profile"}</Text>
+              </View>
+              <Text style={styles.settingsRowChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.settingsLangButton, languageMode === "ar" && styles.settingsLangButtonActive]}
-              onPress={() => setLanguageMode("ar")}
-            >
-              <Text style={[styles.settingsLangText, languageMode === "ar" && styles.settingsLangTextActive]}>العربية</Text>
+            <TouchableOpacity style={styles.settingsRow}>
+              <View style={styles.settingsRowRight}>
+                <Text style={styles.settingsRowIcon}>♡</Text>
+                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "تفضيلاتي" : "Preferences"}</Text>
+              </View>
+              <Text style={styles.settingsRowChevron}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.settingsSection}>
+            <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "التفضيلات" : "Preferences"}</Text>
+            <View style={styles.settingsRow}>
+              <View style={styles.settingsRowRight}>
+                <Text style={styles.settingsRowIcon}>🌐</Text>
+                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "اللغة" : "Language"}</Text>
+              </View>
+              <View style={styles.settingsLangRow}>
+                <TouchableOpacity
+                  style={[styles.settingsLangButton, languageMode === "en" && styles.settingsLangButtonActive]}
+                  onPress={() => setLanguageMode("en")}
+                >
+                  <Text style={[styles.settingsLangText, languageMode === "en" && styles.settingsLangTextActive]}>EN</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.settingsLangButton, languageMode === "ar" && styles.settingsLangButtonActive]}
+                  onPress={() => setLanguageMode("ar")}
+                >
+                  <Text style={[styles.settingsLangText, languageMode === "ar" && styles.settingsLangTextActive]}>AR</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.settingsRow}>
+              <View style={styles.settingsRowRight}>
+                <Text style={styles.settingsRowIcon}>🔔</Text>
+                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "الإشعارات" : "Notifications"}</Text>
+              </View>
+              <Text style={styles.settingsRowChevron}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.settingsSection}>
+            <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "أخرى" : "More"}</Text>
+            <TouchableOpacity style={styles.settingsRow}>
+              <View style={styles.settingsRowRight}>
+                <Text style={styles.settingsRowIcon}>❓</Text>
+                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "المساعدة والدعم" : "Help & Support"}</Text>
+              </View>
+              <Text style={styles.settingsRowChevron}>›</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -2376,6 +2418,92 @@ const styles = StyleSheet.create({
   },
   settingsLangTextActive: {
     color: Brand.colors.primaryDark,
+  },
+  settingsSection: {
+    borderTopWidth: 1,
+    borderTopColor: "#EEF2F7",
+    paddingTop: 10,
+    marginTop: 8,
+  },
+  settingsSectionTitle: {
+    color: "#7B8A9A",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  settingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  settingsListCard: {
+    marginHorizontal: Brand.spacing.md,
+    marginTop: 10,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#EEF0F4",
+    overflow: "hidden",
+  },
+  settingsSectionHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 6,
+    color: Brand.colors.textSecondary,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  settingsRowItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  settingsRowLeft: {
+    width: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  settingsRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  settingsRowChevron: {
+    color: "#C5CAD3",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  settingsRowIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+  },
+  settingsRowIcon: {
+    fontSize: 15,
+  },
+  settingsRowLabel: {
+    color: Brand.colors.textPrimary,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  settingsRowValue: {
+    color: "#2563EB",
+    fontWeight: "700",
+    fontSize: 20,
   },
   filterCard: {
     marginHorizontal: Brand.spacing.md,
