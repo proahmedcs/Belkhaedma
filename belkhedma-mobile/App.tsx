@@ -1492,20 +1492,6 @@ export default function App() {
                 ? "تسجيل العميل عبر رقم الجوال والاسم"
                 : "Customer authentication with mobile and name"}
             </Text>
-            <View style={styles.langSwitchRow}>
-              <TouchableOpacity
-                style={[styles.langButton, languageMode === "en" && styles.langButtonActive]}
-                onPress={() => setLanguageMode("en")}
-              >
-                <Text style={[styles.langText, languageMode === "en" && styles.langTextActive]}>EN</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.langButton, languageMode === "ar" && styles.langButtonActive]}
-                onPress={() => setLanguageMode("ar")}
-              >
-                <Text style={[styles.langText, languageMode === "ar" && styles.langTextActive]}>AR</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           <View style={styles.filterCard}>
@@ -1571,20 +1557,6 @@ export default function App() {
           </View>
           <Text style={styles.logo}>Belkhedma</Text>
           <Text style={styles.subtitle}>Dynamic wizard with service group and sub service</Text>
-          <View style={styles.langSwitchRow}>
-            <TouchableOpacity
-              style={[styles.langButton, languageMode === "en" && styles.langButtonActive]}
-              onPress={() => setLanguageMode("en")}
-            >
-              <Text style={[styles.langText, languageMode === "en" && styles.langTextActive]}>EN</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.langButton, languageMode === "ar" && styles.langButtonActive]}
-              onPress={() => setLanguageMode("ar")}
-            >
-              <Text style={[styles.langText, languageMode === "ar" && styles.langTextActive]}>AR</Text>
-            </TouchableOpacity>
-          </View>
           <Text style={styles.metaHeaderText}>
             {languageMode === "ar"
               ? `العميل: ${currentCustomer.fullName} (${currentCustomer.mobileNumber})`
@@ -2161,6 +2133,27 @@ export default function App() {
           </View>
         </View>
 
+        <View style={styles.settingsCard}>
+          <Text style={styles.sectionTitle}>{languageMode === "ar" ? "الإعدادات" : "Settings"}</Text>
+          <Text style={styles.settingsBreadcrumb}>
+            {languageMode === "ar" ? "الحساب > الملف الشخصي > اللغة" : "Account > Profile > Language"}
+          </Text>
+          <View style={styles.settingsLangRow}>
+            <TouchableOpacity
+              style={[styles.settingsLangButton, languageMode === "en" && styles.settingsLangButtonActive]}
+              onPress={() => setLanguageMode("en")}
+            >
+              <Text style={[styles.settingsLangText, languageMode === "en" && styles.settingsLangTextActive]}>English</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.settingsLangButton, languageMode === "ar" && styles.settingsLangButtonActive]}
+              onPress={() => setLanguageMode("ar")}
+            >
+              <Text style={[styles.settingsLangText, languageMode === "ar" && styles.settingsLangTextActive]}>العربية</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.listCard}>
           <View style={styles.listHeader}>
             <Text style={styles.sectionTitle}>{hasSearched ? "All Prices" : "Latest Prices"}</Text>
@@ -2346,28 +2339,42 @@ const styles = StyleSheet.create({
     marginTop: Brand.spacing.xs,
     fontSize: 14,
   },
-  langSwitchRow: {
-    flexDirection: "row",
+  settingsCard: {
+    marginHorizontal: Brand.spacing.md,
     marginTop: 12,
+    backgroundColor: Brand.colors.card,
+    borderRadius: Brand.radius.md,
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    padding: 14,
+  },
+  settingsBreadcrumb: {
+    color: Brand.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  settingsLangRow: {
+    flexDirection: "row",
     gap: 8,
   },
-  langButton: {
+  settingsLangButton: {
     borderWidth: 1,
-    borderColor: "#ffffff66",
+    borderColor: Brand.colors.border,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: "#fff",
   },
-  langButtonActive: {
-    backgroundColor: "#ffffff",
-    borderColor: "#ffffff",
+  settingsLangButtonActive: {
+    backgroundColor: "#FDF2F8",
+    borderColor: Brand.colors.primary,
   },
-  langText: {
-    color: "#ffffff",
+  settingsLangText: {
+    color: Brand.colors.textSecondary,
     fontWeight: "700",
     fontSize: 12,
   },
-  langTextActive: {
+  settingsLangTextActive: {
     color: Brand.colors.primaryDark,
   },
   filterCard: {
