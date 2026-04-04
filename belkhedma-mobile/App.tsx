@@ -74,6 +74,21 @@ function extractNumbersByRegex(value: string, regex: RegExp): number[] {
     .filter((n) => Number.isFinite(n) && n > 0);
 }
 
+function buildLogoCandidates(provider?: Provider): string[] {
+  if (!provider) return [];
+
+  const candidates = new Set<string>();
+  if (provider.logoUrl) {
+    candidates.add(provider.logoUrl);
+  }
+
+  if (provider.code === "enaya") {
+    candidates.add("https://logo.clearbit.com/enaya.sa");
+  }
+
+  return Array.from(candidates);
+}
+
 export default function App() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [serviceOffers, setServiceOffers] = useState<ServiceOffer[]>([]);
@@ -96,6 +111,7 @@ export default function App() {
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [logoFallbackIndex, setLogoFallbackIndex] = useState<Record<string, number>>({});
 
   useEffect(() => {
     void loadData();
@@ -225,6 +241,14 @@ export default function App() {
       return haystack.includes(q);
     });
   }, [prices, providerById, searchText, selectedProvider, selectedSubServiceId]);
+
+  const wegoStyleRows = useMemo(() => {
+    return searchedPrices.map((price) => ({
+      price,
+      provider: providerById[price.providerId],
+      offer: offerById[price.serviceOfferId],
+    }));
+  }, [offerById, providerById, searchedPrices]);
 
   const loadData = async () => {
     try {
@@ -631,9 +655,10 @@ export default function App() {
               </Text>
             </View>
           ) : (
-            searchedPrices.map((price) => {
-              const provider = providerById[price.providerId];
-              const offer = offerById[price.serviceOfferId];
+            wegoStyleRows.map(({ price, provider, offer }) => {
+              const logoCandidates = buildLogoCandidates(provider);
+              const logoIndex = provider?.id ? logoFallbackIndex[provider.id] ?? 0 : 0;
+              const logoUri = logoCandidates[logoIndex];
               return (
                 <View style={styles.priceCard} key={price.id}>
                   <View style={styles.packageProviderRow}>
@@ -644,27 +669,57 @@ export default function App() {
                       {provider ? (languageMode === "ar" ? provider.nameAr : provider.nameEn) : "Provider"}
                     </Text>
                   </View>
-                  <View style={styles.providerRow}>
-                    {provider?.logoUrl ? (
-                      <Image source={{ uri: provider.logoUrl }} style={styles.providerLogo} />
+                  <View style={styles.wegoRow}>
+                    <View style={styles.providerRow}>
+                      {logoUri ? (
+                        <Image
+                          source={{ uri: logoUri }}
+                          style={styles.providerLogo}
+                          onError={() => {
+                            if (!provider || logoCandidates.length <= 1) return;
+                            setLogoFallbackIndex((prev) => {
+                              const current = prev[provider.id] ?? 0;
+                              if (current >= logoCandidates.length - 1) {
+                                return prev;
+                              }
+
+                              return {
+                                ...prev,
+                                [provider.id]: current + 1,
+                              };
+                            });
+                          }}
+                        />
+                      ) : (
+                        <View style={styles.providerLogoPlaceholder}>
+                          <Text style={styles.providerLogoPlaceholderText}>
+                            {(provider?.nameEn ?? "P").substring(0, 1).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.providerMetaCol}>
+                        <Text style={styles.providerName}>{provider ? (languageMode === "ar" ? provider.nameAr : provider.nameEn) : "Unknown Provider"}</Text>
+                        {provider?.tinyUrl ? <Text style={styles.providerTinyUrl}>{provider.tinyUrl}</Text> : null}
+                      </View>
+                    </View>
+                    <Text style={styles.wegoPrice}>{price.finalPriceSar} SAR</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.meta}>Source: {price.sourceType === 1 ? "API" : "Scraper"}</Text>
+                    {price.originalPriceSar ? (
+                      <Text style={styles.originalPrice}>Was {price.originalPriceSar} SAR</Text>
                     ) : (
+                      <Text style={styles.meta}>Direct fare</Text>
+                    )}
+                  </View>
+                  {!logoUri ? (
+                    <View style={styles.providerRow}>
                       <View style={styles.providerLogoPlaceholder}>
                         <Text style={styles.providerLogoPlaceholderText}>
                           {(provider?.nameEn ?? "P").substring(0, 1).toUpperCase()}
                         </Text>
                       </View>
-                    )}
-                    <View style={styles.providerMetaCol}>
-                      <Text style={styles.providerName}>{provider ? (languageMode === "ar" ? provider.nameAr : provider.nameEn) : "Unknown Provider"}</Text>
-                      {provider?.tinyUrl ? <Text style={styles.providerTinyUrl}>{provider.tinyUrl}</Text> : null}
                     </View>
-                  </View>
-                  <View style={styles.row}>
-                    <Text style={styles.finalPrice}>{price.finalPriceSar} SAR</Text>
-                    <Text style={styles.meta}>Source: {price.sourceType === 1 ? "API" : "Scraper"}</Text>
-                  </View>
-                  {price.originalPriceSar ? (
-                    <Text style={styles.originalPrice}>Before discount: {price.originalPriceSar} SAR</Text>
                   ) : null}
                   <Text style={styles.meta}>Updated: {new Date(price.collectedAtUtc).toLocaleString()}</Text>
                   <Text style={styles.meta}>Expires: {new Date(price.expiresAtUtc).toLocaleString()}</Text>
@@ -930,6 +985,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  wegoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   providerMetaCol: {
     flex: 1,
   },
@@ -983,6 +1044,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   finalPrice: { color: Brand.colors.primaryDark, fontWeight: "800", fontSize: 18 },
+  wegoPrice: { color: Brand.colors.primaryDark, fontWeight: "900", fontSize: 22 },
   originalPrice: {
     color: Brand.colors.textSecondary,
     fontSize: 12,
