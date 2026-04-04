@@ -5,14 +5,15 @@ These screenshots were captured in a browser using an iPhone viewport profile.
 ## Scenario
 
 - Test date: 2026-04-04
-- Cycle alignment: Service -> Location -> Packages -> Results
+- Main-screen UX alignment: Service Group first (rich cards), then Service list
+- Current cycle: Service Group -> Service -> Location -> Featured Packages -> Results
 - Group: Hourly Cleaning
 - Service: Hourly Cleaning 4 Hours
 - Date: 2026-04-06
 - Location: demo-customer saved location
 - API base URL used by Expo web: `http://127.0.0.1:5276`
-- Web app URL: `http://127.0.0.1:8086`
-- Wizard label correction verified: step 1 is now **Service** (Service Group + Service), and step 2 is **Provider** (optional).
+- Web app URL: `http://127.0.0.1:8089`
+- UX enhancement verified: step 1 now renders Enaya-style rich Service Group cards (title + description + visual icon), then step 2 shows Service choices.
 - Final action in current UI: `Refresh` on Results step (provider filter is optional inside results)
 - Logo verification: provider cards now always render a visible logo image via multi-source fallback (`logoUrl` -> known domain clearbit -> host-derived clearbit -> ui-avatars -> inline SVG data URI).
 

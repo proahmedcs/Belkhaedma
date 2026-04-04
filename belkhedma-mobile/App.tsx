@@ -32,7 +32,7 @@ import {
 
 type LanguageMode = "ar" | "en";
 type ServiceGroup = "hourly-cleaning" | "monthly" | "medical-services" | "mediation-services";
-type WizardStep = 0 | 1 | 2 | 3;
+type WizardStep = 0 | 1 | 2 | 3 | 4;
 type JsonDrivenOptions = {
   shifts: string[];
   nationalityGroups: string[];
@@ -273,6 +273,27 @@ function buildLogoCandidates(provider?: Provider): string[] {
   candidates.add(buildInlineLogoDataUri(provider));
 
   return Array.from(candidates);
+}
+
+function getServiceGroupDescription(group: ServiceGroup, languageMode: LanguageMode): string {
+  if (languageMode === "ar") {
+    if (group === "hourly-cleaning") return "خدمة عاملة منزلية محترفة بنظام الساعة";
+    if (group === "monthly") return "باقات شهرية للإقامة الكاملة أو الزيارات المنتظمة";
+    if (group === "medical-services") return "خدمات طبية وتمريض منزلي باحترافية";
+    return "خدمات الوساطة والاستقدام حسب متطلباتك";
+  }
+
+  if (group === "hourly-cleaning") return "Professional hourly home cleaning services.";
+  if (group === "monthly") return "Monthly packages for full stay or recurring visits.";
+  if (group === "medical-services") return "Home medical and nursing services.";
+  return "Mediation and recruitment services for your needs.";
+}
+
+function getServiceGroupIcon(group: ServiceGroup): string {
+  if (group === "hourly-cleaning") return "🕒";
+  if (group === "monthly") return "📅";
+  if (group === "medical-services") return "🩺";
+  return "🤝";
 }
 
 export default function App() {
@@ -734,24 +755,40 @@ export default function App() {
 
           {wizardStep === 0 ? (
             <>
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مجموعة الخدمة" : "Service Group"}</Text>
-              <FlatList
-                horizontal
-                data={availableGroups}
-                keyExtractor={(item) => item}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedGroup === item;
+              <Text style={styles.subSectionTitle}>
+                {languageMode === "ar" ? "اختر مجموعة الخدمة المطلوبة" : "Choose required service group"}
+              </Text>
+              <View style={styles.homeGroupsGrid}>
+                {availableGroups.map((group) => {
+                  const active = selectedGroup === group;
                   return (
-                    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setSelectedGroup(item)}>
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{groupLabel(item)}</Text>
+                    <TouchableOpacity
+                      key={group}
+                      style={[styles.homeGroupCard, active && styles.homeGroupCardActive]}
+                      onPress={() => setSelectedGroup(group)}
+                    >
+                      <View style={styles.homeGroupIconWrap}>
+                        <Text style={styles.homeGroupIcon}>{getServiceGroupIcon(group)}</Text>
+                      </View>
+                      <View style={styles.homeGroupTextWrap}>
+                        <Text style={[styles.homeGroupTitle, active && styles.homeGroupTitleActive]}>
+                          {groupLabel(group)}
+                        </Text>
+                        <Text style={[styles.homeGroupDescription, active && styles.homeGroupDescriptionActive]}>
+                          {getServiceGroupDescription(group, languageMode)}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
-                }}
-                ListEmptyComponent={<Text style={styles.meta}>No service groups available.</Text>}
-              />
+                })}
+              </View>
+              {availableGroups.length === 0 ? <Text style={styles.meta}>No service groups available.</Text> : null}
+            </>
+          ) : null}
 
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الخدمة" : "Service"}</Text>
+          {wizardStep === 1 ? (
+            <>
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اختر الخدمة" : "Choose Service"}</Text>
               <FlatList
                 horizontal
                 data={groupFilteredOffers}
@@ -775,7 +812,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 1 ? (
+          {wizardStep === 2 ? (
             <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مرجع العميل" : "Customer Reference"}</Text>
               <View style={styles.rowControls}>
@@ -839,7 +876,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 2 ? (
+          {wizardStep === 3 ? (
             <>
               {selectedGroup === "hourly-cleaning" ? (
                 <>
@@ -1458,6 +1495,64 @@ const styles = StyleSheet.create({
     color: Brand.colors.textSecondary,
     fontSize: 12,
     marginBottom: 2,
+  },
+  homeGroupsGrid: {
+    gap: 10,
+    marginBottom: 8,
+  },
+  homeGroupCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  homeGroupCardActive: {
+    backgroundColor: "#8F1121",
+    borderColor: "#8F1121",
+  },
+  homeGroupIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ffffff22",
+    borderWidth: 1,
+    borderColor: "#ffffff55",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  homeGroupIcon: {
+    fontSize: 22,
+  },
+  homeGroupTextWrap: {
+    flex: 1,
+  },
+  homeGroupTitle: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "800",
+    fontSize: 18,
+  },
+  homeGroupTitleActive: {
+    color: "#fff",
+  },
+  homeGroupDescription: {
+    color: Brand.colors.textSecondary,
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 18,
+  },
+  homeGroupDescriptionActive: {
+    color: "#FDE8EE",
   },
   searchButton: {
     backgroundColor: Brand.colors.primaryDark,
