@@ -4,6 +4,7 @@ using Belkhedma.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Belkhedma.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(BelkhedmaDbContext))]
-    partial class BelkhedmaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260404090128_AddProviderConfigurationFields")]
+    partial class AddProviderConfigurationFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -68,9 +71,6 @@ namespace Belkhedma.Infrastructure.Persistence.Migrations
                         .HasMaxLength(8)
                         .HasColumnType("nvarchar(8)");
 
-                    b.Property<DateTime>("ExpiresAtUtc")
-                        .HasColumnType("datetime2");
-
                     b.Property<decimal>("FinalPriceSar")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -98,8 +98,6 @@ namespace Belkhedma.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExpiresAtUtc");
-
                     b.HasIndex("ProviderId", "CollectedAtUtc");
 
                     b.ToTable("PriceSnapshots");
@@ -112,10 +110,6 @@ namespace Belkhedma.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ApiBaseUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("AppUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -143,20 +137,11 @@ namespace Belkhedma.Infrastructure.Persistence.Migrations
                     b.Property<bool>("HasApiAccess")
                         .HasColumnType("bit");
 
-                    b.Property<string>("IntegrationModeKey")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
                     b.Property<int>("IntegrationWays")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
-
-                    b.Property<string>("LogoUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("NameAr")
                         .IsRequired()
@@ -168,10 +153,6 @@ namespace Belkhedma.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("OperationsEmail")
                         .HasMaxLength(320)
                         .HasColumnType("nvarchar(320)");
@@ -182,11 +163,6 @@ namespace Belkhedma.Infrastructure.Persistence.Migrations
                     b.Property<int>("PricingExpirationHours")
                         .HasColumnType("int");
 
-                    b.Property<string>("ProviderType")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<bool>("RequirePaymentBeforeSubmission")
                         .HasColumnType("bit");
 
@@ -196,22 +172,6 @@ namespace Belkhedma.Infrastructure.Persistence.Migrations
                     b.Property<string>("SettingsJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("SupportsB2B")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("SupportsHourly")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("SupportsMonthly")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("SupportsRecruitment")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("TinyUrl")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -226,49 +186,6 @@ namespace Belkhedma.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Providers");
-                });
-
-            modelBuilder.Entity("Belkhedma.Domain.ProviderJsonDocument", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DocumentKey")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<DateTime>("ExpiresAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("JsonContent")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ProviderCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int?>("ServiceMode")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentKey")
-                        .IsUnique();
-
-                    b.HasIndex("ExpiresAtUtc");
-
-                    b.ToTable("ProviderJsonDocuments");
                 });
 
             modelBuilder.Entity("Belkhedma.Domain.ServiceOffer", b =>

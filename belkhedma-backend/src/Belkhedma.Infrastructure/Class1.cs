@@ -28,7 +28,36 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         return await dbContext.Providers
             .AsNoTracking()
             .OrderBy(x => x.NameAr)
-            .Select(x => new ProviderDto(x.Id, x.Code, x.NameAr, x.NameEn, x.HasApiAccess, x.IsActive))
+            .Select(x => new ProviderDto(
+                x.Id,
+                x.Code,
+                x.NameAr,
+                x.NameEn,
+                x.ProviderType,
+                x.HasApiAccess,
+                x.SupportsHourly,
+                x.SupportsMonthly,
+                x.SupportsB2B,
+                x.SupportsRecruitment,
+                x.IntegrationModeKey,
+                x.IntegrationWays,
+                x.CommunicationWays,
+                x.ContractMode,
+                x.PaymentCollectionMode,
+                x.RequirePaymentBeforeSubmission,
+                x.ApiBaseUrl,
+                x.WebsiteUrl,
+                x.AppUrl,
+                x.TinyUrl,
+                x.LogoUrl,
+                x.BookingEmail,
+                x.OperationsEmail,
+                x.Notes,
+                x.PricingExpirationHours,
+                x.SessionExpirationHours,
+                x.ContractDraftExpirationHours,
+                x.SettingsJson,
+                x.IsActive))
             .ToListAsync(cancellationToken);
     }
 
@@ -71,6 +100,7 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         return await dbContext.PriceSnapshots
             .AsNoTracking()
             .Where(x => providerIds.Contains(x.ProviderId))
+            .Where(x => x.ExpiresAtUtc > DateTime.UtcNow)
             .OrderByDescending(x => x.CollectedAtUtc)
             .Take(100)
             .Select(x => new PriceSnapshotDto(
@@ -81,7 +111,8 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
                 x.OriginalPriceSar,
                 x.VatAmountSar,
                 x.SourceType,
-                x.CollectedAtUtc))
+                x.CollectedAtUtc,
+                x.ExpiresAtUtc))
             .ToListAsync(cancellationToken);
     }
 }
@@ -137,6 +168,7 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
                 OriginalPriceSar = price + 35,
                 VatAmountSar = Math.Round(price * 0.15m, 2),
                 SourceType = sourceType,
+                ExpiresAtUtc = DateTime.UtcNow.AddHours(provider.PricingExpirationHours),
                 RawPayload = $$"""
                 {
                   "providerCode": "{{provider.Code}}",

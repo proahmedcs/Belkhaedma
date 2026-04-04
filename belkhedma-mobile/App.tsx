@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   FlatList,
   SafeAreaView,
   ScrollView,
@@ -14,10 +15,13 @@ import { getLatestPrices, getProviders } from "./src/services/marketplaceApi";
 import { Brand } from "./src/theme/brand";
 import { PriceSnapshot, Provider } from "./src/types/marketplace";
 
+type LanguageMode = "ar" | "en";
+
 export default function App() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [prices, setPrices] = useState<PriceSnapshot[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,12 +58,14 @@ export default function App() {
     return prices.filter((p) => p.providerId === provider.id);
   }, [prices, providers, selectedProvider]);
 
-  const providerNameById = useMemo(() => {
-    return providers.reduce<Record<string, string>>((acc, provider) => {
-      acc[provider.id] = provider.nameAr || provider.nameEn;
+  const providerById = useMemo(() => {
+    return providers.reduce<Record<string, Provider>>((acc, provider) => {
+      acc[provider.id] = provider;
       return acc;
     }, {});
   }, [providers]);
+
+  const allProvidersLabel = languageMode === "ar" ? "كل المزودين" : "All Providers";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -70,13 +76,30 @@ export default function App() {
           <Text style={styles.subtitle}>
             Unified home-services marketplace for price comparison
           </Text>
+          <View style={styles.langSwitchRow}>
+            <TouchableOpacity
+              style={[styles.langButton, languageMode === "en" && styles.langButtonActive]}
+              onPress={() => setLanguageMode("en")}
+            >
+              <Text style={[styles.langText, languageMode === "en" && styles.langTextActive]}>EN</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.langButton, languageMode === "ar" && styles.langButtonActive]}
+              onPress={() => setLanguageMode("ar")}
+            >
+              <Text style={[styles.langText, languageMode === "ar" && styles.langTextActive]}>AR</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.filterCard}>
           <Text style={styles.sectionTitle}>Provider Filter</Text>
           <FlatList
             horizontal
-            data={[{ code: "", nameAr: "All Providers", id: "", nameEn: "", hasApiAccess: false, isActive: true }, ...providers]}
+            data={[
+              { code: "", nameAr: allProvidersLabel, nameEn: allProvidersLabel, id: "", hasApiAccess: false, isActive: true } as Provider,
+              ...providers,
+            ]}
             keyExtractor={(item) => item.code || "all"}
             showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => {
@@ -92,7 +115,7 @@ export default function App() {
                   }
                 >
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {item.nameAr}
+                    {languageMode === "ar" ? item.nameAr : item.nameEn}
                   </Text>
                 </TouchableOpacity>
               );
@@ -123,15 +146,41 @@ export default function App() {
           ) : (
             visiblePrices.map((price) => (
               <View style={styles.priceCard} key={price.id}>
-                <Text style={styles.providerName}>
-                  {providerNameById[price.providerId] ?? "Unknown Provider"}
-                </Text>
+                <View style={styles.providerRow}>
+                  {providerById[price.providerId]?.logoUrl ? (
+                    <Image
+                      source={{ uri: providerById[price.providerId].logoUrl! }}
+                      style={styles.providerLogo}
+                    />
+                  ) : (
+                    <View style={styles.providerLogoPlaceholder}>
+                      <Text style={styles.providerLogoPlaceholderText}>
+                        {(providerById[price.providerId]?.nameEn ?? "P").substring(0, 1).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.providerMetaCol}>
+                    <Text style={styles.providerName}>
+                      {providerById[price.providerId]
+                        ? (languageMode === "ar"
+                            ? providerById[price.providerId].nameAr
+                            : providerById[price.providerId].nameEn)
+                        : "Unknown Provider"}
+                    </Text>
+                    {providerById[price.providerId]?.providerTinyUrl ? (
+                      <Text style={styles.providerTinyUrl}>{providerById[price.providerId].providerTinyUrl}</Text>
+                    ) : null}
+                  </View>
+                </View>
                 <View style={styles.row}>
                   <Text style={styles.finalPrice}>{price.finalPriceSar} SAR</Text>
                   <Text style={styles.meta}>
                     Source: {price.sourceType === 1 ? "API" : "Scraper"}
                   </Text>
                 </View>
+                {price.originalPriceSar ? (
+                  <Text style={styles.originalPrice}>Before discount: {price.originalPriceSar} SAR</Text>
+                ) : null}
                 <Text style={styles.meta}>
                   Updated: {new Date(price.collectedAtUtc).toLocaleString()}
                 </Text>
@@ -162,6 +211,30 @@ const styles = StyleSheet.create({
     color: "#FCE7F3",
     marginTop: Brand.spacing.xs,
     fontSize: 14,
+  },
+  langSwitchRow: {
+    flexDirection: "row",
+    marginTop: 12,
+    gap: 8,
+  },
+  langButton: {
+    borderWidth: 1,
+    borderColor: "#ffffff66",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  langButtonActive: {
+    backgroundColor: "#ffffff",
+    borderColor: "#ffffff",
+  },
+  langText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  langTextActive: {
+    color: Brand.colors.primaryDark,
   },
   filterCard: {
     marginHorizontal: Brand.spacing.md,
@@ -226,7 +299,38 @@ const styles = StyleSheet.create({
     marginTop: 10,
     backgroundColor: "#fff",
   },
+  providerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  providerMetaCol: {
+    flex: 1,
+  },
+  providerLogo: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    backgroundColor: "#fff",
+  },
+  providerLogoPlaceholder: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Brand.colors.primaryLight,
+  },
+  providerLogoPlaceholderText: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "800",
+  },
   providerName: { color: Brand.colors.textPrimary, fontWeight: "700", fontSize: 15 },
+  providerTinyUrl: { color: Brand.colors.textSecondary, fontSize: 11, marginTop: 2 },
   row: {
     marginTop: 8,
     marginBottom: 4,
@@ -235,5 +339,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   finalPrice: { color: Brand.colors.primaryDark, fontWeight: "800", fontSize: 18 },
+  originalPrice: {
+    color: Brand.colors.textSecondary,
+    fontSize: 12,
+    textDecorationLine: "line-through",
+    marginBottom: 4,
+  },
   meta: { color: Brand.colors.textSecondary, fontSize: 12 },
 });

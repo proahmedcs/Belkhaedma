@@ -1,0 +1,495 @@
+{
+  "provider": "emdad",
+  "product_family": "fawran_monthly_like_offer",
+  "evidence_status": {
+    "public_monthly_card_visible": false,
+    "monthly_keyword_checked": "شهر",
+    "monthly_keyword_found": false,
+    "best_available_monthly_mapping": {
+      "service_type": 4,
+      "reason": "Public step engine exposes an IndividualOffer-based flow starting with OfferDetails and continuing through address, delivery, employee, contract, template, and payment."
+    }
+  },
+  "source_requests": {
+    "landing_page": {
+      "url": "https://emdadhr.com/#/domestic-services",
+      "observed_visible_cards": [
+        {
+          "name": "Fawran 4 Hours",
+          "classification": "hourly"
+        },
+        {
+          "name": "Fawran 8 Hours",
+          "classification": "hourly"
+        },
+        {
+          "name": "Maintenance Service",
+          "classification": "maintenance"
+        }
+      ]
+    },
+    "service_catalog": {
+      "method": "GET",
+      "url": "https://emdadhr.com:8005/en/api/Service/ServicesForService?serviceType=4",
+      "query": {
+        "serviceType": 4
+      },
+      "response": {
+        "status": 200,
+        "data": [
+          {
+            "id": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+            "name": "Fawran 4 Hours",
+            "description": "Fawran Services (4 Hours)",
+            "iconUrl": null,
+            "serviceBackImageUrl": "https://emdadhr.com:8003/ServiceBakgroundImages/{C97FDB23-4687-EC11-A837-000D3ABE20F8}app photo 1.png",
+            "serviceNote": "This service is for families only",
+            "noteHeader": "This service is provided to families",
+            "isAlert": false,
+            "canDesignPackage": true,
+            "displayShift": true,
+            "showServiceNote": false
+          },
+          {
+            "id": "d4771c7e-b688-ec11-a837-000d3abe20f8",
+            "name": "Fawran 8 Hours",
+            "description": "Fawran Services (8 Hours)",
+            "iconUrl": null,
+            "serviceBackImageUrl": "https://emdadhr.com:8003/ServiceBakgroundImages/{D4771C7E-B688-EC11-A837-000D3ABE20F8}app photo 1.png",
+            "serviceNote": "This service is for families only",
+            "noteHeader": null,
+            "isAlert": false,
+            "canDesignPackage": true,
+            "displayShift": true,
+            "showServiceNote": false
+          },
+          {
+            "id": "02ae1f0f-7ee0-ef11-a877-000d3abe20f8",
+            "name": "Maintenance Service",
+            "description": null,
+            "iconUrl": null,
+            "serviceBackImageUrl": "https://emdadhr.com:8003/ServiceBakgroundImages/{02AE1F0F-7EE0-EF11-A877-000D3ABE20F8}WhatsApp Image 2025-02-04 at 13.24.13_ee3c3357 (1).png",
+            "serviceNote": "Service does not include spare parts. The technician will contact you and set an appointment.",
+            "noteHeader": "Maintenance Service",
+            "isAlert": true,
+            "canDesignPackage": false,
+            "displayShift": false,
+            "showServiceNote": true
+          }
+        ],
+        "code": null,
+        "message": null
+      }
+    },
+    "first_step": {
+      "method": "GET",
+      "url": "https://emdadhr.com:8005/en/api/Steps/FirstStep?serviceType=4",
+      "query": {
+        "serviceType": 4
+      },
+      "response": {
+        "status": 200,
+        "data": {
+          "stepHeaderId": "6eb2df19-1cba-4c94-a53f-04faf0e4ba8d",
+          "stepOrder": 1,
+          "dbResourceName": null,
+          "dbResourceFieldName": "OfferDetails",
+          "isAvailable": true,
+          "isAuthorized": true,
+          "controller": "IndividualOffer",
+          "action": "OfferDetails",
+          "iconClass": null,
+          "previousStepAction": null,
+          "nextStepAction": "SavedAddresses",
+          "stepKeyword": "OfferDetails",
+          "description": "Select Package",
+          "stepType": 2,
+          "isVisible": true,
+          "stepId": "23a9694b-b18b-4be4-a3ca-6799f3810f54"
+        },
+        "code": null,
+        "message": null
+      }
+    },
+    "dynamic_steps": {
+      "method": "GET",
+      "url": "https://emdadhr.com:8005/en/api/Steps/DynamicSteps?serviceType=4",
+      "query": {
+        "serviceType": 4
+      },
+      "response": {
+        "status": 200,
+        "data": [
+          {
+            "stepOrder": 1,
+            "controller": "IndividualOffer",
+            "action": "OfferDetails",
+            "dbResourceFieldName": "OfferDetails",
+            "previousStepAction": null,
+            "nextStepAction": "SavedAddresses",
+            "stepKeyword": "OfferDetails",
+            "description": "Select Package",
+            "stepType": 2,
+            "isVisible": true
+          },
+          {
+            "stepOrder": 2,
+            "controller": "IndividualOffer",
+            "action": "SavedAddresses",
+            "dbResourceFieldName": "SavedAddresses",
+            "previousStepAction": "OfferDetails",
+            "nextStepAction": "AddNewAddress",
+            "stepKeyword": "Address",
+            "description": "Saved Address",
+            "stepType": 2,
+            "isVisible": true
+          },
+          {
+            "stepOrder": 3,
+            "controller": "IndividualOffer",
+            "action": "AddNewAddress",
+            "dbResourceFieldName": "AddNewAddress",
+            "previousStepAction": "SavedAddresses",
+            "nextStepAction": "SetDeliveryMethod",
+            "stepKeyword": "Address",
+            "description": "Add New Address",
+            "stepType": 2,
+            "isVisible": true
+          },
+          {
+            "stepOrder": 4,
+            "controller": "IndividualOffer",
+            "action": "SetDeliveryMethod",
+            "dbResourceFieldName": "SetDeliveryMethod",
+            "previousStepAction": "AddNewAddress",
+            "nextStepAction": "SelectPackageNext",
+            "stepKeyword": "SetDeliveryMethod",
+            "description": "Set Delivery Method",
+            "stepType": 2,
+            "isVisible": true
+          },
+          {
+            "stepOrder": 6,
+            "controller": "IndividualContractRequest",
+            "action": "SelectEmployee",
+            "dbResourceFieldName": "SelectEmployee",
+            "previousStepAction": "NUSelectPackageLL",
+            "nextStepAction": "ContractDetails",
+            "stepKeyword": "SelectEmployee",
+            "description": "select employee",
+            "stepType": 2,
+            "isVisible": true
+          },
+          {
+            "stepOrder": 7,
+            "controller": "IndividualContractRequest",
+            "action": "ContractDetails",
+            "dbResourceFieldName": "ContractDetails",
+            "previousStepAction": "NUSelectPackageLL",
+            "nextStepAction": "ValidateBeforCreate",
+            "stepKeyword": "ContractDetails",
+            "description": "contract details",
+            "stepType": 2,
+            "isVisible": true
+          },
+          {
+            "stepOrder": 8,
+            "controller": "IndividualContractRequest",
+            "action": "CreateContract",
+            "dbResourceFieldName": "CreateContract",
+            "previousStepAction": "ValidateBeforCreate",
+            "nextStepAction": "ContractTemplate",
+            "stepKeyword": "CreateContract",
+            "description": "Create Contract",
+            "stepType": 3,
+            "isVisible": true
+          },
+          {
+            "stepOrder": 9,
+            "controller": "IndividualContractRequest",
+            "action": "ContractTemplate",
+            "dbResourceFieldName": "ContractTemplate",
+            "previousStepAction": "CreateContract",
+            "nextStepAction": "ShopperResult",
+            "stepKeyword": "ContractTemplate",
+            "description": "contract template ",
+            "stepType": 2,
+            "isVisible": true
+          },
+          {
+            "stepOrder": 9,
+            "controller": "Payment",
+            "action": "ShopperResult",
+            "dbResourceFieldName": "Payment",
+            "previousStepAction": "CreateContract",
+            "nextStepAction": "",
+            "stepKeyword": "IndividualRequestSuccess",
+            "description": "contract details",
+            "stepType": 2,
+            "isVisible": true
+          }
+        ]
+      }
+    }
+  },
+  "page_models": [
+    {
+      "page_key": "offer_details",
+      "page_title": "Select Package",
+      "provider_controller": "IndividualOffer",
+      "provider_action": "OfferDetails",
+      "service_type": 4,
+      "selection_model": {
+        "selected_service_id": null,
+        "selected_offer_id": null
+      },
+      "available_services": [
+        {
+          "service_id": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+          "name": "Fawran 4 Hours",
+          "can_design_package": true,
+          "display_shift": true,
+          "service_note": "This service is for families only"
+        },
+        {
+          "service_id": "d4771c7e-b688-ec11-a837-000d3abe20f8",
+          "name": "Fawran 8 Hours",
+          "can_design_package": true,
+          "display_shift": true,
+          "service_note": "This service is for families only"
+        },
+        {
+          "service_id": "02ae1f0f-7ee0-ef11-a877-000d3abe20f8",
+          "name": "Maintenance Service",
+          "can_design_package": false,
+          "display_shift": false,
+          "service_note": "Service does not include spare parts. The technician will contact you and set an appointment."
+        }
+      ],
+      "next_page": "saved_addresses"
+    },
+    {
+      "page_key": "saved_addresses",
+      "page_title": "Saved Address",
+      "provider_controller": "IndividualOffer",
+      "provider_action": "SavedAddresses",
+      "selection_model": {
+        "selected_address_id": null
+      },
+      "addresses": [
+        {
+          "address_id": "sample_saved_address_1",
+          "label": "Home",
+          "city": "Riyadh",
+          "district": "Al Qadisiyah",
+          "building_type": "Apartment",
+          "is_default": true
+        }
+      ],
+      "allow_add_new_address": true,
+      "next_page": "add_new_address"
+    },
+    {
+      "page_key": "add_new_address",
+      "page_title": "Add New Address",
+      "provider_controller": "IndividualOffer",
+      "provider_action": "AddNewAddress",
+      "form_model": {
+        "city": null,
+        "district": null,
+        "street": null,
+        "building_no": null,
+        "unit_no": null,
+        "latitude": null,
+        "longitude": null,
+        "notes": null,
+        "save_as_default": true
+      },
+      "next_page": "set_delivery_method"
+    },
+    {
+      "page_key": "set_delivery_method",
+      "page_title": "Set Delivery Method",
+      "provider_controller": "IndividualOffer",
+      "provider_action": "SetDeliveryMethod",
+      "available_methods": [
+        {
+          "method_code": "branch_delivery",
+          "label": "Branch Delivery"
+        },
+        {
+          "method_code": "home_delivery",
+          "label": "Home Delivery"
+        }
+      ],
+      "selection_model": {
+        "selected_method_code": null,
+        "delivery_date": null,
+        "delivery_time_slot": null
+      },
+      "next_page": "select_employee"
+    },
+    {
+      "page_key": "select_employee",
+      "page_title": "Select Employee",
+      "provider_controller": "IndividualContractRequest",
+      "provider_action": "SelectEmployee",
+      "selection_model": {
+        "selected_employee_id": null
+      },
+      "employee_options": [
+        {
+          "employee_id": "sample_employee_1",
+          "nationality": null,
+          "profession": null,
+          "language": null,
+          "experience_years": null,
+          "rating": null,
+          "availability_status": "available"
+        }
+      ],
+      "next_page": "contract_details"
+    },
+    {
+      "page_key": "contract_details",
+      "page_title": "Contract Details",
+      "provider_controller": "IndividualContractRequest",
+      "provider_action": "ContractDetails",
+      "contract_summary": {
+        "service_type": 4,
+        "service_id": null,
+        "address_id": null,
+        "delivery_method": null,
+        "employee_id": null,
+        "contract_duration_months": null,
+        "start_date": null,
+        "notes": null
+      },
+      "pricing": {
+        "base_price": null,
+        "delivery_fee": null,
+        "vat": null,
+        "discount": null,
+        "total": null,
+        "currency": "SAR"
+      },
+      "next_page": "create_contract"
+    },
+    {
+      "page_key": "create_contract",
+      "page_title": "Create Contract",
+      "provider_controller": "IndividualContractRequest",
+      "provider_action": "CreateContract",
+      "submit_payload": {
+        "service_type": 4,
+        "service_id": null,
+        "offer_id": null,
+        "address_id": null,
+        "delivery_method": null,
+        "employee_id": null,
+        "contract_duration_months": null,
+        "start_date": null,
+        "customer_notes": null,
+        "pricing": {
+          "base_price": null,
+          "delivery_fee": null,
+          "vat": null,
+          "discount": null,
+          "total": null,
+          "currency": "SAR"
+        }
+      },
+      "expected_result": {
+        "contract_id": null,
+        "contract_number": null,
+        "status": "created"
+      },
+      "next_page": "contract_template"
+    },
+    {
+      "page_key": "contract_template",
+      "page_title": "Contract Template",
+      "provider_controller": "IndividualContractRequest",
+      "provider_action": "ContractTemplate",
+      "document": {
+        "contract_id": null,
+        "contract_number": null,
+        "template_url": null,
+        "language": "en"
+      },
+      "approval": {
+        "accepted_terms": false,
+        "accepted_signature": false
+      },
+      "next_page": "payment_result"
+    },
+    {
+      "page_key": "payment_result",
+      "page_title": "Payment Result",
+      "provider_controller": "Payment",
+      "provider_action": "ShopperResult",
+      "result": {
+        "contract_id": null,
+        "payment_status": null,
+        "payment_reference": null,
+        "amount_paid": null,
+        "currency": "SAR",
+        "success_message": null
+      },
+      "journey_status": "completed"
+    }
+  ],
+  "orchestrator_model": {
+    "provider": "emdad",
+    "provider_product_family": "fawran_monthly_like_offer",
+    "provider_service_type": 4,
+    "journey_mode": "orchestrated",
+    "state": {
+      "selected_service_id": null,
+      "selected_offer_id": null,
+      "selected_address_id": null,
+      "new_address": null,
+      "selected_delivery_method": null,
+      "selected_employee_id": null,
+      "contract_details": {
+        "contract_duration_months": null,
+        "start_date": null,
+        "customer_notes": null
+      },
+      "pricing": {
+        "base_price": null,
+        "fees": [],
+        "vat": null,
+        "discounts": [],
+        "total": null,
+        "currency": "SAR"
+      }
+    },
+    "provider_submission": {
+      "controller_family": "IndividualContractRequest",
+      "terminal_action": "CreateContract"
+    }
+  },
+  "references": [
+    {
+      "id": 1,
+      "title": "Emdad domestic services page",
+      "url": "https://emdadhr.com/#/domestic-services"
+    },
+    {
+      "id": 2,
+      "title": "Emdad service catalog for service type 4",
+      "url": "https://emdadhr.com:8005/en/api/Service/ServicesForService?serviceType=4"
+    },
+    {
+      "id": 3,
+      "title": "Emdad first-step endpoint for service type 4",
+      "url": "https://emdadhr.com:8005/en/api/Steps/FirstStep?serviceType=4"
+    },
+    {
+      "id": 4,
+      "title": "Emdad dynamic-steps endpoint for service type 4",
+      "url": "https://emdadhr.com:8005/en/api/Steps/DynamicSteps?serviceType=4"
+    }
+  ]
+}

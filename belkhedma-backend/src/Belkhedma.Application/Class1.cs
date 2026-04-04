@@ -7,7 +7,30 @@ public sealed record ProviderDto(
     string Code,
     string NameAr,
     string NameEn,
+    string ProviderType,
     bool HasApiAccess,
+    bool SupportsHourly,
+    bool SupportsMonthly,
+    bool SupportsB2B,
+    bool SupportsRecruitment,
+    string IntegrationModeKey,
+    ProviderIntegrationWays IntegrationWays,
+    ProviderCommunicationWays CommunicationWays,
+    ProviderContractMode ContractMode,
+    PaymentCollectionMode PaymentCollectionMode,
+    bool RequirePaymentBeforeSubmission,
+    string? ApiBaseUrl,
+    string? WebsiteUrl,
+    string? AppUrl,
+    string? TinyUrl,
+    string? LogoUrl,
+    string? BookingEmail,
+    string? OperationsEmail,
+    string Notes,
+    int PricingExpirationHours,
+    int SessionExpirationHours,
+    int ContractDraftExpirationHours,
+    string SettingsJson,
     bool IsActive);
 
 public sealed record ServiceOfferDto(
@@ -28,7 +51,8 @@ public sealed record PriceSnapshotDto(
     decimal? OriginalPriceSar,
     decimal? VatAmountSar,
     DataSourceType SourceType,
-    DateTime CollectedAtUtc);
+    DateTime CollectedAtUtc,
+    DateTime ExpiresAtUtc);
 
 public interface IMarketplaceQueryService
 {

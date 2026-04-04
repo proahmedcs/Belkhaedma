@@ -3,7 +3,18 @@ export type Provider = {
   code: string;
   nameAr: string;
   nameEn: string;
+  providerType: string;
   hasApiAccess: boolean;
+  supportsHourly: boolean;
+  supportsMonthly: boolean;
+  supportsB2B: boolean;
+  supportsRecruitment: boolean;
+  integrationModeKey: string;
+  websiteUrl?: string | null;
+  providerAppUrl?: string | null;
+  providerTinyUrl?: string | null;
+  logoUrl?: string | null;
+  notes?: string;
   isActive: boolean;
 };
 
@@ -16,4 +27,5 @@ export type PriceSnapshot = {
   vatAmountSar?: number | null;
   sourceType: number;
   collectedAtUtc: string;
+  expiresAtUtc: string;
 };
