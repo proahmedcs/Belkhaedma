@@ -50,6 +50,11 @@ type JsonDrivenOptions = {
   weeklyVisits: number[];
   deliveryWindows: string[];
 };
+type ServiceDateOption = {
+  value: string;
+  weekdayLabel: string;
+  dateLabel: string;
+};
 
 const AUTH_SESSION_STORAGE_KEY = "belkhedma.auth.session.v1";
 
@@ -328,6 +333,10 @@ function buildLogoCandidates(provider?: Provider): string[] {
 
   for (const host of derivedHosts) {
     candidates.add(`https://logo.clearbit.com/${host}`);
+    candidates.add(`https://${host}/favicon.ico`);
+    candidates.add(`https://${host}/favicon.png`);
+    candidates.add(`https://www.google.com/s2/favicons?domain=${host}&sz=128`);
+    candidates.add(`https://icons.duckduckgo.com/ip3/${host}.ico`);
   }
 
   // Extra provider-code fallback when backend does not provide URLs.
@@ -491,6 +500,23 @@ export default function App() {
     return Array.from(values).sort((a, b) => a - b);
   }, [groupFilteredOffers]);
 
+  const serviceDateOptions = useMemo<ServiceDateOption[]>(() => {
+    const baseDate = new Date();
+    baseDate.setHours(0, 0, 0, 0);
+
+    return Array.from({ length: 21 }, (_, index) => {
+      const date = new Date(baseDate);
+      date.setDate(baseDate.getDate() + index);
+      const value = date.toISOString().slice(0, 10);
+      const weekdayLabel = date.toLocaleDateString(languageMode === "ar" ? "ar-SA" : "en-US", { weekday: "short" });
+      const dateLabel = date.toLocaleDateString(languageMode === "ar" ? "ar-SA" : "en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      return { value, weekdayLabel, dateLabel };
+    });
+  }, [languageMode]);
+
   const jsonDrivenOptions = useMemo(() => {
     const scopedDocs = jsonDocuments.filter((doc) => {
       if (selectedProvider && doc.providerCode && doc.providerCode !== selectedProvider) {
@@ -627,10 +653,28 @@ export default function App() {
     }
   }, [deliveryWindowOptions, selectedDeliveryWindow]);
 
+  useEffect(() => {
+    if (!serviceDate && serviceDateOptions.length > 0) {
+      setServiceDate(serviceDateOptions[0].value);
+    }
+  }, [serviceDate, serviceDateOptions]);
+
   const selectedLocation = useMemo(
     () => savedLocations.find((x) => x.id === selectedLocationId) ?? null,
     [savedLocations, selectedLocationId]
   );
+
+  const groupComparisonOfferIds = useMemo(() => {
+    if (!selectedGroup) {
+      return null;
+    }
+
+    return new Set(
+      serviceOffers
+        .filter((offer) => inferServiceGroup(offer, providerById[offer.providerId]) === selectedGroup)
+        .map((offer) => offer.id)
+    );
+  }, [providerById, selectedGroup, serviceOffers]);
 
   const searchedPrices = useMemo(() => {
     const q = searchText.trim().toLowerCase();
@@ -639,7 +683,7 @@ export default function App() {
       if (!provider) return false;
 
       if (selectedProvider && provider.code !== selectedProvider) return false;
-      if (selectedSubServiceId && price.serviceOfferId !== selectedSubServiceId) return false;
+      if (groupComparisonOfferIds && !groupComparisonOfferIds.has(price.serviceOfferId)) return false;
 
       if (!q) return true;
       const haystack = [provider.nameAr, provider.nameEn, provider.code, provider.providerType]
@@ -648,15 +692,89 @@ export default function App() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [prices, providerById, searchText, selectedProvider, selectedSubServiceId]);
+  }, [groupComparisonOfferIds, prices, providerById, searchText, selectedProvider]);
+
+  const buildSyntheticProviderPrice = (
+    basePriceSar: number,
+    providerCode: string,
+    providerIndex: number
+  ): number => {
+    const codeSeed = providerCode.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const multiplier = 0.9 + ((codeSeed + providerIndex * 13) % 31) / 100;
+    return Math.round(basePriceSar * multiplier * 100) / 100;
+  };
 
   const wegoStyleRows = useMemo(() => {
-    return searchedPrices.map((price) => ({
+    const realRows = searchedPrices.map((price) => ({
       price,
       provider: providerById[price.providerId],
       offer: offerById[price.serviceOfferId],
     }));
-  }, [offerById, providerById, searchedPrices]);
+
+    const rowsWithProvider = realRows.filter((row) => !!row.provider);
+    const baselineRow = rowsWithProvider.find((row) => row.provider?.code === "enaya") ?? rowsWithProvider[0];
+    const providerIdsInRows = new Set(rowsWithProvider.map((row) => row.provider?.id).filter((id): id is string => !!id));
+
+    const syntheticRows = hasSearched && baselineRow
+      ? filteredProviders
+          .filter((provider) => !providerIdsInRows.has(provider.id))
+          .filter((provider) => {
+            if (!selectedGroup) return true;
+            if (selectedGroup === "hourly-cleaning") return provider.supportsHourly;
+            if (selectedGroup === "monthly") return provider.supportsMonthly;
+            if (selectedGroup === "medical-services") {
+              const normalizedType = normalizeText(provider.providerType);
+              return normalizedType.includes("medical") || normalizedType.includes("طبي");
+            }
+            return provider.supportsRecruitment;
+          })
+          .map((provider, index) => {
+            const providerGroupOffer = groupFilteredOffers.find((offer) => offer.providerId === provider.id);
+            const syntheticFinalPrice = buildSyntheticProviderPrice(
+              baselineRow.price.finalPriceSar,
+              provider.code,
+              index
+            );
+            const syntheticOffer =
+              providerGroupOffer ??
+              ({
+                ...(selectedSubService ?? baselineRow.offer),
+                id: `synthetic-offer-${provider.id}`,
+                providerId: provider.id,
+                updatedAtUtc: new Date().toISOString(),
+              } as ServiceOffer);
+            const now = new Date();
+            const expires = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+            return {
+              provider,
+              offer: syntheticOffer,
+              price: {
+                ...baselineRow.price,
+                id: `synthetic-price-${provider.id}`,
+                providerId: provider.id,
+                serviceOfferId: syntheticOffer.id,
+                sourceType: 2,
+                finalPriceSar: syntheticFinalPrice,
+                originalPriceSar: Math.round(syntheticFinalPrice * 1.15 * 100) / 100,
+                vatAmountSar: Math.round(syntheticFinalPrice * 0.15 * 100) / 100,
+                collectedAtUtc: now.toISOString(),
+                expiresAtUtc: expires.toISOString(),
+              },
+            };
+          })
+      : [];
+
+    return [...rowsWithProvider, ...syntheticRows].sort((a, b) => a.price.finalPriceSar - b.price.finalPriceSar);
+  }, [
+    filteredProviders,
+    groupFilteredOffers,
+    hasSearched,
+    offerById,
+    providerById,
+    searchedPrices,
+    selectedGroup,
+    selectedSubService,
+  ]);
 
   const loadData = async (activeToken: string | null = authToken, activeCustomerReference: string | null = customerReference || currentCustomer?.customerReference || null) => {
     if (!activeToken || !activeCustomerReference) {
@@ -1317,12 +1435,25 @@ export default function App() {
               />
 
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "تاريخ الخدمة" : "Service Date"}</Text>
-              <TextInput
-                placeholder="YYYY-MM-DD"
-                value={serviceDate}
-                onChangeText={setServiceDate}
-                style={styles.searchInput}
-                placeholderTextColor={Brand.colors.textSecondary}
+              <Text style={styles.fieldHint}>{languageMode === "ar" ? "اختر التاريخ من البطاقات" : "Select date from cards"}</Text>
+              <FlatList
+                horizontal
+                data={serviceDateOptions}
+                keyExtractor={(item) => item.value}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = item.value === serviceDate;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.dateCard, active && styles.dateCardActive]}
+                      onPress={() => setServiceDate(item.value)}
+                    >
+                      <Text style={[styles.dateCardWeekday, active && styles.dateCardTextActive]}>{item.weekdayLabel}</Text>
+                      <Text style={[styles.dateCardDay, active && styles.dateCardTextActive]}>{item.dateLabel}</Text>
+                      <Text style={[styles.dateCardIso, active && styles.dateCardTextActive]}>{item.value}</Text>
+                    </TouchableOpacity>
+                  );
+                }}
               />
             </>
           ) : null}
@@ -1459,7 +1590,9 @@ export default function App() {
                     <Text style={styles.wegoPrice}>{effectiveDisplayPriceSar} SAR</Text>
                   </View>
                   <View style={styles.row}>
-                    <Text style={styles.meta}>Source: {price.sourceType === 1 ? "API" : "Scraper"}</Text>
+                    <Text style={styles.meta}>
+                      Source: {price.id.startsWith("synthetic-price-") ? "Enaya copy (demo)" : price.sourceType === 1 ? "API" : "Scraper"}
+                    </Text>
                     {price.originalPriceSar ? (
                       <Text style={styles.originalPrice}>Was {price.originalPriceSar} SAR</Text>
                     ) : (
@@ -1641,6 +1774,40 @@ const styles = StyleSheet.create({
   },
   chipText: { color: Brand.colors.textSecondary, fontWeight: "600" },
   chipTextActive: { color: Brand.colors.primaryDark },
+  dateCard: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    marginBottom: 10,
+    minWidth: 110,
+  },
+  dateCardActive: {
+    borderColor: Brand.colors.primary,
+    backgroundColor: "#FDF2F8",
+  },
+  dateCardWeekday: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  dateCardDay: {
+    color: Brand.colors.textPrimary,
+    fontWeight: "700",
+    fontSize: 13,
+    marginTop: 2,
+  },
+  dateCardIso: {
+    color: Brand.colors.textSecondary,
+    fontSize: 11,
+    marginTop: 4,
+  },
+  dateCardTextActive: {
+    color: Brand.colors.primaryDark,
+  },
   rowControls: {
     flexDirection: "row",
     alignItems: "center",
