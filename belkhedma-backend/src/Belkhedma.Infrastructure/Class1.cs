@@ -126,25 +126,45 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
 
         if (!string.IsNullOrWhiteSpace(providerCode))
         {
-            query = query.Where(x => x.ProviderCode == providerCode);
+            var providerId = await dbContext.Providers
+                .AsNoTracking()
+                .Where(x => x.Code == providerCode)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!providerId.HasValue)
+            {
+                return [];
+            }
+
+            query = query.Where(x => x.ProviderId == providerId.Value);
         }
 
         if (!includeExpired)
         {
-            query = query.Where(x => x.ExpiresAtUtc > DateTime.UtcNow);
+            query = query.Where(x => x.ExpiresAtUtc > DateTime.UtcNow && x.IsActive);
         }
 
         return await query
-            .OrderByDescending(x => x.CreatedAtUtc)
+            .Join(
+                dbContext.Providers.AsNoTracking(),
+                doc => doc.ProviderId,
+                provider => provider.Id,
+                (doc, provider) => new { doc, provider.Code })
+            .OrderByDescending(x => x.doc.CreatedAtUtc)
             .Select(x => new ProviderJsonDocumentDto(
-                x.Id,
-                x.DocumentKey,
-                x.FileName,
-                x.ProviderCode,
-                x.ServiceMode,
-                x.CreatedAtUtc,
-                x.ExpiresAtUtc,
-                x.JsonContent))
+                x.doc.Id,
+                x.doc.ProviderId,
+                x.doc.ServiceOfferId,
+                x.doc.DocumentKey,
+                x.doc.FileName,
+                x.Code,
+                x.doc.ServiceMode,
+                x.doc.JsonAttributes,
+                x.doc.JsonData,
+                x.doc.IsActive,
+                x.doc.CreatedAtUtc,
+                x.doc.ExpiresAtUtc))
             .ToListAsync(cancellationToken);
     }
 
@@ -258,7 +278,17 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         var query = dbContext.ProviderJsonDocuments.AsQueryable();
         if (!string.IsNullOrWhiteSpace(providerCode))
         {
-            query = query.Where(x => x.ProviderCode == providerCode);
+            var providerId = await dbContext.Providers
+                .AsNoTracking()
+                .Where(x => x.Code == providerCode)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (!providerId.HasValue)
+            {
+                return 0;
+            }
+
+            query = query.Where(x => x.ProviderId == providerId.Value);
         }
 
         var docs = await query.ToListAsync(cancellationToken);

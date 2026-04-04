@@ -56,13 +56,21 @@ public sealed record PriceSnapshotDto(
 
 public sealed record ProviderJsonDocumentDto(
     Guid Id,
+    Guid ProviderId,
+    Guid ServiceOfferId,
     string DocumentKey,
     string FileName,
     string? ProviderCode,
     ServiceMode? ServiceMode,
+    string JsonAttributes,
+    string JsonData,
+    bool IsActive,
     DateTime CreatedAtUtc,
-    DateTime ExpiresAtUtc,
-    string JsonContent);
+    DateTime ExpiresAtUtc)
+{
+    // Backward-compatible alias for existing mobile clients.
+    public string JsonContent => JsonData;
+}
 
 public sealed record CustomerSavedLocationDto(
     Guid Id,

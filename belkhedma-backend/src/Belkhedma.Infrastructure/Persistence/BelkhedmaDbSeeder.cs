@@ -1,16 +1,132 @@
 using Belkhedma.Domain;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Belkhedma.Infrastructure.Persistence;
 
 public static class BelkhedmaDbSeeder
 {
+    private sealed record DemoOfferSeed(
+        string ProviderCode,
+        string ProviderServiceId,
+        ServiceMode ServiceMode,
+        string NameAr,
+        string NameEn,
+        decimal FinalPriceSar,
+        decimal? OriginalPriceSar,
+        DataSourceType SourceType);
+
+    private sealed record DemoJsonDocumentSeed(
+        string ProviderCode,
+        ServiceMode ServiceMode,
+        string DocumentSuffix,
+        string SourceFileKey,
+        string[] AttributeFields);
+
     private static readonly Dictionary<string, string> JsonSamples = new()
     {
         ["fawran_public_api_probe"] = "data/provider-json/fawran_public_api_probe.json",
         ["enaya_fawran_real_json_bundle"] = "data/provider-json/enaya_fawran_real_json_bundle.json",
         ["fawran_monthly_real_json_bundle"] = "data/provider-json/fawran_monthly_real_json_bundle.json"
     };
+
+    private static readonly DemoOfferSeed[] DemoOfferSeeds =
+    [
+        new(
+            "enaya",
+            "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4",
+            ServiceMode.Hourly,
+            "عناية - زيارة تنظيف 4 ساعات",
+            "Enaya - Cleaning Visit 4 Hours",
+            75.00m,
+            147.20m,
+            DataSourceType.Api),
+        new(
+            "emdad-hr",
+            "c97fdb23-4687-ec11-a837-000d3abe20f8",
+            ServiceMode.Hourly,
+            "إمداد - فوراً 4 ساعات",
+            "Emdad - Fawran 4 Hours",
+            90.00m,
+            140.00m,
+            DataSourceType.Api),
+        new(
+            "mueen",
+            "mueen-hourly-4h",
+            ServiceMode.Hourly,
+            "معين - تنظيف بالساعة 4 ساعات",
+            "Mueen - Hourly Cleaning 4 Hours",
+            94.00m,
+            129.00m,
+            DataSourceType.Scraper),
+        new(
+            "tamkeen",
+            "tamkeen-monthly-1m",
+            ServiceMode.Monthly,
+            "تمكين - باقة شهرية (شهر)",
+            "Tamkeen - Monthly Package (1 Month)",
+            2790.00m,
+            3150.00m,
+            DataSourceType.Scraper),
+        new(
+            "almutahidah",
+            "almutahidah-monthly-3m",
+            ServiceMode.Monthly,
+            "الشركة المتحدة - باقة شهرية (3 أشهر)",
+            "Almutahidah - Monthly Package (3 Months)",
+            2650.00m,
+            2990.00m,
+            DataSourceType.Api),
+        new(
+            "esad-talents",
+            "esad-talents-monthly-1m",
+            ServiceMode.Monthly,
+            "إسناد - باقة شهرية (شهر)",
+            "Esad - Monthly Package (1 Month)",
+            2390.00m,
+            2710.00m,
+            DataSourceType.Scraper)
+    ];
+
+    private static readonly DemoJsonDocumentSeed[] DemoJsonDocumentSeeds =
+    [
+        new(
+            "enaya",
+            ServiceMode.Hourly,
+            "hourly-package",
+            "enaya_fawran_real_json_bundle",
+            ["visitShiftName", "resourceGroupName", "contractDurationName", "employeeNumber", "hoursNumber", "weeklyVisits", "visitHours", "deliveryWindow"]),
+        new(
+            "emdad-hr",
+            ServiceMode.Hourly,
+            "hourly-package",
+            "fawran_public_api_probe",
+            ["period_tabs", "resourceGroupName", "contractDurationName", "employeeNumber", "hoursNumber", "weeklyVisits"]),
+        new(
+            "mueen",
+            ServiceMode.Hourly,
+            "hourly-package",
+            "fawran_public_api_probe",
+            ["period_tabs", "resourceGroupName", "contractDurationName", "employeeNumber", "hoursNumber", "weeklyVisits"]),
+        new(
+            "tamkeen",
+            ServiceMode.Monthly,
+            "monthly-package",
+            "fawran_monthly_real_json_bundle",
+            ["contract_duration_months", "delivery_method", "employee_id", "contract_details", "payment"]),
+        new(
+            "almutahidah",
+            ServiceMode.Monthly,
+            "monthly-package",
+            "fawran_monthly_real_json_bundle",
+            ["contract_duration_months", "delivery_method", "employee_id", "contract_details", "payment"]),
+        new(
+            "esad-talents",
+            ServiceMode.Monthly,
+            "monthly-package",
+            "fawran_monthly_real_json_bundle",
+            ["contract_duration_months", "delivery_method", "employee_id", "contract_details", "payment"])
+    ];
 
     public static async Task SeedAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken = default)
     {
@@ -268,50 +384,195 @@ public static class BelkhedmaDbSeeder
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        await SeedDemoOffersAndPriceSnapshotsAsync(dbContext, cancellationToken);
         await SeedProviderJsonDocumentsAsync(dbContext, cancellationToken);
         await SeedCustomerSavedLocationsAsync(dbContext, cancellationToken);
     }
 
+    private static async Task SeedDemoOffersAndPriceSnapshotsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var providerByCode = await dbContext.Providers
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.Code, x => x, cancellationToken);
+
+        var offers = await dbContext.ServiceOffers.ToListAsync(cancellationToken);
+
+        foreach (var seed in DemoOfferSeeds)
+        {
+            if (!providerByCode.TryGetValue(seed.ProviderCode, out var provider))
+            {
+                continue;
+            }
+
+            var existingOffer = offers.FirstOrDefault(x =>
+                x.ProviderId == provider.Id &&
+                x.ProviderServiceId == seed.ProviderServiceId);
+
+            if (existingOffer is null)
+            {
+                existingOffer = new ServiceOffer
+                {
+                    ProviderId = provider.Id,
+                    ProviderServiceId = seed.ProviderServiceId,
+                    ServiceMode = seed.ServiceMode,
+                    NameAr = seed.NameAr,
+                    NameEn = seed.NameEn,
+                    IsAvailable = true,
+                    UpdatedAtUtc = now
+                };
+
+                offers.Add(existingOffer);
+                await dbContext.ServiceOffers.AddAsync(existingOffer, cancellationToken);
+                continue;
+            }
+
+            existingOffer.ServiceMode = seed.ServiceMode;
+            existingOffer.NameAr = seed.NameAr;
+            existingOffer.NameEn = seed.NameEn;
+            existingOffer.IsAvailable = true;
+            existingOffer.UpdatedAtUtc = now;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var priceRows = await dbContext.PriceSnapshots.ToListAsync(cancellationToken);
+        foreach (var seed in DemoOfferSeeds)
+        {
+            if (!providerByCode.TryGetValue(seed.ProviderCode, out var provider))
+            {
+                continue;
+            }
+
+            var offer = offers.FirstOrDefault(x =>
+                x.ProviderId == provider.Id &&
+                x.ProviderServiceId == seed.ProviderServiceId);
+
+            if (offer is null)
+            {
+                continue;
+            }
+
+            var priceSeedKey = $"{seed.ProviderCode}:{seed.ProviderServiceId}";
+            var existingPrice = priceRows.FirstOrDefault(x =>
+                x.ProviderId == provider.Id &&
+                x.ServiceOfferId == offer.Id &&
+                x.RawPayload.Contains($"\"priceSeedKey\":\"{priceSeedKey}\"", StringComparison.OrdinalIgnoreCase));
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                priceSeedKey,
+                providerCode = seed.ProviderCode,
+                providerServiceId = seed.ProviderServiceId,
+                serviceMode = seed.ServiceMode.ToString(),
+                source = "demo-seed"
+            });
+
+            if (existingPrice is null)
+            {
+                await dbContext.PriceSnapshots.AddAsync(new PriceSnapshot
+                {
+                    ProviderId = provider.Id,
+                    ServiceOfferId = offer.Id,
+                    FinalPriceSar = seed.FinalPriceSar,
+                    OriginalPriceSar = seed.OriginalPriceSar,
+                    VatAmountSar = Math.Round(seed.FinalPriceSar * 0.15m, 2),
+                    SourceType = seed.SourceType,
+                    RawPayload = payload,
+                    CollectedAtUtc = now,
+                    ExpiresAtUtc = now.AddHours(provider.PricingExpirationHours)
+                }, cancellationToken);
+            }
+            else
+            {
+                existingPrice.FinalPriceSar = seed.FinalPriceSar;
+                existingPrice.OriginalPriceSar = seed.OriginalPriceSar;
+                existingPrice.VatAmountSar = Math.Round(seed.FinalPriceSar * 0.15m, 2);
+                existingPrice.SourceType = seed.SourceType;
+                existingPrice.RawPayload = payload;
+                existingPrice.CollectedAtUtc = now;
+                existingPrice.ExpiresAtUtc = now.AddHours(provider.PricingExpirationHours);
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private static async Task SeedProviderJsonDocumentsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
     {
-        foreach (var (documentKey, filePath) in JsonSamples)
+        var providers = await dbContext.Providers
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.Code, x => x.Id, cancellationToken);
+
+        var offers = await dbContext.ServiceOffers
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        foreach (var seed in DemoJsonDocumentSeeds)
         {
+            if (!providers.TryGetValue(seed.ProviderCode, out var providerId))
+            {
+                continue;
+            }
+
+            var serviceOffer = offers
+                .Where(x => x.ProviderId == providerId && x.ServiceMode == seed.ServiceMode)
+                .OrderByDescending(x => x.UpdatedAtUtc)
+                .FirstOrDefault();
+
+            if (serviceOffer is null)
+            {
+                continue;
+            }
+
+            if (!JsonSamples.TryGetValue(seed.SourceFileKey, out var filePath))
+            {
+                continue;
+            }
+
             var fullPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", filePath));
             if (!File.Exists(fullPath))
             {
                 continue;
             }
 
+            var documentKey = $"{seed.ProviderCode}_{seed.DocumentSuffix}";
             var existing = await dbContext.ProviderJsonDocuments
                 .FirstOrDefaultAsync(x => x.DocumentKey == documentKey, cancellationToken);
 
             var json = await File.ReadAllTextAsync(fullPath, cancellationToken);
             var fileName = Path.GetFileName(fullPath);
-            var mode = documentKey.Contains("monthly", StringComparison.OrdinalIgnoreCase)
-                ? ServiceMode.Monthly
-                : ServiceMode.Hourly;
-            var providerCode = documentKey.Contains("enaya", StringComparison.OrdinalIgnoreCase)
-                ? "enaya"
-                : "emdad-hr";
+            var attributesJson = JsonSerializer.Serialize(new
+            {
+                providerCode = seed.ProviderCode,
+                serviceMode = seed.ServiceMode.ToString(),
+                attributeFields = seed.AttributeFields
+            });
 
             if (existing is null)
             {
                 await dbContext.ProviderJsonDocuments.AddAsync(new ProviderJsonDocument
                 {
+                    ProviderId = providerId,
+                    ServiceOfferId = serviceOffer.Id,
                     DocumentKey = documentKey,
                     FileName = fileName,
-                    ProviderCode = providerCode,
-                    ServiceMode = mode,
-                    JsonContent = json,
+                    ServiceMode = seed.ServiceMode,
+                    JsonAttributes = attributesJson,
+                    JsonData = json,
+                    IsActive = true,
                     ExpiresAtUtc = DateTime.UtcNow.AddMonths(6)
                 }, cancellationToken);
                 continue;
             }
 
+            existing.ProviderId = providerId;
+            existing.ServiceOfferId = serviceOffer.Id;
             existing.FileName = fileName;
-            existing.ProviderCode = providerCode;
-            existing.ServiceMode = mode;
-            existing.JsonContent = json;
+            existing.ServiceMode = seed.ServiceMode;
+            existing.JsonAttributes = attributesJson;
+            existing.JsonData = json;
+            existing.IsActive = true;
             existing.ExpiresAtUtc = DateTime.UtcNow.AddMonths(6);
         }
 

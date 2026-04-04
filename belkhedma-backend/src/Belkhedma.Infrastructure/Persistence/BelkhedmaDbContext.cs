@@ -59,10 +59,11 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.DocumentKey).IsUnique();
+            entity.HasIndex(x => new { x.ProviderId, x.ServiceOfferId, x.IsActive });
             entity.Property(x => x.DocumentKey).HasMaxLength(120).IsRequired();
             entity.Property(x => x.FileName).HasMaxLength(255).IsRequired();
-            entity.Property(x => x.ProviderCode).HasMaxLength(50);
-            entity.Property(x => x.JsonContent).HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(x => x.JsonAttributes).HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(x => x.JsonData).HasColumnType("nvarchar(max)").IsRequired();
             entity.HasIndex(x => x.ExpiresAtUtc);
         });
 

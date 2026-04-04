@@ -119,11 +119,14 @@ public sealed class PriceSnapshot
 public sealed class ProviderJsonDocument
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProviderId { get; set; }
+    public Guid ServiceOfferId { get; set; }
     public string DocumentKey { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;
-    public string? ProviderCode { get; set; }
     public ServiceMode? ServiceMode { get; set; }
-    public string JsonContent { get; set; } = "{}";
+    public string JsonAttributes { get; set; } = "{}";
+    public string JsonData { get; set; } = "{}";
+    public bool IsActive { get; set; } = true;
     public DateTime ExpiresAtUtc { get; set; } = DateTime.UtcNow.AddMonths(6);
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
