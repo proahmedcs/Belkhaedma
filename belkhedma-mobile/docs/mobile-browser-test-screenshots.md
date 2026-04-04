@@ -11,6 +11,7 @@ These screenshots were captured in a browser using an iPhone viewport profile.
 - Location: demo-customer saved location
 - API base URL used by Expo web: `http://127.0.0.1:5276`
 - Web app URL: `http://127.0.0.1:8086`
+- Wizard label correction verified: step 1 is now **Service** (Service Group + Service), and step 2 is **Provider** (optional).
 - Final action in current UI: `Refresh` on step 5 (provider search/results)
 - Logo verification: provider cards now always render a visible logo image via multi-source fallback (`logoUrl` -> known domain clearbit -> host-derived clearbit -> ui-avatars -> inline SVG data URI).
 

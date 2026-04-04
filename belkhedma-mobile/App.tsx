@@ -645,16 +645,16 @@ export default function App() {
   };
 
   const wizardSteps = [
-    languageMode === "ar" ? "المجموعة" : "Group",
-    languageMode === "ar" ? "الخدمة الفرعية" : "Sub Service",
+    languageMode === "ar" ? "الخدمة" : "Service",
+    languageMode === "ar" ? "المزود" : "Provider",
     languageMode === "ar" ? "التفاصيل" : "Details",
     languageMode === "ar" ? "الموقع" : "Location",
     languageMode === "ar" ? "النتائج" : "Results",
   ];
 
   const canGoNext = useMemo(() => {
-    if (wizardStep === 0) return !!selectedGroup;
-    if (wizardStep === 1) return !!selectedSubServiceId;
+    if (wizardStep === 0) return !!selectedGroup && !!selectedSubServiceId;
+    if (wizardStep === 1) return true;
     if (wizardStep === 2) {
       return (
         !!serviceDate &&
@@ -736,6 +736,49 @@ export default function App() {
 
           {wizardStep === 0 ? (
             <>
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مجموعة الخدمة" : "Service Group"}</Text>
+              <FlatList
+                horizontal
+                data={availableGroups}
+                keyExtractor={(item) => item}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedGroup === item;
+                  return (
+                    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setSelectedGroup(item)}>
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{groupLabel(item)}</Text>
+                    </TouchableOpacity>
+                  );
+                }}
+                ListEmptyComponent={<Text style={styles.meta}>No service groups available.</Text>}
+              />
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الخدمة" : "Service"}</Text>
+              <FlatList
+                horizontal
+                data={groupFilteredOffers}
+                keyExtractor={(item) => item.id}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedSubServiceId === item.id;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedSubServiceId(item.id)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {languageMode === "ar" ? item.nameAr : item.nameEn}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+                ListEmptyComponent={<Text style={styles.meta}>No services found for this group.</Text>}
+              />
+            </>
+          ) : null}
+
+          {wizardStep === 1 ? (
+            <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "المزود (اختياري)" : "Provider (optional)"}</Text>
               <FlatList
                 horizontal
@@ -770,49 +813,7 @@ export default function App() {
                     </TouchableOpacity>
                   );
                 }}
-              />
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مجموعة الخدمة" : "Service Group"}</Text>
-              <FlatList
-                horizontal
-                data={availableGroups}
-                keyExtractor={(item) => item}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedGroup === item;
-                  return (
-                    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setSelectedGroup(item)}>
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{groupLabel(item)}</Text>
-                    </TouchableOpacity>
-                  );
-                }}
-                ListEmptyComponent={<Text style={styles.meta}>No service groups available for this provider.</Text>}
-              />
-            </>
-          ) : null}
-
-          {wizardStep === 1 ? (
-            <>
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الخدمة الفرعية" : "Sub Service"}</Text>
-              <FlatList
-                horizontal
-                data={groupFilteredOffers}
-                keyExtractor={(item) => item.id}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedSubServiceId === item.id;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedSubServiceId(item.id)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                        {languageMode === "ar" ? item.nameAr : item.nameEn}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-                ListEmptyComponent={<Text style={styles.meta}>No sub services found in this group.</Text>}
+                ListEmptyComponent={<Text style={styles.meta}>No providers found.</Text>}
               />
             </>
           ) : null}
