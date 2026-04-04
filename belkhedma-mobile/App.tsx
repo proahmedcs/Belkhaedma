@@ -29,6 +29,8 @@ import { getProviderJsonDocuments } from "./src/services/marketplaceApi";
 
 type LanguageMode = "ar" | "en";
 type ServiceTypeFilter = "all" | "hourly" | "monthly" | "recruitment";
+type HourlyHoursOption = 4 | 8;
+type MonthlyDurationOption = 1 | 3 | 6 | 12;
 
 export default function App() {
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -38,6 +40,8 @@ export default function App() {
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [searchText, setSearchText] = useState<string>("");
   const [serviceType, setServiceType] = useState<ServiceTypeFilter>("all");
+  const [hourlyHours, setHourlyHours] = useState<HourlyHoursOption>(4);
+  const [monthlyDurationMonths, setMonthlyDurationMonths] = useState<MonthlyDurationOption>(1);
   const [serviceDate, setServiceDate] = useState<string>("");
   const [customerReference, setCustomerReference] = useState<string>("demo-customer");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
@@ -164,6 +168,14 @@ export default function App() {
     return "All Service Types";
   };
 
+  const monthlyDurationLabel = (months: MonthlyDurationOption) => {
+    if (languageMode === "ar") {
+      return months === 1 ? "1 شهر" : `${months} أشهر`;
+    }
+
+    return months === 1 ? "1 Month" : `${months} Months`;
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
@@ -220,6 +232,64 @@ export default function App() {
               );
             }}
           />
+          {serviceType === "hourly" ? (
+            <>
+              <Text style={styles.subSectionTitle}>
+                {languageMode === "ar" ? "كم عدد الساعات؟" : "How many hours?"}
+              </Text>
+              <Text style={styles.fieldHint}>
+                JSON: hoursNumber / visitHours
+              </Text>
+              <FlatList
+                horizontal
+                data={[4, 8] as HourlyHoursOption[]}
+                keyExtractor={(item) => item.toString()}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = hourlyHours === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setHourlyHours(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {item} {languageMode === "ar" ? "ساعات" : "Hours"}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </>
+          ) : null}
+          {serviceType === "monthly" ? (
+            <>
+              <Text style={styles.subSectionTitle}>
+                {languageMode === "ar" ? "مدة العقد" : "Contract Duration"}
+              </Text>
+              <Text style={styles.fieldHint}>
+                JSON: contractDuration / contractDurationName / contract_duration_months
+              </Text>
+              <FlatList
+                horizontal
+                data={[1, 3, 6, 12] as MonthlyDurationOption[]}
+                keyExtractor={(item) => item.toString()}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = monthlyDurationMonths === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setMonthlyDurationMonths(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {monthlyDurationLabel(item)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </>
+          ) : null}
           <Text style={styles.subSectionTitle}>
             {languageMode === "ar" ? "تاريخ الخدمة" : "Service Date"}
           </Text>
@@ -389,6 +459,18 @@ export default function App() {
                 <Text style={styles.meta}>
                   Expires: {new Date(price.expiresAtUtc).toLocaleString()}
                 </Text>
+                {serviceType === "hourly" ? (
+                  <Text style={styles.meta}>
+                    {languageMode === "ar" ? "عدد الساعات المطلوب: " : "Requested Hours: "}
+                    {hourlyHours}
+                  </Text>
+                ) : null}
+                {serviceType === "monthly" ? (
+                  <Text style={styles.meta}>
+                    {languageMode === "ar" ? "مدة العقد: " : "Contract Duration: "}
+                    {monthlyDurationLabel(monthlyDurationMonths)}
+                  </Text>
+                ) : null}
                 {serviceDate ? <Text style={styles.meta}>Service Date: {serviceDate}</Text> : null}
               </View>
             ))
@@ -506,6 +588,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
     marginTop: 4,
+    marginBottom: 8,
+  },
+  fieldHint: {
+    color: Brand.colors.textSecondary,
+    fontSize: 11,
     marginBottom: 8,
   },
   chip: {
