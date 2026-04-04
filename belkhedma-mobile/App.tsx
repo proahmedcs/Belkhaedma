@@ -60,6 +60,23 @@ type ResultsSortMode = "recommended" | "cheapest" | "highest";
 type PrimaryMenuKey = "main" | "search" | "orders" | "account";
 type SecondaryMenuItem = { key: string; labelEn: string; labelAr: string };
 type SampleNotification = { id: string; titleEn: string; titleAr: string; metaEn: string; metaAr: string };
+type LocationCategory = "home" | "work" | "rest" | "other";
+type LocationExtraDetails = {
+  alternateMobileNumber: string;
+  contactPersonName: string;
+  locationCategory: LocationCategory;
+  isOutsideHomePickup: boolean;
+  reachGuide: string;
+  attachmentNotes: string;
+};
+type NewLocationDraft = {
+  label: string;
+  city: string;
+  district: string;
+  latitude: string;
+  longitude: string;
+  mapSearchText: string;
+} & LocationExtraDetails;
 
 const PRIMARY_MENUS: Array<{
   key: PrimaryMenuKey;
@@ -134,6 +151,8 @@ const SAMPLE_NOTIFICATIONS: SampleNotification[] = [
 ];
 
 const AUTH_SESSION_STORAGE_KEY = "belkhedma.auth.session.v1";
+const LOCATION_DETAILS_STORAGE_PREFIX = "belkhedma.location.details.v1";
+const LOCAL_LOCATIONS_STORAGE_PREFIX = "belkhedma.local.locations.v1";
 
 function getWebStorage():
   | {
@@ -188,6 +207,126 @@ function clearPersistedAuthSession(): void {
   } catch {
     // Ignore storage delete errors and continue app flow.
   }
+}
+
+function createDefaultLocationExtraDetails(): LocationExtraDetails {
+  return {
+    alternateMobileNumber: "",
+    contactPersonName: "",
+    locationCategory: "home",
+    isOutsideHomePickup: false,
+    reachGuide: "",
+    attachmentNotes: "",
+  };
+}
+
+function createDefaultNewLocationDraft(): NewLocationDraft {
+  return {
+    label: "",
+    city: "",
+    district: "",
+    latitude: "",
+    longitude: "",
+    mapSearchText: "",
+    ...createDefaultLocationExtraDetails(),
+  };
+}
+
+function normalizeStorageSuffix(value: string): string {
+  return value.trim().toLowerCase() || "anonymous";
+}
+
+function buildLocationDetailsStorageKey(customerReference: string): string {
+  return `${LOCATION_DETAILS_STORAGE_PREFIX}.${normalizeStorageSuffix(customerReference)}`;
+}
+
+function buildLocalLocationsStorageKey(customerReference: string): string {
+  return `${LOCAL_LOCATIONS_STORAGE_PREFIX}.${normalizeStorageSuffix(customerReference)}`;
+}
+
+function readLocationExtrasByLocationId(customerReference: string): Record<string, LocationExtraDetails> {
+  const storage = getWebStorage();
+  if (!storage || !customerReference.trim()) return {};
+
+  try {
+    const raw = storage.getItem(buildLocationDetailsStorageKey(customerReference));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, Partial<LocationExtraDetails>>;
+    return Object.fromEntries(
+      Object.entries(parsed).map(([locationId, value]) => [
+        locationId,
+        {
+          ...createDefaultLocationExtraDetails(),
+          ...value,
+          locationCategory:
+            value?.locationCategory === "home" ||
+            value?.locationCategory === "work" ||
+            value?.locationCategory === "rest" ||
+            value?.locationCategory === "other"
+              ? value.locationCategory
+              : "home",
+          isOutsideHomePickup: Boolean(value?.isOutsideHomePickup),
+        },
+      ])
+    );
+  } catch {
+    return {};
+  }
+}
+
+function persistLocationExtrasByLocationId(
+  customerReference: string,
+  detailsByLocationId: Record<string, LocationExtraDetails>
+): void {
+  const storage = getWebStorage();
+  if (!storage || !customerReference.trim()) return;
+  try {
+    storage.setItem(buildLocationDetailsStorageKey(customerReference), JSON.stringify(detailsByLocationId));
+  } catch {
+    // Ignore storage write errors and continue app flow.
+  }
+}
+
+function readLocalCustomerLocations(customerReference: string): CustomerSavedLocation[] {
+  const storage = getWebStorage();
+  if (!storage || !customerReference.trim()) return [];
+
+  try {
+    const raw = storage.getItem(buildLocalLocationsStorageKey(customerReference));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as CustomerSavedLocation[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item) => !!item?.id && !!item?.label && !!item?.city);
+  } catch {
+    return [];
+  }
+}
+
+function persistLocalCustomerLocations(customerReference: string, locations: CustomerSavedLocation[]): void {
+  const storage = getWebStorage();
+  if (!storage || !customerReference.trim()) return;
+  try {
+    storage.setItem(buildLocalLocationsStorageKey(customerReference), JSON.stringify(locations));
+  } catch {
+    // Ignore storage write errors and continue app flow.
+  }
+}
+
+function mergeLocationsById(apiLocations: CustomerSavedLocation[], localLocations: CustomerSavedLocation[]): CustomerSavedLocation[] {
+  const dedup = new Map<string, CustomerSavedLocation>();
+  for (const location of apiLocations) {
+    dedup.set(location.id, location);
+  }
+  for (const location of localLocations) {
+    if (!dedup.has(location.id)) {
+      dedup.set(location.id, location);
+    }
+  }
+  return Array.from(dedup.values()).sort((a, b) => {
+    const aTime = new Date(a.updatedAtUtc).getTime();
+    const bTime = new Date(b.updatedAtUtc).getTime();
+    return bTime - aTime;
+  });
 }
 
 function normalizeText(value: string): string {
@@ -469,6 +608,11 @@ export default function App() {
   const [prices, setPrices] = useState<PriceSnapshot[]>([]);
   const [jsonDocuments, setJsonDocuments] = useState<ProviderJsonDocument[]>([]);
   const [savedLocations, setSavedLocations] = useState<CustomerSavedLocation[]>([]);
+  const [locationSearchQuery, setLocationSearchQuery] = useState<string>("");
+  const [showAddLocationForm, setShowAddLocationForm] = useState<boolean>(false);
+  const [isUsingCurrentLocation, setIsUsingCurrentLocation] = useState<boolean>(false);
+  const [newLocationDraft, setNewLocationDraft] = useState<NewLocationDraft>(createDefaultNewLocationDraft());
+  const [locationDetailsByLocationId, setLocationDetailsByLocationId] = useState<Record<string, LocationExtraDetails>>({});
 
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<ServiceGroup | null>(null);
@@ -788,6 +932,38 @@ export default function App() {
     () => savedLocations.find((x) => x.id === selectedLocationId) ?? null,
     [savedLocations, selectedLocationId]
   );
+  const filteredLocations = useMemo(() => {
+    const query = locationSearchQuery.trim().toLowerCase();
+    if (!query) return savedLocations;
+    return savedLocations.filter((location) => {
+      const haystack = `${location.label} ${location.city} ${location.district}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [locationSearchQuery, savedLocations]);
+  const selectedLocationDetails = useMemo(() => {
+    if (!selectedLocationId) {
+      return createDefaultLocationExtraDetails();
+    }
+    return locationDetailsByLocationId[selectedLocationId] ?? createDefaultLocationExtraDetails();
+  }, [locationDetailsByLocationId, selectedLocationId]);
+  const updateSelectedLocationDetail = <K extends keyof LocationExtraDetails>(
+    key: K,
+    value: LocationExtraDetails[K]
+  ) => {
+    if (!selectedLocationId) return;
+    setLocationDetailsByLocationId((previous) => {
+      const current = previous[selectedLocationId] ?? createDefaultLocationExtraDetails();
+      const next = {
+        ...previous,
+        [selectedLocationId]: {
+          ...current,
+          [key]: value,
+        },
+      };
+      persistLocationExtrasByLocationId(customerReference, next);
+      return next;
+    });
+  };
   const topLocationTitle = languageMode === "ar" ? "العنوان" : "Location";
   const topLocationValue = useMemo(() => {
     if (!selectedLocation) {
@@ -1046,16 +1222,121 @@ export default function App() {
 
     try {
       const locationsData = await getCustomerSavedLocations(customerReference, authToken);
-      setSavedLocations(locationsData);
+      const localLocations = readLocalCustomerLocations(customerReference);
+      const mergedLocations = mergeLocationsById(locationsData, localLocations);
+      setSavedLocations(mergedLocations);
+      const detailsMap = readLocationExtrasByLocationId(customerReference);
+      setLocationDetailsByLocationId(detailsMap);
       setSelectedLocationId((current) => {
-        if (current && locationsData.some((x) => x.id === current)) {
+        if (current && mergedLocations.some((x) => x.id === current)) {
           return current;
         }
-        return locationsData[0]?.id ?? null;
+        return mergedLocations[0]?.id ?? null;
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error while loading locations.");
     }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setError(languageMode === "ar" ? "ميزة تحديد الموقع غير مدعومة في هذا الجهاز." : "Geolocation is not supported on this device.");
+      return;
+    }
+
+    setIsUsingCurrentLocation(true);
+    setError(null);
+    try {
+      const currentPosition = await new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) =>
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            }),
+          (geoError) => reject(new Error(geoError.message)),
+          {
+            enableHighAccuracy: true,
+            timeout: 12000,
+            maximumAge: 20000,
+          }
+        );
+      });
+
+      setNewLocationDraft((prev) => ({
+        ...prev,
+        latitude: currentPosition.latitude.toFixed(6),
+        longitude: currentPosition.longitude.toFixed(6),
+      }));
+      setLocationSearchQuery(`${currentPosition.latitude.toFixed(4)}, ${currentPosition.longitude.toFixed(4)}`);
+      setShowAddLocationForm(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : languageMode === "ar" ? "تعذر الحصول على موقعك الحالي." : "Unable to get current location.");
+    } finally {
+      setIsUsingCurrentLocation(false);
+    }
+  };
+
+  const handleAddLocalLocation = () => {
+    const normalizedReference = customerReference.trim();
+    if (!normalizedReference) {
+      setError(languageMode === "ar" ? "يرجى إدخال مرجع العميل أولاً." : "Please provide customer reference first.");
+      return;
+    }
+
+    const label = newLocationDraft.label.trim();
+    const city = newLocationDraft.city.trim();
+    const district = newLocationDraft.district.trim();
+    const latitude = Number(newLocationDraft.latitude);
+    const longitude = Number(newLocationDraft.longitude);
+
+    if (!label || !city || !district || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setError(languageMode === "ar" ? "الرجاء استكمال بيانات العنوان (الاسم، المدينة، الحي، والإحداثيات)." : "Please complete address details (label, city, district, and coordinates).");
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const newLocationId = `local-${Date.now()}`;
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
+    const newLocation: CustomerSavedLocation = {
+      id: newLocationId,
+      customerReference: normalizedReference,
+      label,
+      city,
+      district,
+      latitude,
+      longitude,
+      googleMapsUrl,
+      googlePlaceId: null,
+      updatedAtUtc: nowIso,
+    };
+
+    setSavedLocations((previous) => {
+      const merged = mergeLocationsById(previous, [newLocation]);
+      persistLocalCustomerLocations(normalizedReference, merged.filter((item) => item.id.startsWith("local-")));
+      return merged;
+    });
+    setSelectedLocationId(newLocationId);
+
+    const details: LocationExtraDetails = {
+      alternateMobileNumber: newLocationDraft.alternateMobileNumber.trim(),
+      contactPersonName: newLocationDraft.contactPersonName.trim(),
+      locationCategory: newLocationDraft.locationCategory,
+      isOutsideHomePickup: newLocationDraft.isOutsideHomePickup,
+      reachGuide: newLocationDraft.reachGuide.trim(),
+      attachmentNotes: newLocationDraft.attachmentNotes.trim(),
+    };
+    setLocationDetailsByLocationId((previous) => {
+      const next = {
+        ...previous,
+        [newLocationId]: details,
+      };
+      persistLocationExtrasByLocationId(normalizedReference, next);
+      return next;
+    });
+
+    setNewLocationDraft(createDefaultNewLocationDraft());
+    setShowAddLocationForm(false);
   };
 
   const groupLabel = (group: ServiceGroup) => {
@@ -1399,34 +1680,209 @@ export default function App() {
                   placeholderTextColor={Brand.colors.textSecondary}
                 />
                 <TouchableOpacity style={styles.refreshButton} onPress={loadSavedLocations}>
-                  <Text style={styles.refreshText}>Load</Text>
+                  <Text style={styles.refreshText}>{languageMode === "ar" ? "تحميل" : "Load"}</Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اختر موقع سابق" : "Choose Saved Location"}</Text>
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "ابحث في الخريطة" : "Search in Map"}</Text>
+              <TextInput
+                placeholder={
+                  languageMode === "ar"
+                    ? "ابحث عن الحي أو الشارع أو المعلم"
+                    : "Search district, street, or landmark"
+                }
+                value={locationSearchQuery}
+                onChangeText={setLocationSearchQuery}
+                style={styles.searchInput}
+                placeholderTextColor={Brand.colors.textSecondary}
+              />
+              <View style={styles.rowControls}>
+                <TouchableOpacity
+                  style={styles.mapActionButton}
+                  onPress={() => {
+                    const query = locationSearchQuery.trim() || `${selectedLocation?.city ?? "Riyadh"} ${selectedLocation?.district ?? ""}`;
+                    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+                    void Linking.openURL(url);
+                  }}
+                >
+                  <Text style={styles.mapActionButtonText}>{languageMode === "ar" ? "بحث في جوجل ماب" : "Search Google Map"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mapActionButtonSecondary} onPress={handleUseCurrentLocation}>
+                  <Text style={styles.mapActionButtonSecondaryText}>
+                    {isUsingCurrentLocation
+                      ? languageMode === "ar"
+                        ? "جارٍ تحديد الموقع..."
+                        : "Locating..."
+                      : languageMode === "ar"
+                        ? "استخدام موقعي الحالي"
+                        : "Use Current Location"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اختر عنوان توصيل" : "Choose Delivery Address"}</Text>
               {savedLocations.length === 0 ? (
-                <Text style={styles.meta}>No saved locations for this customer reference.</Text>
+                <Text style={styles.meta}>
+                  {languageMode === "ar" ? "لا توجد عناوين محفوظة لهذا العميل." : "No saved locations for this customer reference."}
+                </Text>
               ) : (
-                <FlatList
-                  horizontal
-                  data={savedLocations}
-                  keyExtractor={(item) => item.id}
-                  showsHorizontalScrollIndicator={false}
-                  renderItem={({ item }) => {
+                <View style={styles.locationListContainer}>
+                  {filteredLocations.map((item) => {
                     const active = selectedLocationId === item.id;
+                    const extra = locationDetailsByLocationId[item.id] ?? createDefaultLocationExtraDetails();
                     return (
                       <TouchableOpacity
-                        style={[styles.chip, active && styles.chipActive]}
+                        key={item.id}
+                        style={[styles.locationListItem, active && styles.locationListItemActive]}
                         onPress={() => setSelectedLocationId(item.id)}
                       >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                          {item.label} - {item.city}
+                        <View style={styles.locationListHeader}>
+                          <Text style={styles.locationListTitle}>{item.label}</Text>
+                          {active ? <Text style={styles.locationListActiveMark}>✓</Text> : null}
+                        </View>
+                        <Text style={styles.meta}>
+                          {item.city}, {item.district}
+                        </Text>
+                        <Text style={styles.meta}>
+                          {languageMode === "ar" ? "جهة التواصل" : "Contact"}:{" "}
+                          {extra.contactPersonName || (languageMode === "ar" ? "غير محدد" : "Not set")} |{" "}
+                          {languageMode === "ar" ? "بديل" : "Alt"}:{" "}
+                          {extra.alternateMobileNumber || (languageMode === "ar" ? "غير متوفر" : "N/A")}
                         </Text>
                       </TouchableOpacity>
                     );
-                  }}
-                />
+                  })}
+                </View>
               )}
+
+              <TouchableOpacity
+                style={[styles.searchButton, styles.addAddressButton]}
+                onPress={() => setShowAddLocationForm((prev) => !prev)}
+              >
+                <Text style={styles.searchButtonText}>
+                  {showAddLocationForm
+                    ? languageMode === "ar"
+                      ? "إغلاق إضافة العنوان"
+                      : "Close Add Address"
+                    : languageMode === "ar"
+                      ? "إضافة عنوان جديد"
+                      : "Add New Address"}
+                </Text>
+              </TouchableOpacity>
+
+              {showAddLocationForm ? (
+                <View style={styles.locationCard}>
+                  <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "بيانات العنوان الجديد" : "New Address Details"}</Text>
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "اسم العنوان (منزل / استراحة / عمل)" : "Address label (Home / Rest / Work)"}
+                    value={newLocationDraft.label}
+                    onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, label: value }))}
+                    style={styles.searchInput}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "المدينة" : "City"}
+                    value={newLocationDraft.city}
+                    onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, city: value }))}
+                    style={styles.searchInput}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "الحي / المنطقة" : "District / Area"}
+                    value={newLocationDraft.district}
+                    onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, district: value }))}
+                    style={styles.searchInput}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                  <View style={styles.rowControls}>
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "خط العرض" : "Latitude"}
+                      value={newLocationDraft.latitude}
+                      onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, latitude: value }))}
+                      style={[styles.searchInput, styles.halfInput]}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                      keyboardType="decimal-pad"
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "خط الطول" : "Longitude"}
+                      value={newLocationDraft.longitude}
+                      onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, longitude: value }))}
+                      style={[styles.searchInput, styles.halfInput]}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "اسم شخص بديل للتواصل" : "Alternative contact person"}
+                    value={newLocationDraft.contactPersonName}
+                    onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, contactPersonName: value }))}
+                    style={styles.searchInput}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "رقم جوال بديل" : "Alternative mobile number"}
+                    value={newLocationDraft.alternateMobileNumber}
+                    onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, alternateMobileNumber: value }))}
+                    style={styles.searchInput}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                    keyboardType="phone-pad"
+                  />
+                  <Text style={styles.fieldHint}>{languageMode === "ar" ? "تصنيف الموقع" : "Location Type"}</Text>
+                  <View style={styles.rowWrap}>
+                    {([
+                      { key: "home", en: "Home", ar: "منزل" },
+                      { key: "work", en: "Work", ar: "عمل" },
+                      { key: "rest", en: "Rest House", ar: "استراحة" },
+                      { key: "other", en: "Other", ar: "موقع آخر" },
+                    ] as Array<{ key: LocationCategory; en: string; ar: string }>).map((option) => {
+                      const active = newLocationDraft.locationCategory === option.key;
+                      return (
+                        <TouchableOpacity
+                          key={option.key}
+                          style={[styles.chip, active && styles.chipActive]}
+                          onPress={() => setNewLocationDraft((prev) => ({ ...prev, locationCategory: option.key }))}
+                        >
+                          <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                            {languageMode === "ar" ? option.ar : option.en}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.chip, newLocationDraft.isOutsideHomePickup && styles.chipActive]}
+                    onPress={() =>
+                      setNewLocationDraft((prev) => ({
+                        ...prev,
+                        isOutsideHomePickup: !prev.isOutsideHomePickup,
+                      }))
+                    }
+                  >
+                    <Text style={[styles.chipText, newLocationDraft.isOutsideHomePickup && styles.chipTextActive]}>
+                      {languageMode === "ar" ? "أنا خارج المنزل عند الخدمة" : "I may be outside home at service time"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "إرشادات الوصول للموقع" : "Guide to reach location"}
+                    value={newLocationDraft.reachGuide}
+                    onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, reachGuide: value }))}
+                    style={[styles.searchInput, styles.multiLineInput]}
+                    multiline
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "ملاحظات المرفقات (صورة/رسم طريق/بوابة)" : "Attachment notes (image/route/gate)"}
+                    value={newLocationDraft.attachmentNotes}
+                    onChangeText={(value) => setNewLocationDraft((prev) => ({ ...prev, attachmentNotes: value }))}
+                    style={[styles.searchInput, styles.multiLineInput]}
+                    multiline
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                  <TouchableOpacity style={styles.searchButton} onPress={handleAddLocalLocation}>
+                    <Text style={styles.searchButtonText}>{languageMode === "ar" ? "حفظ العنوان" : "Save Address"}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
 
               {selectedLocation ? (
                 <View style={styles.locationCard}>
@@ -1443,9 +1899,94 @@ export default function App() {
                     }}
                   >
                     <Text style={styles.mapLink}>
-                      {selectedLocation.googleMapsUrl ? "Open in Google Maps" : "No Google Maps link"}
+                      {selectedLocation.googleMapsUrl
+                        ? languageMode === "ar"
+                          ? "فتح في Google Maps"
+                          : "Open in Google Maps"
+                        : languageMode === "ar"
+                          ? "لا يوجد رابط خرائط"
+                          : "No Google Maps link"}
                     </Text>
                   </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {selectedLocation ? (
+                <View style={styles.locationCard}>
+                  <Text style={styles.subSectionTitle}>
+                    {languageMode === "ar" ? "تفاصيل التواصل والإرشاد" : "Contact & Reaching Details"}
+                  </Text>
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "اسم الشخص البديل للرد" : "Alternative person name"}
+                    value={selectedLocationDetails.contactPersonName}
+                    onChangeText={(value) => updateSelectedLocationDetail("contactPersonName", value)}
+                    style={styles.searchInput}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "رقم جوال بديل" : "Alternative mobile number"}
+                    value={selectedLocationDetails.alternateMobileNumber}
+                    onChangeText={(value) => updateSelectedLocationDetail("alternateMobileNumber", value)}
+                    style={styles.searchInput}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                    keyboardType="phone-pad"
+                  />
+                  <Text style={styles.fieldHint}>
+                    {languageMode === "ar" ? "نوع الموقع (منزل / عمل / استراحة / أخرى)" : "Location category"}
+                  </Text>
+                  <View style={styles.rowWrap}>
+                    {([
+                      { key: "home", en: "Home", ar: "منزل" },
+                      { key: "work", en: "Work", ar: "عمل" },
+                      { key: "rest", en: "Rest House", ar: "استراحة" },
+                      { key: "other", en: "Other", ar: "موقع آخر" },
+                    ] as Array<{ key: LocationCategory; en: string; ar: string }>).map((option) => {
+                      const active = selectedLocationDetails.locationCategory === option.key;
+                      return (
+                        <TouchableOpacity
+                          key={option.key}
+                          style={[styles.chip, active && styles.chipActive]}
+                          onPress={() => updateSelectedLocationDetail("locationCategory", option.key)}
+                        >
+                          <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                            {languageMode === "ar" ? option.ar : option.en}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.chip, selectedLocationDetails.isOutsideHomePickup && styles.chipActive]}
+                    onPress={() =>
+                      updateSelectedLocationDetail("isOutsideHomePickup", !selectedLocationDetails.isOutsideHomePickup)
+                    }
+                  >
+                    <Text style={[styles.chipText, selectedLocationDetails.isOutsideHomePickup && styles.chipTextActive]}>
+                      {languageMode === "ar"
+                        ? "قد لا أكون في المنزل (التواصل مع البديل)"
+                        : "I may not be at home (contact the alternate person)"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    placeholder={languageMode === "ar" ? "إرشادات الوصول التفصيلية" : "Detailed guide to reach"}
+                    value={selectedLocationDetails.reachGuide}
+                    onChangeText={(value) => updateSelectedLocationDetail("reachGuide", value)}
+                    style={[styles.searchInput, styles.multiLineInput]}
+                    multiline
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                  <TextInput
+                    placeholder={
+                      languageMode === "ar"
+                        ? "مرفقات: يمكن إضافة وصف صورة/رسم/نقطة وصول"
+                        : "Attachments: add image/sketch/access-point notes"
+                    }
+                    value={selectedLocationDetails.attachmentNotes}
+                    onChangeText={(value) => updateSelectedLocationDetail("attachmentNotes", value)}
+                    style={[styles.searchInput, styles.multiLineInput]}
+                    multiline
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
                 </View>
               ) : null}
             </>
@@ -1981,6 +2522,34 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
+  mapActionButton: {
+    backgroundColor: Brand.colors.primaryDark,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flex: 1,
+  },
+  mapActionButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 12,
+    textAlign: "center",
+  },
+  mapActionButtonSecondary: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#fff",
+    flex: 1,
+  },
+  mapActionButtonSecondaryText: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "700",
+    fontSize: 12,
+    textAlign: "center",
+  },
   customerInput: {
     flex: 1,
     marginBottom: 0,
@@ -1999,6 +2568,48 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     backgroundColor: "#fff",
+  },
+  locationListContainer: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  locationListItem: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: "#fff",
+  },
+  locationListItemActive: {
+    borderColor: Brand.colors.primary,
+    backgroundColor: "#FDF2F8",
+  },
+  locationListHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 3,
+  },
+  locationListTitle: {
+    color: Brand.colors.textPrimary,
+    fontWeight: "800",
+    fontSize: 13,
+  },
+  locationListActiveMark: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "800",
+    fontSize: 14,
+  },
+  addAddressButton: {
+    marginTop: 4,
+  },
+  halfInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  multiLineInput: {
+    minHeight: 68,
+    textAlignVertical: "top",
   },
   mapLink: {
     color: Brand.colors.primaryDark,
