@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  TextInput,
   Image,
   FlatList,
   SafeAreaView,
@@ -23,6 +24,7 @@ export default function App() {
   const [prices, setPrices] = useState<PriceSnapshot[]>([]);
   const [jsonDocuments, setJsonDocuments] = useState<ProviderJsonDocument[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState<string>("");
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +74,33 @@ export default function App() {
     }, {});
   }, [providers]);
 
+  const searchedPrices = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) {
+      return visiblePrices;
+    }
+
+    return visiblePrices.filter((price) => {
+      const provider = providerById[price.providerId];
+      if (!provider) {
+        return false;
+      }
+
+      const haystack = [
+        provider.nameAr,
+        provider.nameEn,
+        provider.code,
+        provider.providerType,
+        provider.integrationModeKey,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(q);
+    });
+  }, [searchText, visiblePrices, providerById]);
+
   const allProvidersLabel = languageMode === "ar" ? "كل المزودين" : "All Providers";
 
   return (
@@ -101,6 +130,13 @@ export default function App() {
 
         <View style={styles.filterCard}>
           <Text style={styles.sectionTitle}>Provider Filter</Text>
+          <TextInput
+            placeholder={languageMode === "ar" ? "ابحث عن مزود..." : "Search providers..."}
+            value={searchText}
+            onChangeText={setSearchText}
+            style={styles.searchInput}
+            placeholderTextColor={Brand.colors.textSecondary}
+          />
           <FlatList
             horizontal
             data={[
@@ -151,7 +187,7 @@ export default function App() {
               </Text>
             </View>
           ) : (
-            visiblePrices.map((price) => (
+            searchedPrices.map((price) => (
               <View style={styles.priceCard} key={price.id}>
                 <View style={styles.providerRow}>
                   {providerById[price.providerId]?.logoUrl ? (
@@ -190,6 +226,9 @@ export default function App() {
                 ) : null}
                 <Text style={styles.meta}>
                   Updated: {new Date(price.collectedAtUtc).toLocaleString()}
+                </Text>
+                <Text style={styles.meta}>
+                  Expires: {new Date(price.expiresAtUtc).toLocaleString()}
                 </Text>
               </View>
             ))
@@ -270,6 +309,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Brand.colors.border,
     padding: 14,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    color: Brand.colors.textPrimary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
   },
   listCard: {
     marginHorizontal: Brand.spacing.md,
