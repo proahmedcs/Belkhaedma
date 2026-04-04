@@ -4,11 +4,14 @@ These screenshots were captured in a browser using an iPhone viewport profile.
 
 ## Scenario
 
+- Test date: 2026-04-04
 - Group: Hourly Cleaning
 - Sub-service: Hourly Cleaning 4 Hours
 - Date: 2026-04-06
 - Location: demo-customer saved location
-- Final action: Search (Refresh button in current step 5 UI)
+- API base URL used by Expo web: `http://127.0.0.1:5275`
+- Web app URL: `http://127.0.0.1:8085`
+- Final action in current UI: `Refresh` on step 5 (provider search/results)
 
 ## Screenshots
 
