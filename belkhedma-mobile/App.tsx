@@ -36,7 +36,7 @@ import {
 
 type LanguageMode = "ar" | "en";
 type ServiceGroup = "hourly-cleaning" | "monthly" | "medical-services" | "mediation-services";
-type WizardStep = 0 | 1 | 2 | 3 | 4;
+type WizardStep = 0 | 1 | 2 | 3;
 type PersistedAuthSession = {
   authToken: string;
   customerReference: string;
@@ -1032,7 +1032,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 1 ? (
+          {wizardStep === 0 ? (
             <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اختر الخدمة" : "Choose Service"}</Text>
               <FlatList
@@ -1058,7 +1058,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 2 ? (
+          {wizardStep === 1 ? (
             <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مرجع العميل" : "Customer Reference"}</Text>
               <View style={styles.rowControls}>
@@ -1122,7 +1122,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 3 ? (
+          {wizardStep === 2 ? (
             <>
               {selectedGroup === "hourly-cleaning" ? (
                 <>
@@ -1327,70 +1327,6 @@ export default function App() {
 
           {wizardStep === 3 ? (
             <>
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مرجع العميل" : "Customer Reference"}</Text>
-              <View style={styles.rowControls}>
-                <TextInput
-                  placeholder={languageMode === "ar" ? "مثال: demo-customer" : "e.g. demo-customer"}
-                  value={customerReference}
-                  onChangeText={setCustomerReference}
-                  style={[styles.searchInput, styles.customerInput]}
-                  placeholderTextColor={Brand.colors.textSecondary}
-                />
-                <TouchableOpacity style={styles.refreshButton} onPress={loadSavedLocations}>
-                  <Text style={styles.refreshText}>Load</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الموقع المحفوظ" : "Saved Location"}</Text>
-              {savedLocations.length === 0 ? (
-                <Text style={styles.meta}>No saved locations for this customer reference.</Text>
-              ) : (
-                <FlatList
-                  horizontal
-                  data={savedLocations}
-                  keyExtractor={(item) => item.id}
-                  showsHorizontalScrollIndicator={false}
-                  renderItem={({ item }) => {
-                    const active = selectedLocationId === item.id;
-                    return (
-                      <TouchableOpacity
-                        style={[styles.chip, active && styles.chipActive]}
-                        onPress={() => setSelectedLocationId(item.id)}
-                      >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                          {item.label} - {item.city}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  }}
-                />
-              )}
-
-              {selectedLocation ? (
-                <View style={styles.locationCard}>
-                  <Text style={styles.meta}>
-                    {selectedLocation.city}, {selectedLocation.district}
-                  </Text>
-                  <Text style={styles.meta}>
-                    Lat: {selectedLocation.latitude} | Long: {selectedLocation.longitude}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (!selectedLocation.googleMapsUrl) return;
-                      void Linking.openURL(selectedLocation.googleMapsUrl);
-                    }}
-                  >
-                    <Text style={styles.mapLink}>
-                      {selectedLocation.googleMapsUrl ? "Open in Google Maps" : "No Google Maps link"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null}
-            </>
-          ) : null}
-
-          {wizardStep === 3 ? (
-            <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "تصفية المزود (اختياري)" : "Provider Filter (optional)"}</Text>
               <TextInput
                 placeholder={languageMode === "ar" ? "ابحث عن مزود..." : "Search providers..."}
@@ -1410,6 +1346,13 @@ export default function App() {
                 <Text style={styles.summaryText}>
                   Duration: {selectedContractDurationName ?? "N/A"} | Workers: {selectedWorkersCount ?? "N/A"}
                 </Text>
+                {selectedGroup === "monthly" ? (
+                  <Text style={styles.summaryText}>
+                    {languageMode === "ar"
+                      ? `المدة المختارة: ${monthlyDurationLabel(monthlyDurationMonths)}`
+                      : `Selected monthly duration: ${monthlyDurationLabel(monthlyDurationMonths)}`}
+                  </Text>
+                ) : null}
                 <Text style={styles.summaryText}>
                   Hours/Visit: {selectedHoursPerVisit ?? "N/A"} | Weekly Visits: {selectedWeeklyVisits ?? "N/A"}
                 </Text>
@@ -1456,6 +1399,15 @@ export default function App() {
             </View>
           ) : (
             wegoStyleRows.map(({ price, provider, offer }) => {
+              const isMonthlyFlow = selectedGroup === "monthly";
+              const durationFromOffer = parseDurationToMonths(`${offer?.nameEn ?? ""} ${offer?.nameAr ?? ""}`);
+              const durationFromSelection = parseDurationToMonths(selectedContractDurationName ?? "");
+              const baseDurationMonths = Math.max(1, durationFromOffer ?? durationFromSelection ?? 1);
+              const workersMultiplier = Math.max(1, selectedWorkersCount ?? 1);
+              const monthlyEstimatedTotalSar = isMonthlyFlow
+                ? Math.round((price.finalPriceSar / baseDurationMonths) * monthlyDurationMonths * workersMultiplier * 100) / 100
+                : null;
+              const effectiveDisplayPriceSar = monthlyEstimatedTotalSar ?? price.finalPriceSar;
               const logoCandidates = buildLogoCandidates(provider);
               const logoIndex = provider?.id ? logoFallbackIndex[provider.id] ?? 0 : 0;
               const logoUri = logoCandidates[logoIndex];
@@ -1502,7 +1454,7 @@ export default function App() {
                         {provider?.tinyUrl ? <Text style={styles.providerTinyUrl}>{provider.tinyUrl}</Text> : null}
                       </View>
                     </View>
-                    <Text style={styles.wegoPrice}>{price.finalPriceSar} SAR</Text>
+                    <Text style={styles.wegoPrice}>{effectiveDisplayPriceSar} SAR</Text>
                   </View>
                   <View style={styles.row}>
                     <Text style={styles.meta}>Source: {price.sourceType === 1 ? "API" : "Scraper"}</Text>
@@ -1512,6 +1464,13 @@ export default function App() {
                       <Text style={styles.meta}>Direct fare</Text>
                     )}
                   </View>
+                  {monthlyEstimatedTotalSar != null ? (
+                    <Text style={styles.meta}>
+                      {languageMode === "ar"
+                        ? `تقدير إجمالي ${monthlyDurationMonths} شهر${monthlyDurationMonths > 1 ? " (أشهر)" : ""} لعدد ${workersMultiplier} عامل: ${monthlyEstimatedTotalSar} SAR`
+                        : `Estimated ${monthlyDurationMonths}-month total for ${workersMultiplier} worker(s): ${monthlyEstimatedTotalSar} SAR`}
+                    </Text>
+                  ) : null}
                   {!logoUri ? (
                     <View style={styles.providerRow}>
                       <View style={styles.providerLogoPlaceholder}>
