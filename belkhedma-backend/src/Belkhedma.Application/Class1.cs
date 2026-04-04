@@ -64,6 +64,18 @@ public sealed record ProviderJsonDocumentDto(
     DateTime ExpiresAtUtc,
     string JsonContent);
 
+public sealed record CustomerSavedLocationDto(
+    Guid Id,
+    string CustomerReference,
+    string Label,
+    string City,
+    string District,
+    decimal Latitude,
+    decimal Longitude,
+    string? GoogleMapsUrl,
+    string? GooglePlaceId,
+    DateTime UpdatedAtUtc);
+
 public interface IMarketplaceQueryService
 {
     Task<IReadOnlyList<ProviderDto>> GetProvidersAsync(CancellationToken cancellationToken = default);
@@ -76,6 +88,9 @@ public interface IMarketplaceQueryService
     Task<IReadOnlyList<ProviderJsonDocumentDto>> GetProviderJsonDocumentsAsync(
         string? providerCode,
         bool includeExpired = false,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CustomerSavedLocationDto>> GetCustomerSavedLocationsAsync(
+        string customerReference,
         CancellationToken cancellationToken = default);
 }
 

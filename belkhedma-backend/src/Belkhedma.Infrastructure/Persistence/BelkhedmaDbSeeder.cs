@@ -269,6 +269,7 @@ public static class BelkhedmaDbSeeder
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await SeedProviderJsonDocumentsAsync(dbContext, cancellationToken);
+        await SeedCustomerSavedLocationsAsync(dbContext, cancellationToken);
     }
 
     private static async Task SeedProviderJsonDocumentsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
@@ -312,6 +313,62 @@ public static class BelkhedmaDbSeeder
             existing.ServiceMode = mode;
             existing.JsonContent = json;
             existing.ExpiresAtUtc = DateTime.UtcNow.AddMonths(6);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedCustomerSavedLocationsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var seededLocations = new List<CustomerSavedLocation>
+        {
+            new()
+            {
+                CustomerReference = "demo-customer",
+                Label = "Home",
+                City = "Riyadh",
+                District = "Al Yasmin",
+                Latitude = 24.826112m,
+                Longitude = 46.623093m,
+                GoogleMapsUrl = "https://maps.google.com/?q=24.826112,46.623093",
+                GooglePlaceId = "ChIJe0c7fX4LLz4R9jN8sQYf9f8",
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                CustomerReference = "demo-customer",
+                Label = "Office",
+                City = "Riyadh",
+                District = "Al Olaya",
+                Latitude = 24.707707m,
+                Longitude = 46.675296m,
+                GoogleMapsUrl = "https://maps.google.com/?q=24.707707,46.675296",
+                GooglePlaceId = "ChIJw2h6G4YLLz4RW5h6qH9GM8w",
+                UpdatedAtUtc = now
+            }
+        };
+
+        foreach (var location in seededLocations)
+        {
+            var existing = await dbContext.CustomerSavedLocations
+                .FirstOrDefaultAsync(x =>
+                    x.CustomerReference == location.CustomerReference &&
+                    x.Label == location.Label, cancellationToken);
+
+            if (existing is null)
+            {
+                await dbContext.CustomerSavedLocations.AddAsync(location, cancellationToken);
+                continue;
+            }
+
+            existing.City = location.City;
+            existing.District = location.District;
+            existing.Latitude = location.Latitude;
+            existing.Longitude = location.Longitude;
+            existing.GoogleMapsUrl = location.GoogleMapsUrl;
+            existing.GooglePlaceId = location.GooglePlaceId;
+            existing.UpdatedAtUtc = now;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

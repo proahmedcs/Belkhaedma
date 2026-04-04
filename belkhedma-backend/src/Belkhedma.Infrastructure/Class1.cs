@@ -15,13 +15,14 @@ public static class DependencyInjection
                 sql.MigrationsAssembly(typeof(BelkhedmaDbContext).Assembly.FullName)));
 
         services.AddScoped<IMarketplaceQueryService, MarketplaceQueryService>();
+        services.AddScoped<IMarketplaceAdminService, MarketplaceQueryService>();
         services.AddScoped<IDataCollectionService, DataCollectionService>();
 
         return services;
     }
 }
 
-internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IMarketplaceQueryService
+internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IMarketplaceQueryService, IMarketplaceAdminService
 {
     public async Task<IReadOnlyList<ProviderDto>> GetProvidersAsync(CancellationToken cancellationToken = default)
     {
@@ -144,6 +145,33 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
                 x.CreatedAtUtc,
                 x.ExpiresAtUtc,
                 x.JsonContent))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CustomerSavedLocationDto>> GetCustomerSavedLocationsAsync(
+        string customerReference,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(customerReference))
+        {
+            return [];
+        }
+
+        return await dbContext.CustomerSavedLocations
+            .AsNoTracking()
+            .Where(x => x.CustomerReference == customerReference)
+            .OrderByDescending(x => x.UpdatedAtUtc)
+            .Select(x => new CustomerSavedLocationDto(
+                x.Id,
+                x.CustomerReference,
+                x.Label,
+                x.City,
+                x.District,
+                x.Latitude,
+                x.Longitude,
+                x.GoogleMapsUrl,
+                x.GooglePlaceId,
+                x.UpdatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 

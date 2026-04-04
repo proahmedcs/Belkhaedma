@@ -77,6 +77,18 @@ public sealed class MarketplaceController(
         return Ok(documents);
     }
 
+    [HttpGet("customers/{customerReference}/locations")]
+    public async Task<IActionResult> GetCustomerSavedLocations([FromRoute] string customerReference, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(customerReference))
+        {
+            return BadRequest(new { message = "customerReference is required." });
+        }
+
+        var locations = await marketplaceQueryService.GetCustomerSavedLocationsAsync(customerReference, cancellationToken);
+        return Ok(locations);
+    }
+
     [HttpPut("json-documents/{documentId:guid}/expiration")]
     public async Task<IActionResult> SetJsonDocumentExpiration([FromRoute] Guid documentId, [FromBody] UpdateExpirationRequest request, CancellationToken cancellationToken)
     {

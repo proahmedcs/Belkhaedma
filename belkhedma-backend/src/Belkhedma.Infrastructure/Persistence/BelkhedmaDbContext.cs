@@ -10,6 +10,7 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
     public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
     public DbSet<ProviderJsonDocument> ProviderJsonDocuments => Set<ProviderJsonDocument>();
     public DbSet<CollectionJobRun> CollectionJobRuns => Set<CollectionJobRun>();
+    public DbSet<CustomerSavedLocation> CustomerSavedLocations => Set<CustomerSavedLocation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +71,20 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Details).HasColumnType("nvarchar(max)");
             entity.HasIndex(x => new { x.ProviderId, x.StartedAtUtc });
+        });
+
+        modelBuilder.Entity<CustomerSavedLocation>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CustomerReference).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Label).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.City).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.District).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Latitude).HasPrecision(9, 6);
+            entity.Property(x => x.Longitude).HasPrecision(9, 6);
+            entity.Property(x => x.GoogleMapsUrl).HasMaxLength(500);
+            entity.Property(x => x.GooglePlaceId).HasMaxLength(120);
+            entity.HasIndex(x => new { x.CustomerReference, x.UpdatedAtUtc });
         });
     }
 }

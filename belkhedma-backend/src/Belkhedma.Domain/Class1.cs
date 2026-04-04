@@ -138,3 +138,18 @@ public sealed class CollectionJobRun
     public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime FinishedAtUtc { get; set; } = DateTime.UtcNow;
 }
+
+public sealed class CustomerSavedLocation
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string CustomerReference { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string District { get; set; } = string.Empty;
+    public decimal Latitude { get; set; }
+    public decimal Longitude { get; set; }
+    public string? GoogleMapsUrl { get; set; }
+    public string? GooglePlaceId { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
