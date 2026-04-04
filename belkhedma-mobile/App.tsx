@@ -55,6 +55,8 @@ type ServiceDateOption = {
   weekdayLabel: string;
   dateLabel: string;
 };
+type MandatoryFieldKey = "serviceDate" | "shift" | "contractDurationName";
+type ResultsSortMode = "recommended" | "cheapest" | "highest";
 
 const AUTH_SESSION_STORAGE_KEY = "belkhedma.auth.session.v1";
 
@@ -169,6 +171,13 @@ function parseDurationToMonths(value: string): number | null {
     return amount;
   }
   return null;
+}
+
+function inferOfferHours(offer?: ServiceOffer | null): number | null {
+  if (!offer) return null;
+  const source = `${offer.nameEn} ${offer.nameAr}`;
+  const numbers = extractNumbersByRegex(source, /\d+\s*(hour|hours|ساعة|ساعات)/gi);
+  return numbers[0] ?? null;
 }
 
 function extractJsonDrivenOptions(docs: ProviderJsonDocument[]): JsonDrivenOptions {
@@ -403,6 +412,12 @@ export default function App() {
   const [selectedHoursPerVisit, setSelectedHoursPerVisit] = useState<number | null>(null);
   const [selectedWeeklyVisits, setSelectedWeeklyVisits] = useState<number | null>(null);
   const [selectedDeliveryWindow, setSelectedDeliveryWindow] = useState<string | null>(null);
+  const [showResultsFilters, setShowResultsFilters] = useState<boolean>(false);
+  const [resultsSortMode, setResultsSortMode] = useState<ResultsSortMode>("recommended");
+  const [resultsSourceFilter, setResultsSourceFilter] = useState<"all" | "api" | "scraper" | "demo">("all");
+  const [resultsShiftFilter, setResultsShiftFilter] = useState<string | null>(null);
+  const [resultsContractDurationFilter, setResultsContractDurationFilter] = useState<string | null>(null);
+  const [resultsHoursFilter, setResultsHoursFilter] = useState<number | null>(null);
 
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
@@ -471,6 +486,23 @@ export default function App() {
     () => groupFilteredOffers.find((x) => x.id === selectedSubServiceId) ?? null,
     [groupFilteredOffers, selectedSubServiceId]
   );
+  const selectedServiceMode = selectedSubService?.serviceMode ?? null;
+  const mandatoryFieldKeys = useMemo<MandatoryFieldKey[]>(() => {
+    if (selectedServiceMode === 1 || selectedGroup === "hourly-cleaning") {
+      return ["serviceDate", "shift"];
+    }
+    if (selectedServiceMode === 2 || selectedServiceMode === 3 || selectedGroup === "monthly") {
+      return ["serviceDate", "contractDurationName"];
+    }
+    return ["serviceDate"];
+  }, [selectedGroup, selectedServiceMode]);
+  const mandatoryFieldLabels = useMemo(() => {
+    return mandatoryFieldKeys.map((key) => {
+      if (key === "serviceDate") return languageMode === "ar" ? "تاريخ الخدمة" : "Service Date";
+      if (key === "shift") return languageMode === "ar" ? "الفترة (صباح/مساء)" : "Shift (Morning/Evening)";
+      return languageMode === "ar" ? "مدة التعاقد" : "Contract Duration";
+    });
+  }, [languageMode, mandatoryFieldKeys]);
 
   const hourlyOptions = useMemo(() => {
     const values = new Set<number>();
@@ -516,6 +548,12 @@ export default function App() {
       return { value, weekdayLabel, dateLabel };
     });
   }, [languageMode]);
+  const effectiveServiceDateOptions = useMemo(() => {
+    if (serviceDateOptions.length > 0) {
+      return serviceDateOptions;
+    }
+    return [{ value: "", weekdayLabel: "-", dateLabel: "-" }];
+  }, [serviceDateOptions]);
 
   const jsonDrivenOptions = useMemo(() => {
     const scopedDocs = jsonDocuments.filter((doc) => {
@@ -581,6 +619,15 @@ export default function App() {
     if (jsonDrivenOptions.deliveryWindows.length > 0) return jsonDrivenOptions.deliveryWindows;
     return ["07:00-09:00", "15:00-17:00"];
   }, [jsonDrivenOptions.deliveryWindows]);
+  const effectiveShiftOptions = useMemo(() => {
+    if (selectedServiceMode === 1 || selectedGroup === "hourly-cleaning") {
+      return shiftOptions.filter((option) => {
+        const normalized = normalizeText(option);
+        return normalized.includes("morning") || normalized.includes("evening") || normalized.includes("صباح") || normalized.includes("مساء");
+      });
+    }
+    return shiftOptions;
+  }, [selectedGroup, selectedServiceMode, shiftOptions]);
 
   useEffect(() => {
     if (!hourlyOptions.includes(hourlyHours)) {
@@ -595,12 +642,12 @@ export default function App() {
   }, [monthlyDurationMonths, monthlyDurationOptions]);
 
   useEffect(() => {
-    if (!selectedShift && shiftOptions.length > 0) {
-      setSelectedShift(shiftOptions[0]);
-    } else if (selectedShift && !shiftOptions.includes(selectedShift)) {
-      setSelectedShift(shiftOptions[0] ?? null);
+    if (!selectedShift && effectiveShiftOptions.length > 0) {
+      setSelectedShift(effectiveShiftOptions[0]);
+    } else if (selectedShift && !effectiveShiftOptions.includes(selectedShift)) {
+      setSelectedShift(effectiveShiftOptions[0] ?? null);
     }
-  }, [selectedShift, shiftOptions]);
+  }, [effectiveShiftOptions, selectedShift]);
 
   useEffect(() => {
     if (!selectedNationalityGroup && nationalityOptions.length > 0) {
@@ -654,10 +701,10 @@ export default function App() {
   }, [deliveryWindowOptions, selectedDeliveryWindow]);
 
   useEffect(() => {
-    if (!serviceDate && serviceDateOptions.length > 0) {
-      setServiceDate(serviceDateOptions[0].value);
+    if (!serviceDate && effectiveServiceDateOptions.length > 0) {
+      setServiceDate(effectiveServiceDateOptions[0].value);
     }
-  }, [serviceDate, serviceDateOptions]);
+  }, [effectiveServiceDateOptions, serviceDate]);
 
   const selectedLocation = useMemo(
     () => savedLocations.find((x) => x.id === selectedLocationId) ?? null,
@@ -774,6 +821,53 @@ export default function App() {
     searchedPrices,
     selectedGroup,
     selectedSubService,
+  ]);
+  const serviceModeFilteredRows = useMemo(() => {
+    return wegoStyleRows.filter(({ offer }) => {
+      if (!selectedServiceMode) return true;
+      if (!offer) return false;
+      return offer.serviceMode === selectedServiceMode;
+    });
+  }, [selectedServiceMode, wegoStyleRows]);
+  const resultsRows = useMemo(() => {
+    const rows = serviceModeFilteredRows.filter(({ price }) => {
+      const sourceLabel = price.id.startsWith("synthetic-price-")
+        ? "demo"
+        : price.sourceType === 1
+          ? "api"
+          : "scraper";
+      if (resultsSourceFilter !== "all" && sourceLabel !== resultsSourceFilter) {
+        return false;
+      }
+      if (resultsShiftFilter && selectedShift && selectedShift !== resultsShiftFilter) {
+        return false;
+      }
+      if (resultsContractDurationFilter && selectedContractDurationName && selectedContractDurationName !== resultsContractDurationFilter) {
+        return false;
+      }
+      if (resultsHoursFilter && selectedHoursPerVisit && selectedHoursPerVisit !== resultsHoursFilter) {
+        return false;
+      }
+      return true;
+    });
+
+    if (resultsSortMode === "cheapest") {
+      return rows.slice().sort((a, b) => a.price.finalPriceSar - b.price.finalPriceSar);
+    }
+    if (resultsSortMode === "highest") {
+      return rows.slice().sort((a, b) => b.price.finalPriceSar - a.price.finalPriceSar);
+    }
+    return rows.slice().sort((a, b) => a.price.finalPriceSar - b.price.finalPriceSar);
+  }, [
+    resultsContractDurationFilter,
+    resultsHoursFilter,
+    resultsShiftFilter,
+    resultsSortMode,
+    resultsSourceFilter,
+    selectedContractDurationName,
+    selectedHoursPerVisit,
+    selectedShift,
+    serviceModeFilteredRows,
   ]);
 
   const loadData = async (activeToken: string | null = authToken, activeCustomerReference: string | null = customerReference || currentCustomer?.customerReference || null) => {
@@ -898,6 +992,16 @@ export default function App() {
     }
     return months === 1 ? "1 Month" : `${months} Months`;
   };
+  const mandatoryFiltersSatisfied = useMemo(() => {
+    if (!serviceDate) return false;
+    if (mandatoryFieldKeys.includes("shift")) return !!selectedShift;
+    if (mandatoryFieldKeys.includes("contractDurationName")) return !!selectedContractDurationName;
+    return true;
+  }, [mandatoryFieldKeys, selectedContractDurationName, selectedShift, serviceDate]);
+  const dynamicMandatoryText = useMemo(() => {
+    const joined = mandatoryFieldLabels.join(languageMode === "ar" ? " + " : " + ");
+    return languageMode === "ar" ? `الحقول الإلزامية: ${joined}` : `Mandatory fields: ${joined}`;
+  }, [languageMode, mandatoryFieldLabels]);
 
   const wizardSteps = [
     languageMode === "ar" ? "الخدمة" : "Service",
@@ -910,33 +1014,41 @@ export default function App() {
     if (wizardStep === 0) return !!selectedGroup && !!selectedSubServiceId;
     if (wizardStep === 1) return savedLocations.length === 0 || !!selectedLocationId;
     if (wizardStep === 2) {
-      return (
-        !!serviceDate &&
-        !!selectedShift &&
-        !!selectedNationalityGroup &&
-        !!selectedContractDurationName &&
-        selectedWorkersCount != null &&
-        selectedHoursPerVisit != null &&
-        selectedWeeklyVisits != null &&
-        !!selectedDeliveryWindow
-      );
+      return mandatoryFiltersSatisfied;
     }
     return true;
   }, [
+    mandatoryFiltersSatisfied,
     savedLocations.length,
-    selectedContractDurationName,
-    selectedDeliveryWindow,
     selectedGroup,
-    selectedHoursPerVisit,
     selectedLocationId,
-    selectedNationalityGroup,
-    selectedShift,
     selectedSubServiceId,
-    selectedWeeklyVisits,
-    selectedWorkersCount,
-    serviceDate,
     wizardStep,
   ]);
+
+  const sourceFilterLabel = (value: "all" | "api" | "scraper" | "demo") => {
+    if (languageMode === "ar") {
+      if (value === "all") return "كل المصادر";
+      if (value === "api") return "API فقط";
+      if (value === "scraper") return "Scraper فقط";
+      return "نسخ Enaya (تجريبي)";
+    }
+    if (value === "all") return "All Sources";
+    if (value === "api") return "API only";
+    if (value === "scraper") return "Scraper only";
+    return "Enaya copy (demo)";
+  };
+
+  const sortFilterLabel = (value: ResultsSortMode) => {
+    if (languageMode === "ar") {
+      if (value === "recommended") return "موصى به";
+      if (value === "cheapest") return "الأرخص";
+      return "الأعلى سعراً";
+    }
+    if (value === "recommended") return "Recommended";
+    if (value === "cheapest") return "Cheapest";
+    return "Highest Price";
+  };
 
   const goNext = () => {
     if (!canGoNext) return;
@@ -1244,201 +1356,11 @@ export default function App() {
 
           {wizardStep === 2 ? (
             <>
-              {selectedGroup === "hourly-cleaning" ? (
-                <>
-                  <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "كم عدد الساعات؟" : "How many hours?"}</Text>
-                  <Text style={styles.fieldHint}>JSON: hoursNumber / visitHours</Text>
-                  <FlatList
-                    horizontal
-                    data={hourlyOptions}
-                    keyExtractor={(item) => item.toString()}
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={({ item }) => {
-                      const active = hourlyHours === item;
-                      return (
-                        <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setHourlyHours(item)}>
-                          <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                            {item} {languageMode === "ar" ? "ساعات" : "Hours"}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    }}
-                  />
-                </>
-              ) : null}
-
-              {selectedGroup === "monthly" ? (
-                <>
-                  <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مدة العقد" : "Contract Duration"}</Text>
-                  <Text style={styles.fieldHint}>JSON: contractDuration / contract_duration_months</Text>
-                  <FlatList
-                    horizontal
-                    data={monthlyDurationOptions}
-                    keyExtractor={(item) => item.toString()}
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={({ item }) => {
-                      const active = monthlyDurationMonths === item;
-                      return (
-                        <TouchableOpacity
-                          style={[styles.chip, active && styles.chipActive]}
-                          onPress={() => setMonthlyDurationMonths(item)}
-                        >
-                          <Text style={[styles.chipText, active && styles.chipTextActive]}>{monthlyDurationLabel(item)}</Text>
-                        </TouchableOpacity>
-                      );
-                    }}
-                  />
-                </>
-              ) : null}
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الفترة" : "Shift / Period"}</Text>
-              <Text style={styles.fieldHint}>JSON: visitShiftName / shift_period / period_tabs</Text>
+              <Text style={styles.fieldHint}>{dynamicMandatoryText}</Text>
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "تاريخ الخدمة (إلزامي)" : "Service Date (mandatory)"}</Text>
               <FlatList
                 horizontal
-                data={shiftOptions}
-                keyExtractor={(item) => item}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedShift === item;
-                  return (
-                    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setSelectedShift(item)}>
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الجنسية / مجموعة الموارد" : "Nationality / Resource Group"}</Text>
-              <Text style={styles.fieldHint}>JSON: resourceGroupName / nationality</Text>
-              <FlatList
-                horizontal
-                data={nationalityOptions}
-                keyExtractor={(item) => item}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedNationalityGroup === item;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedNationalityGroup(item)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اسم مدة التعاقد" : "Contract Duration Name"}</Text>
-              <Text style={styles.fieldHint}>JSON: contractDurationName / contract_duration_months</Text>
-              <FlatList
-                horizontal
-                data={contractDurationNameOptions}
-                keyExtractor={(item) => item}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedContractDurationName === item;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedContractDurationName(item)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "عدد العاملات" : "Workers Count"}</Text>
-              <Text style={styles.fieldHint}>JSON: employeeNumber / workerCount</Text>
-              <FlatList
-                horizontal
-                data={workerCountOptions}
-                keyExtractor={(item) => item.toString()}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedWorkersCount === item;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedWorkersCount(item)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                        {item} {languageMode === "ar" ? "عاملة" : "Worker"}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "عدد الساعات لكل زيارة" : "Hours Per Visit"}</Text>
-              <Text style={styles.fieldHint}>JSON: hoursNumber / visitHours</Text>
-              <FlatList
-                horizontal
-                data={hoursPerVisitOptions}
-                keyExtractor={(item) => item.toString()}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedHoursPerVisit === item;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedHoursPerVisit(item)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                        {item} {languageMode === "ar" ? "ساعات" : "Hours"}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الزيارات الأسبوعية" : "Weekly Visits"}</Text>
-              <Text style={styles.fieldHint}>JSON: weeklyVisits</Text>
-              <FlatList
-                horizontal
-                data={weeklyVisitOptions}
-                keyExtractor={(item) => item.toString()}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedWeeklyVisits === item;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedWeeklyVisits(item)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                        {item} {languageMode === "ar" ? "زيارة" : "Visit"}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "نافذة وقت الزيارة" : "Delivery Window"}</Text>
-              <Text style={styles.fieldHint}>JSON: deliveryWindow / delivery_windows</Text>
-              <FlatList
-                horizontal
-                data={deliveryWindowOptions}
-                keyExtractor={(item) => item}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const active = selectedDeliveryWindow === item;
-                  return (
-                    <TouchableOpacity
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedDeliveryWindow(item)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "تاريخ الخدمة" : "Service Date"}</Text>
-              <Text style={styles.fieldHint}>{languageMode === "ar" ? "اختر التاريخ من البطاقات" : "Select date from cards"}</Text>
-              <FlatList
-                horizontal
-                data={serviceDateOptions}
+                data={effectiveServiceDateOptions}
                 keyExtractor={(item) => item.value}
                 showsHorizontalScrollIndicator={false}
                 renderItem={({ item }) => {
@@ -1455,19 +1377,107 @@ export default function App() {
                   );
                 }}
               />
+              {mandatoryFieldKeys.includes("shift") ? (
+                <>
+                  <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الفترة (إلزامي)" : "Shift (mandatory)"}</Text>
+                  <FlatList
+                    horizontal
+                    data={effectiveShiftOptions}
+                    keyExtractor={(item) => item}
+                    showsHorizontalScrollIndicator={false}
+                    renderItem={({ item }) => {
+                      const active = selectedShift === item;
+                      return (
+                        <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setSelectedShift(item)}>
+                          <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                </>
+              ) : null}
+              {mandatoryFieldKeys.includes("contractDurationName") ? (
+                <>
+                  <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مدة التعاقد (إلزامي)" : "Contract Duration (mandatory)"}</Text>
+                  <FlatList
+                    horizontal
+                    data={contractDurationNameOptions}
+                    keyExtractor={(item) => item}
+                    showsHorizontalScrollIndicator={false}
+                    renderItem={({ item }) => {
+                      const active = selectedContractDurationName === item;
+                      return (
+                        <TouchableOpacity
+                          style={[styles.chip, active && styles.chipActive]}
+                          onPress={() => setSelectedContractDurationName(item)}
+                        >
+                          <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                </>
+              ) : null}
+              {!mandatoryFiltersSatisfied ? (
+                <Text style={styles.errorText}>
+                  {languageMode === "ar"
+                    ? "يرجى اختيار الحقول الإلزامية أولاً قبل عرض النتائج."
+                    : "Please select all mandatory fields before viewing results."}
+                </Text>
+              ) : null}
             </>
           ) : null}
 
           {wizardStep === 3 ? (
             <>
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "تصفية المزود (اختياري)" : "Provider Filter (optional)"}</Text>
-              <TextInput
-                placeholder={languageMode === "ar" ? "ابحث عن مزود..." : "Search providers..."}
-                value={searchText}
-                onChangeText={setSearchText}
-                style={styles.searchInput}
-                placeholderTextColor={Brand.colors.textSecondary}
-              />
+              <View style={styles.rowBetween}>
+                <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "النتائج" : "Results"}</Text>
+                <TouchableOpacity style={styles.filterToggleButton} onPress={() => setShowResultsFilters((prev) => !prev)}>
+                  <Text style={styles.filterToggleText}>{languageMode === "ar" ? "فلاتر" : "Filters"}</Text>
+                </TouchableOpacity>
+              </View>
+              {showResultsFilters ? (
+                <View style={styles.summaryBar}>
+                  <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "Sort & Filter" : "Sort & Filter"}</Text>
+                  <Text style={styles.fieldHint}>{languageMode === "ar" ? "الترتيب" : "Sort"}</Text>
+                  <View style={styles.rowWrap}>
+                    {([
+                      { key: "recommended", labelEn: "Recommended", labelAr: "موصى به" },
+                      { key: "cheapest", labelEn: "Cheapest", labelAr: "الأرخص" },
+                      { key: "highest", labelEn: "Highest", labelAr: "الأعلى" },
+                    ] as Array<{ key: ResultsSortMode; labelEn: string; labelAr: string }>).map((item) => (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={[styles.chip, resultsSortMode === item.key && styles.chipActive]}
+                        onPress={() => setResultsSortMode(item.key)}
+                      >
+                        <Text style={[styles.chipText, resultsSortMode === item.key && styles.chipTextActive]}>
+                          {languageMode === "ar" ? item.labelAr : item.labelEn}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={styles.fieldHint}>{languageMode === "ar" ? "مصدر السعر" : "Source"}</Text>
+                  <View style={styles.rowWrap}>
+                    {([
+                      { key: "all", labelEn: "All", labelAr: "الكل" },
+                      { key: "api", labelEn: "API", labelAr: "API" },
+                      { key: "scraper", labelEn: "Scraper", labelAr: "استخراج" },
+                      { key: "demo", labelEn: "Enaya Copy", labelAr: "نسخة عناية" },
+                    ] as Array<{ key: "all" | "api" | "scraper" | "demo"; labelEn: string; labelAr: string }>).map((item) => (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={[styles.chip, resultsSourceFilter === item.key && styles.chipActive]}
+                        onPress={() => setResultsSourceFilter(item.key)}
+                      >
+                        <Text style={[styles.chipText, resultsSourceFilter === item.key && styles.chipTextActive]}>
+                          {languageMode === "ar" ? item.labelAr : item.labelEn}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
               <View style={styles.summaryBar}>
                 <Text style={styles.summaryText}>
                   {selectedGroup ? groupLabel(selectedGroup) : "No group"} | {selectedSubService ? (languageMode === "ar" ? selectedSubService.nameAr : selectedSubService.nameEn) : "No sub service"}
@@ -1531,7 +1541,7 @@ export default function App() {
               </Text>
             </View>
           ) : (
-            wegoStyleRows.map(({ price, provider, offer }) => {
+            resultsRows.map(({ price, provider, offer }) => {
               const isMonthlyFlow = selectedGroup === "monthly";
               const durationFromOffer = parseDurationToMonths(`${offer?.nameEn ?? ""} ${offer?.nameAr ?? ""}`);
               const durationFromSelection = parseDurationToMonths(selectedContractDurationName ?? "");
@@ -1807,6 +1817,31 @@ const styles = StyleSheet.create({
   },
   dateCardTextActive: {
     color: Brand.colors.primaryDark,
+  },
+  rowBetween: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  filterToggleButton: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#fff",
+  },
+  filterToggleText: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  rowWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
   },
   rowControls: {
     flexDirection: "row",
