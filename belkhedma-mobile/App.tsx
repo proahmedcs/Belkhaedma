@@ -57,6 +57,81 @@ type ServiceDateOption = {
 };
 type MandatoryFieldKey = "serviceDate" | "shift" | "contractDurationName";
 type ResultsSortMode = "recommended" | "cheapest" | "highest";
+type PrimaryMenuKey = "main" | "search" | "orders" | "account";
+type SecondaryMenuItem = { key: string; labelEn: string; labelAr: string };
+type SampleNotification = { id: string; titleEn: string; titleAr: string; metaEn: string; metaAr: string };
+
+const PRIMARY_MENUS: Array<{
+  key: PrimaryMenuKey;
+  labelEn: string;
+  labelAr: string;
+  icon: string;
+  secondary: SecondaryMenuItem[];
+}> = [
+  {
+    key: "main",
+    labelEn: "Main",
+    labelAr: "الرئيسية",
+    icon: "🏠",
+    secondary: [
+      { key: "overview", labelEn: "Overview", labelAr: "نظرة عامة" },
+      { key: "offers", labelEn: "Offers", labelAr: "العروض" },
+      { key: "providers", labelEn: "Providers", labelAr: "المزودون" },
+    ],
+  },
+  {
+    key: "search",
+    labelEn: "Search",
+    labelAr: "البحث",
+    icon: "🔎",
+    secondary: [
+      { key: "hourly", labelEn: "Hourly", labelAr: "بالساعة" },
+      { key: "monthly", labelEn: "Monthly", labelAr: "شهري" },
+      { key: "medical", labelEn: "Medical", labelAr: "طبي" },
+      { key: "mediation", labelEn: "Mediation", labelAr: "وساطة" },
+    ],
+  },
+  {
+    key: "orders",
+    labelEn: "Orders",
+    labelAr: "طلباتي",
+    icon: "📄",
+    secondary: [
+      { key: "active-orders", labelEn: "Active", labelAr: "نشطة" },
+      { key: "history-orders", labelEn: "History", labelAr: "السجل" },
+      { key: "draft-orders", labelEn: "Drafts", labelAr: "مسودات" },
+    ],
+  },
+  {
+    key: "account",
+    labelEn: "Account",
+    labelAr: "الحساب",
+    icon: "👤",
+    secondary: [
+      { key: "profile", labelEn: "Profile", labelAr: "الملف" },
+      { key: "notifications", labelEn: "Notifications", labelAr: "الإشعارات" },
+      { key: "support", labelEn: "Support", labelAr: "الدعم" },
+    ],
+  },
+];
+
+const SAMPLE_CALL_CENTER_NUMBER = "+966920000000";
+const SAMPLE_NOTIFICATIONS: SampleNotification[] = [
+  {
+    id: "notif-1",
+    titleEn: "Contract reminder",
+    titleAr: "تذكير بالعقد",
+    metaEn: "Your monthly package starts tomorrow.",
+    metaAr: "باقتك الشهرية تبدأ غداً.",
+  },
+  {
+    id: "notif-2",
+    titleEn: "Price drop alert",
+    titleAr: "تنبيه انخفاض السعر",
+    metaEn: "Enaya copied package is now cheaper.",
+    metaAr: "باقة نسخة عناية أصبحت أرخص.",
+  },
+];
 
 const AUTH_SESSION_STORAGE_KEY = "belkhedma.auth.session.v1";
 
@@ -418,6 +493,9 @@ export default function App() {
   const [resultsShiftFilter, setResultsShiftFilter] = useState<string | null>(null);
   const [resultsContractDurationFilter, setResultsContractDurationFilter] = useState<string | null>(null);
   const [resultsHoursFilter, setResultsHoursFilter] = useState<number | null>(null);
+  const [activePrimaryMenu, setActivePrimaryMenu] = useState<PrimaryMenuKey>("main");
+  const [activeSecondaryMenu, setActiveSecondaryMenu] = useState<string>("overview");
+  const [notificationCount] = useState<number>(3);
 
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
@@ -710,6 +788,13 @@ export default function App() {
     () => savedLocations.find((x) => x.id === selectedLocationId) ?? null,
     [savedLocations, selectedLocationId]
   );
+  const topLocationTitle = languageMode === "ar" ? "العنوان" : "Location";
+  const topLocationValue = useMemo(() => {
+    if (!selectedLocation) {
+      return languageMode === "ar" ? "اختر العنوان" : "Select location";
+    }
+    return `${selectedLocation.label} - ${selectedLocation.city}`;
+  }, [languageMode, selectedLocation]);
 
   const groupComparisonOfferIds = useMemo(() => {
     if (!selectedGroup) {
@@ -1191,6 +1276,18 @@ export default function App() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.header}>
+          <View style={styles.topUtilityRow}>
+            <TouchableOpacity style={styles.locationPill} onPress={() => setWizardStep(1)}>
+              <Text style={styles.locationPillIcon}>📍</Text>
+              <View style={styles.locationPillTextWrap}>
+                <Text style={styles.locationPillTitle}>{topLocationTitle}</Text>
+                <Text style={styles.locationPillValue} numberOfLines={1}>
+                  {topLocationValue}
+                </Text>
+              </View>
+              <Text style={styles.locationPillChevron}>›</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.logo}>Belkhedma</Text>
           <Text style={styles.subtitle}>Dynamic wizard with service group and sub service</Text>
           <View style={styles.langSwitchRow}>
@@ -1661,6 +1758,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: Brand.spacing.md,
     paddingVertical: Brand.spacing.lg,
     backgroundColor: Brand.colors.primaryDark,
+  },
+  topUtilityRow: {
+    marginBottom: 10,
+  },
+  locationPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff22",
+    borderWidth: 1,
+    borderColor: "#ffffff44",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  locationPillIcon: {
+    fontSize: 15,
+    marginRight: 8,
+  },
+  locationPillTextWrap: {
+    flex: 1,
+  },
+  locationPillTitle: {
+    color: "#FCE7F3",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  locationPillValue: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  locationPillChevron: {
+    color: "#fff",
+    fontSize: 18,
+    marginLeft: 8,
   },
   logo: {
     color: "#fff",
