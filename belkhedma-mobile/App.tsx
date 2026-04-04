@@ -30,13 +30,40 @@ import {
 } from "./src/types/marketplace";
 
 type LanguageMode = "ar" | "en";
-type ServiceTypeFilter = "hourly" | "monthly" | "recruitment";
-type WizardStep = 0 | 1 | 2 | 3;
+type ServiceGroup = "hourly-cleaning" | "monthly" | "medical-services" | "mediation-services";
+type WizardStep = 0 | 1 | 2 | 3 | 4;
 
-function modeToServiceType(serviceMode: number): ServiceTypeFilter | null {
-  if (serviceMode === 1) return "hourly";
-  if (serviceMode === 2 || serviceMode === 3) return "monthly";
-  return null;
+function normalizeText(value: string): string {
+  return value.toLowerCase().trim();
+}
+
+function inferServiceGroup(offer: ServiceOffer, provider?: Provider): ServiceGroup {
+  const source = normalizeText(`${offer.nameEn} ${offer.nameAr} ${provider?.providerType ?? ""}`);
+
+  if (
+    source.includes("medical") ||
+    source.includes("طبي") ||
+    source.includes("maintenance") ||
+    source.includes("صيانة")
+  ) {
+    return "medical-services";
+  }
+
+  if (
+    source.includes("mediation") ||
+    source.includes("recruit") ||
+    source.includes("وساطة") ||
+    source.includes("استقدام") ||
+    provider?.supportsRecruitment
+  ) {
+    return "mediation-services";
+  }
+
+  if (offer.serviceMode === 2 || offer.serviceMode === 3 || source.includes("month") || source.includes("شهري")) {
+    return "monthly";
+  }
+
+  return "hourly-cleaning";
 }
 
 function extractNumbersByRegex(value: string, regex: RegExp): number[] {
@@ -54,7 +81,8 @@ export default function App() {
   const [savedLocations, setSavedLocations] = useState<CustomerSavedLocation[]>([]);
 
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [serviceType, setServiceType] = useState<ServiceTypeFilter | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<ServiceGroup | null>(null);
+  const [selectedSubServiceId, setSelectedSubServiceId] = useState<string | null>(null);
   const [hourlyHours, setHourlyHours] = useState<number>(4);
   const [monthlyDurationMonths, setMonthlyDurationMonths] = useState<number>(1);
   const [serviceDate, setServiceDate] = useState<string>("");
@@ -86,10 +114,7 @@ export default function App() {
   }, [serviceOffers]);
 
   const filteredProviders = useMemo(() => {
-    if (!selectedProvider) {
-      return providers;
-    }
-
+    if (!selectedProvider) return providers;
     return providers.filter((p) => p.code === selectedProvider);
   }, [providers, selectedProvider]);
 
@@ -98,71 +123,71 @@ export default function App() {
     return serviceOffers.filter((offer) => visibleProviderIds.has(offer.providerId));
   }, [filteredProviders, serviceOffers]);
 
-  const availableServiceTypes = useMemo(() => {
-    const result = new Set<ServiceTypeFilter>();
-
+  const availableGroups = useMemo(() => {
+    const groups = new Set<ServiceGroup>();
     for (const offer of visibleOffers) {
-      const mapped = modeToServiceType(offer.serviceMode);
-      if (mapped) {
-        result.add(mapped);
-      }
+      groups.add(inferServiceGroup(offer, providerById[offer.providerId]));
     }
-
-    for (const provider of filteredProviders) {
-      if (provider.supportsHourly) result.add("hourly");
-      if (provider.supportsMonthly) result.add("monthly");
-      if (provider.supportsRecruitment) result.add("recruitment");
-    }
-
-    return Array.from(result);
-  }, [filteredProviders, visibleOffers]);
+    return Array.from(groups);
+  }, [providerById, visibleOffers]);
 
   useEffect(() => {
-    if (availableServiceTypes.length === 0) {
-      setServiceType(null);
+    if (availableGroups.length === 0) {
+      setSelectedGroup(null);
       return;
     }
-
-    if (!serviceType || !availableServiceTypes.includes(serviceType)) {
-      setServiceType(availableServiceTypes[0]);
+    if (!selectedGroup || !availableGroups.includes(selectedGroup)) {
+      setSelectedGroup(availableGroups[0]);
     }
-  }, [availableServiceTypes, serviceType]);
+  }, [availableGroups, selectedGroup]);
+
+  const groupFilteredOffers = useMemo(() => {
+    if (!selectedGroup) return [];
+    return visibleOffers.filter((offer) => inferServiceGroup(offer, providerById[offer.providerId]) === selectedGroup);
+  }, [providerById, selectedGroup, visibleOffers]);
+
+  useEffect(() => {
+    if (groupFilteredOffers.length === 0) {
+      setSelectedSubServiceId(null);
+      return;
+    }
+    if (!selectedSubServiceId || !groupFilteredOffers.some((x) => x.id === selectedSubServiceId)) {
+      setSelectedSubServiceId(groupFilteredOffers[0].id);
+    }
+  }, [groupFilteredOffers, selectedSubServiceId]);
+
+  const selectedSubService = useMemo(
+    () => groupFilteredOffers.find((x) => x.id === selectedSubServiceId) ?? null,
+    [groupFilteredOffers, selectedSubServiceId]
+  );
 
   const hourlyOptions = useMemo(() => {
     const values = new Set<number>();
-
-    for (const offer of visibleOffers) {
-      if (modeToServiceType(offer.serviceMode) !== "hourly") continue;
-      const haystack = `${offer.nameEn} ${offer.nameAr}`;
-      extractNumbersByRegex(haystack, /\d+\s*(hour|hours|ساعة|ساعات)/gi).forEach((n) => values.add(n));
+    for (const offer of groupFilteredOffers) {
+      const source = `${offer.nameEn} ${offer.nameAr}`;
+      extractNumbersByRegex(source, /\d+\s*(hour|hours|ساعة|ساعات)/gi).forEach((n) => values.add(n));
     }
-
     if (values.size === 0) {
       values.add(4);
       values.add(8);
     }
-
     return Array.from(values).sort((a, b) => a - b);
-  }, [visibleOffers]);
+  }, [groupFilteredOffers]);
 
   const monthlyDurationOptions = useMemo(() => {
     const values = new Set<number>();
-
-    for (const offer of visibleOffers) {
-      if (modeToServiceType(offer.serviceMode) !== "monthly") continue;
-      const haystack = `${offer.nameEn} ${offer.nameAr}`;
-      extractNumbersByRegex(haystack, /\d+\s*(month|months|شهر|أشهر)/gi).forEach((n) => values.add(n));
-      extractNumbersByRegex(haystack, /\d+\s*(week|weeks|اسبوع|أسبوع)/gi).forEach((weeks) => {
-        values.add(Math.max(1, Math.ceil(weeks / 4)));
-      });
+    for (const offer of groupFilteredOffers) {
+      const source = `${offer.nameEn} ${offer.nameAr}`;
+      extractNumbersByRegex(source, /\d+\s*(month|months|شهر|أشهر)/gi).forEach((n) => values.add(n));
+      extractNumbersByRegex(source, /\d+\s*(week|weeks|اسبوع|أسبوع)/gi).forEach((weeks) =>
+        values.add(Math.max(1, Math.ceil(weeks / 4)))
+      );
     }
-
     if (values.size === 0) {
       [1, 3, 6, 12].forEach((n) => values.add(n));
     }
-
     return Array.from(values).sort((a, b) => a - b);
-  }, [visibleOffers]);
+  }, [groupFilteredOffers]);
 
   useEffect(() => {
     if (!hourlyOptions.includes(hourlyHours)) {
@@ -187,34 +212,17 @@ export default function App() {
       const provider = providerById[price.providerId];
       if (!provider) return false;
 
-      if (selectedProvider && provider.code !== selectedProvider) {
-        return false;
-      }
-
-      if (serviceType) {
-        const offer = offerById[price.serviceOfferId];
-        if (serviceType === "hourly") {
-          const byOffer = offer ? offer.serviceMode === 1 : provider.supportsHourly;
-          if (!byOffer) return false;
-        }
-        if (serviceType === "monthly") {
-          const byOffer = offer ? offer.serviceMode === 2 || offer.serviceMode === 3 : provider.supportsMonthly;
-          if (!byOffer) return false;
-        }
-        if (serviceType === "recruitment" && !provider.supportsRecruitment) {
-          return false;
-        }
-      }
+      if (selectedProvider && provider.code !== selectedProvider) return false;
+      if (selectedSubServiceId && price.serviceOfferId !== selectedSubServiceId) return false;
 
       if (!q) return true;
-
       const haystack = [provider.nameAr, provider.nameEn, provider.code, provider.providerType]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [offerById, prices, providerById, searchText, selectedProvider, serviceType]);
+  }, [prices, providerById, searchText, selectedProvider, selectedSubServiceId]);
 
   const loadData = async () => {
     try {
@@ -257,15 +265,17 @@ export default function App() {
     }
   };
 
-  const serviceTypeLabel = (value: ServiceTypeFilter) => {
+  const groupLabel = (group: ServiceGroup) => {
     if (languageMode === "ar") {
-      if (value === "hourly") return "بالساعة";
-      if (value === "monthly") return "شهري";
-      return "استقدام";
+      if (group === "hourly-cleaning") return "خدمات تنظيف بالساعة";
+      if (group === "monthly") return "خدمات شهرية";
+      if (group === "medical-services") return "خدمات طبية";
+      return "خدمات وساطة";
     }
-    if (value === "hourly") return "Hourly";
-    if (value === "monthly") return "Monthly";
-    return "Recruitment";
+    if (group === "hourly-cleaning") return "Hourly Cleaning";
+    if (group === "monthly") return "Monthly";
+    if (group === "medical-services") return "Medical Services";
+    return "Mediation Services";
   };
 
   const monthlyDurationLabel = (months: number) => {
@@ -276,22 +286,24 @@ export default function App() {
   };
 
   const wizardSteps = [
-    languageMode === "ar" ? "الخدمة" : "Service",
-    languageMode === "ar" ? "تفاصيل الخدمة" : "Service Details",
+    languageMode === "ar" ? "المجموعة" : "Group",
+    languageMode === "ar" ? "الخدمة الفرعية" : "Sub Service",
+    languageMode === "ar" ? "التفاصيل" : "Details",
     languageMode === "ar" ? "الموقع" : "Location",
     languageMode === "ar" ? "النتائج" : "Results",
   ];
 
   const canGoNext = useMemo(() => {
-    if (wizardStep === 0) return !!serviceType;
-    if (wizardStep === 1) return !!serviceDate;
-    if (wizardStep === 2) return savedLocations.length === 0 || !!selectedLocationId;
+    if (wizardStep === 0) return !!selectedGroup;
+    if (wizardStep === 1) return !!selectedSubServiceId;
+    if (wizardStep === 2) return !!serviceDate;
+    if (wizardStep === 3) return savedLocations.length === 0 || !!selectedLocationId;
     return true;
-  }, [savedLocations.length, selectedLocationId, serviceDate, serviceType, wizardStep]);
+  }, [savedLocations.length, selectedGroup, selectedLocationId, selectedSubServiceId, serviceDate, wizardStep]);
 
   const goNext = () => {
     if (!canGoNext) return;
-    setWizardStep((prev) => Math.min(3, prev + 1) as WizardStep);
+    setWizardStep((prev) => Math.min(4, prev + 1) as WizardStep);
   };
 
   const goBack = () => {
@@ -304,7 +316,7 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.header}>
           <Text style={styles.logo}>Belkhedma</Text>
-          <Text style={styles.subtitle}>Dynamic service wizard and provider comparison</Text>
+          <Text style={styles.subtitle}>Dynamic wizard with service group and sub service</Text>
           <View style={styles.langSwitchRow}>
             <TouchableOpacity
               style={[styles.langButton, languageMode === "en" && styles.langButtonActive]}
@@ -322,7 +334,7 @@ export default function App() {
         </View>
 
         <View style={styles.filterCard}>
-          <Text style={styles.sectionTitle}>{languageMode === "ar" ? "معالج البحث" : "Search Wizard"}</Text>
+          <Text style={styles.sectionTitle}>{languageMode === "ar" ? "معالج الخدمة" : "Service Wizard"}</Text>
           <View style={styles.wizardStepsRow}>
             {wizardSteps.map((label, index) => {
               const active = wizardStep === index;
@@ -340,11 +352,23 @@ export default function App() {
 
           {wizardStep === 0 ? (
             <>
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اختيار المزود (اختياري)" : "Choose Provider (optional)"}</Text>
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "المزود (اختياري)" : "Provider (optional)"}</Text>
               <FlatList
                 horizontal
                 data={[
-                  { code: "", nameAr: languageMode === "ar" ? "كل المزودين" : "All Providers", nameEn: "All Providers", id: "", hasApiAccess: false, supportsHourly: false, supportsMonthly: false, supportsB2B: false, supportsRecruitment: false, integrationModeKey: "", isActive: true } as Provider,
+                  {
+                    code: "",
+                    nameAr: languageMode === "ar" ? "كل المزودين" : "All Providers",
+                    nameEn: "All Providers",
+                    id: "",
+                    hasApiAccess: false,
+                    supportsHourly: false,
+                    supportsMonthly: false,
+                    supportsB2B: false,
+                    supportsRecruitment: false,
+                    integrationModeKey: "",
+                    isActive: true,
+                  } as Provider,
                   ...providers,
                 ]}
                 keyExtractor={(item) => item.code || "all"}
@@ -364,28 +388,54 @@ export default function App() {
                 }}
               />
 
-              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "نوع الخدمة" : "Service Type"}</Text>
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مجموعة الخدمة" : "Service Group"}</Text>
               <FlatList
                 horizontal
-                data={availableServiceTypes}
+                data={availableGroups}
                 keyExtractor={(item) => item}
                 showsHorizontalScrollIndicator={false}
                 renderItem={({ item }) => {
-                  const active = serviceType === item;
+                  const active = selectedGroup === item;
                   return (
-                    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setServiceType(item)}>
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{serviceTypeLabel(item)}</Text>
+                    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setSelectedGroup(item)}>
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{groupLabel(item)}</Text>
                     </TouchableOpacity>
                   );
                 }}
-                ListEmptyComponent={<Text style={styles.meta}>No service types available for this provider.</Text>}
+                ListEmptyComponent={<Text style={styles.meta}>No service groups available for this provider.</Text>}
               />
             </>
           ) : null}
 
           {wizardStep === 1 ? (
             <>
-              {serviceType === "hourly" ? (
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الخدمة الفرعية" : "Sub Service"}</Text>
+              <FlatList
+                horizontal
+                data={groupFilteredOffers}
+                keyExtractor={(item) => item.id}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedSubServiceId === item.id;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedSubServiceId(item.id)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {languageMode === "ar" ? item.nameAr : item.nameEn}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+                ListEmptyComponent={<Text style={styles.meta}>No sub services found in this group.</Text>}
+              />
+            </>
+          ) : null}
+
+          {wizardStep === 2 ? (
+            <>
+              {selectedGroup === "hourly-cleaning" ? (
                 <>
                   <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "كم عدد الساعات؟" : "How many hours?"}</Text>
                   <Text style={styles.fieldHint}>JSON: hoursNumber / visitHours</Text>
@@ -408,7 +458,7 @@ export default function App() {
                 </>
               ) : null}
 
-              {serviceType === "monthly" ? (
+              {selectedGroup === "monthly" ? (
                 <>
                   <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مدة العقد" : "Contract Duration"}</Text>
                   <Text style={styles.fieldHint}>JSON: contractDuration / contract_duration_months</Text>
@@ -443,7 +493,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 2 ? (
+          {wizardStep === 3 ? (
             <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مرجع العميل" : "Customer Reference"}</Text>
               <View style={styles.rowControls}>
@@ -507,7 +557,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 3 ? (
+          {wizardStep === 4 ? (
             <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "بحث المزود" : "Provider Search"}</Text>
               <TextInput
@@ -519,12 +569,9 @@ export default function App() {
               />
               <View style={styles.summaryBar}>
                 <Text style={styles.summaryText}>
-                  {serviceType ? serviceTypeLabel(serviceType) : "No service selected"} | {serviceDate || "No date"}
+                  {selectedGroup ? groupLabel(selectedGroup) : "No group"} | {selectedSubService ? (languageMode === "ar" ? selectedSubService.nameAr : selectedSubService.nameEn) : "No sub service"}
                 </Text>
-                {serviceType === "hourly" ? <Text style={styles.summaryText}>Hours: {hourlyHours}</Text> : null}
-                {serviceType === "monthly" ? (
-                  <Text style={styles.summaryText}>Duration: {monthlyDurationLabel(monthlyDurationMonths)}</Text>
-                ) : null}
+                <Text style={styles.summaryText}>{serviceDate || "No date selected"}</Text>
               </View>
             </>
           ) : null}
@@ -533,7 +580,7 @@ export default function App() {
             <TouchableOpacity style={[styles.navButton, wizardStep === 0 && styles.navButtonDisabled]} onPress={goBack}>
               <Text style={styles.navText}>{languageMode === "ar" ? "السابق" : "Back"}</Text>
             </TouchableOpacity>
-            {wizardStep < 3 ? (
+            {wizardStep < 4 ? (
               <TouchableOpacity style={[styles.navButton, !canGoNext && styles.navButtonDisabled]} onPress={goNext}>
                 <Text style={styles.navText}>{languageMode === "ar" ? "التالي" : "Next"}</Text>
               </TouchableOpacity>
