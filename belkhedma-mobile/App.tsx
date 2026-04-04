@@ -14,15 +14,19 @@ import {
   View,
 } from "react-native";
 import {
+  getCurrentCustomer,
   getCustomerSavedLocations,
   getAllPrices,
   getLatestPrices,
   getProviderJsonDocuments,
   getProviders,
+  registerOrLoginCustomer,
   getServiceOffers,
 } from "./src/services/marketplaceApi";
 import { Brand } from "./src/theme/brand";
 import {
+  CustomerAuthResponse,
+  CustomerProfile,
   CustomerSavedLocation,
   PriceSnapshot,
   Provider,
@@ -297,6 +301,12 @@ function getServiceGroupIcon(group: ServiceGroup): string {
 }
 
 export default function App() {
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [currentCustomer, setCurrentCustomer] = useState<CustomerProfile | null>(null);
+  const [customerFullName, setCustomerFullName] = useState<string>("");
+  const [customerMobileNumber, setCustomerMobileNumber] = useState<string>("");
+  const [authLoading, setAuthLoading] = useState<boolean>(false);
+
   const [providers, setProviders] = useState<Provider[]>([]);
   const [serviceOffers, setServiceOffers] = useState<ServiceOffer[]>([]);
   const [prices, setPrices] = useState<PriceSnapshot[]>([]);
@@ -309,7 +319,7 @@ export default function App() {
   const [hourlyHours, setHourlyHours] = useState<number>(4);
   const [monthlyDurationMonths, setMonthlyDurationMonths] = useState<number>(1);
   const [serviceDate, setServiceDate] = useState<string>("");
-  const [customerReference, setCustomerReference] = useState<string>("demo-customer");
+  const [customerReference, setCustomerReference] = useState<string>("");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState<string>("");
   const [hasSearched, setHasSearched] = useState<boolean>(false);
@@ -326,10 +336,6 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [logoFallbackIndex, setLogoFallbackIndex] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    void loadData();
-  }, []);
 
   const providerById = useMemo(() => {
     return providers.reduce<Record<string, Provider>>((acc, provider) => {
@@ -588,7 +594,17 @@ export default function App() {
     }));
   }, [offerById, providerById, searchedPrices]);
 
-  const loadData = async () => {
+  const loadData = async (activeToken: string | null = authToken, activeCustomerReference: string | null = customerReference || currentCustomer?.customerReference || null) => {
+    if (!activeToken || !activeCustomerReference) {
+      setProviders([]);
+      setServiceOffers([]);
+      setPrices([]);
+      setJsonDocuments([]);
+      setSavedLocations([]);
+      setSelectedLocationId(null);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -598,7 +614,7 @@ export default function App() {
         getServiceOffers(),
         getLatestPrices(),
         getProviderJsonDocuments(undefined, false),
-        getCustomerSavedLocations(customerReference),
+        getCustomerSavedLocations(activeCustomerReference, activeToken),
       ]);
 
       setProviders(providersData);
@@ -607,10 +623,35 @@ export default function App() {
       setJsonDocuments(docsData);
       setSavedLocations(locationsData);
       setSelectedLocationId((current) => current ?? locationsData[0]?.id ?? null);
+      if (customerReference !== activeCustomerReference) {
+        setCustomerReference(activeCustomerReference);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRegisterOrLogin = async () => {
+    try {
+      setAuthLoading(true);
+      setError(null);
+
+      const response = await registerOrLoginCustomer({
+        mobileNumber: customerMobileNumber,
+        fullName: customerFullName,
+      });
+
+      setAuthToken(response.authToken);
+      const profile = await getCurrentCustomer(response.authToken);
+      setCurrentCustomer(profile);
+      setCustomerReference(profile.customerReference);
+      await loadData(response.authToken, profile.customerReference);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Authentication failed.");
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -631,8 +672,13 @@ export default function App() {
   };
 
   const loadSavedLocations = async () => {
+    if (!authToken) {
+      setError("Authentication token is missing. Please login again.");
+      return;
+    }
+
     try {
-      const locationsData = await getCustomerSavedLocations(customerReference);
+      const locationsData = await getCustomerSavedLocations(customerReference, authToken);
       setSavedLocations(locationsData);
       setSelectedLocationId((current) => {
         if (current && locationsData.some((x) => x.id === current)) {
@@ -713,6 +759,78 @@ export default function App() {
     setWizardStep((prev) => Math.max(0, prev - 1) as WizardStep);
   };
 
+  if (!currentCustomer || !authToken) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <ScrollView contentContainerStyle={styles.page}>
+          <View style={styles.header}>
+            <Text style={styles.logo}>Belkhedma</Text>
+            <Text style={styles.subtitle}>
+              {languageMode === "ar"
+                ? "تسجيل العميل عبر رقم الجوال والاسم"
+                : "Customer authentication with mobile and name"}
+            </Text>
+            <View style={styles.langSwitchRow}>
+              <TouchableOpacity
+                style={[styles.langButton, languageMode === "en" && styles.langButtonActive]}
+                onPress={() => setLanguageMode("en")}
+              >
+                <Text style={[styles.langText, languageMode === "en" && styles.langTextActive]}>EN</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.langButton, languageMode === "ar" && styles.langButtonActive]}
+                onPress={() => setLanguageMode("ar")}
+              >
+                <Text style={[styles.langText, languageMode === "ar" && styles.langTextActive]}>AR</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.filterCard}>
+            <Text style={styles.sectionTitle}>{languageMode === "ar" ? "تسجيل / دخول العميل" : "Customer Register / Login"}</Text>
+            <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الاسم الكامل" : "Full Name"}</Text>
+            <TextInput
+              placeholder={languageMode === "ar" ? "مثال: أحمد عبدالغني" : "e.g. Ahmed Abdelghany"}
+              value={customerFullName}
+              onChangeText={setCustomerFullName}
+              style={styles.searchInput}
+              placeholderTextColor={Brand.colors.textSecondary}
+            />
+            <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "رقم الجوال" : "Mobile Number"}</Text>
+            <TextInput
+              placeholder={languageMode === "ar" ? "مثال: +966500000000" : "e.g. +966500000000"}
+              value={customerMobileNumber}
+              onChangeText={setCustomerMobileNumber}
+              style={styles.searchInput}
+              placeholderTextColor={Brand.colors.textSecondary}
+              keyboardType="phone-pad"
+            />
+            <TouchableOpacity
+              style={[styles.searchButton, authLoading && styles.navButtonDisabled]}
+              onPress={handleRegisterOrLogin}
+            >
+              <Text style={styles.searchButtonText}>
+                {authLoading
+                  ? languageMode === "ar"
+                    ? "جاري التحقق..."
+                    : "Authenticating..."
+                  : languageMode === "ar"
+                    ? "تسجيل / دخول"
+                    : "Register / Login"}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.meta}>
+              {languageMode === "ar"
+                ? "باستعمال رقم الجوال سيتم إنشاء حساب جديد أو تسجيل الدخول مباشرة."
+                : "Using mobile number will create a new account or log in directly."}
+            </Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
@@ -734,6 +852,11 @@ export default function App() {
               <Text style={[styles.langText, languageMode === "ar" && styles.langTextActive]}>AR</Text>
             </TouchableOpacity>
           </View>
+          <Text style={styles.metaHeaderText}>
+            {languageMode === "ar"
+              ? `العميل: ${currentCustomer.fullName} (${currentCustomer.mobileNumber})`
+              : `Customer: ${currentCustomer.fullName} (${currentCustomer.mobileNumber})`}
+          </Text>
         </View>
 
         <View style={styles.filterCard}>
@@ -1464,6 +1587,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 6,
     fontSize: 12,
+  },
+  metaHeaderText: {
+    color: Brand.colors.textSecondary,
+    fontSize: 12,
+    marginTop: 6,
+    marginBottom: 4,
   },
   wizardActions: {
     flexDirection: "row",

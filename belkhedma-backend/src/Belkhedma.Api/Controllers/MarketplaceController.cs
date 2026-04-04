@@ -10,6 +10,30 @@ public sealed class MarketplaceController(
     IMarketplaceAdminService marketplaceAdminService) : ControllerBase
 {
     public sealed record UpdateExpirationRequest(DateTime? ExpiresAtUtc);
+    public sealed record CustomerProfileResponse(
+        Guid CustomerId,
+        string CustomerReference,
+        string FullName,
+        string MobileNumber);
+
+    private bool TryReadBearerToken(out string token)
+    {
+        token = string.Empty;
+        if (!Request.Headers.TryGetValue("Authorization", out var authorization))
+        {
+            return false;
+        }
+
+        var headerValue = authorization.ToString();
+        const string prefix = "Bearer ";
+        if (!headerValue.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        token = headerValue[prefix.Length..].Trim();
+        return !string.IsNullOrWhiteSpace(token);
+    }
 
     [HttpGet("providers")]
     public async Task<IActionResult> GetProviders(CancellationToken cancellationToken)
@@ -80,13 +104,50 @@ public sealed class MarketplaceController(
     [HttpGet("customers/{customerReference}/locations")]
     public async Task<IActionResult> GetCustomerSavedLocations([FromRoute] string customerReference, CancellationToken cancellationToken = default)
     {
+        if (!TryReadBearerToken(out var authToken))
+        {
+            return Unauthorized(new { message = "Authorization token is required." });
+        }
+
+        var profile = await marketplaceQueryService.GetCustomerProfileByTokenAsync(authToken, cancellationToken);
+        if (profile is null)
+        {
+            return Unauthorized(new { message = "Invalid or expired token." });
+        }
+
         if (string.IsNullOrWhiteSpace(customerReference))
         {
             return BadRequest(new { message = "customerReference is required." });
         }
 
+        if (!string.Equals(profile.CustomerReference, customerReference, StringComparison.OrdinalIgnoreCase))
+        {
+            return Forbid();
+        }
+
         var locations = await marketplaceQueryService.GetCustomerSavedLocationsAsync(customerReference, cancellationToken);
         return Ok(locations);
+    }
+
+    [HttpGet("customers/me")]
+    public async Task<IActionResult> GetMyCustomerProfile(CancellationToken cancellationToken = default)
+    {
+        if (!TryReadBearerToken(out var authToken))
+        {
+            return Unauthorized(new { message = "Authorization token is required." });
+        }
+
+        var profile = await marketplaceQueryService.GetCustomerProfileByTokenAsync(authToken, cancellationToken);
+        if (profile is null)
+        {
+            return Unauthorized(new { message = "Invalid or expired token." });
+        }
+
+        return Ok(new CustomerProfileResponse(
+            profile.CustomerId,
+            profile.CustomerReference,
+            profile.FullName,
+            profile.MobileNumber));
     }
 
     [HttpPut("json-documents/{documentId:guid}/expiration")]

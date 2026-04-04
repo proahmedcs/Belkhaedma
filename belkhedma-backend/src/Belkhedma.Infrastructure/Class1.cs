@@ -16,6 +16,7 @@ public static class DependencyInjection
 
         services.AddScoped<IMarketplaceQueryService, MarketplaceQueryService>();
         services.AddScoped<IMarketplaceAdminService, MarketplaceQueryService>();
+        services.AddScoped<ICustomerAuthService, CustomerAuthService>();
         services.AddScoped<IDataCollectionService, DataCollectionService>();
 
         return services;
@@ -24,6 +25,44 @@ public static class DependencyInjection
 
 internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IMarketplaceQueryService, IMarketplaceAdminService
 {
+    public async Task<CustomerProfileDto?> GetCustomerProfileByTokenAsync(
+        string authToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(authToken))
+        {
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        var session = await dbContext.CustomerAuthSessions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =>
+                x.AuthToken == authToken &&
+                !x.IsRevoked &&
+                x.ExpiresAtUtc > now, cancellationToken);
+
+        if (session is null)
+        {
+            return null;
+        }
+
+        var customer = await dbContext.CustomerAccounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == session.CustomerAccountId && x.IsActive, cancellationToken);
+
+        if (customer is null)
+        {
+            return null;
+        }
+
+        return new CustomerProfileDto(
+            customer.Id,
+            customer.CustomerReference,
+            customer.FullName,
+            customer.MobileNumber);
+    }
+
     public async Task<IReadOnlyList<ProviderDto>> GetProvidersAsync(CancellationToken cancellationToken = default)
     {
         return await dbContext.Providers
@@ -299,6 +338,101 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         }
 
         return await dbContext.SaveChangesAsync(cancellationToken);
+    }
+}
+
+internal sealed class CustomerAuthService(BelkhedmaDbContext dbContext) : ICustomerAuthService
+{
+    public async Task<CustomerAuthResponse> RegisterOrLoginAsync(
+        CustomerAuthRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedMobile = NormalizeMobile(request.MobileNumber);
+        if (string.IsNullOrWhiteSpace(normalizedMobile))
+        {
+            throw new InvalidOperationException("Valid mobile number is required.");
+        }
+
+        var fullName = (request.FullName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            throw new InvalidOperationException("Full name is required.");
+        }
+
+        var now = DateTime.UtcNow;
+        var customer = await dbContext.CustomerAccounts
+            .FirstOrDefaultAsync(x => x.NormalizedMobileNumber == normalizedMobile, cancellationToken);
+
+        var isNewAccount = false;
+        if (customer is null)
+        {
+            isNewAccount = true;
+            customer = new CustomerAccount
+            {
+                CustomerReference = $"cust-{Guid.NewGuid():N}"[..18],
+                FullName = fullName,
+                MobileNumber = request.MobileNumber.Trim(),
+                NormalizedMobileNumber = normalizedMobile,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+
+            await dbContext.CustomerAccounts.AddAsync(customer, cancellationToken);
+        }
+        else
+        {
+            customer.FullName = fullName;
+            customer.MobileNumber = request.MobileNumber.Trim();
+            customer.UpdatedAtUtc = now;
+            customer.IsActive = true;
+        }
+
+        var token = GenerateAuthToken();
+        var expiresAtUtc = now.AddDays(30);
+        await dbContext.CustomerAuthSessions.AddAsync(new CustomerAuthSession
+        {
+            CustomerAccountId = customer.Id,
+            AuthToken = token,
+            CreatedAtUtc = now,
+            LastUsedAtUtc = now,
+            ExpiresAtUtc = expiresAtUtc,
+            IsRevoked = false
+        }, cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new CustomerAuthResponse(
+            customer.Id,
+            customer.CustomerReference,
+            customer.FullName,
+            customer.MobileNumber,
+            token,
+            expiresAtUtc,
+            isNewAccount);
+    }
+
+    private static string NormalizeMobile(string? mobile)
+    {
+        if (string.IsNullOrWhiteSpace(mobile))
+        {
+            return string.Empty;
+        }
+
+        var chars = mobile.Trim()
+            .Where(ch => char.IsDigit(ch) || ch == '+')
+            .ToArray();
+
+        return new string(chars);
+    }
+
+    private static string GenerateAuthToken()
+    {
+        return Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+            .Replace("+", string.Empty, StringComparison.Ordinal)
+            .Replace("/", string.Empty, StringComparison.Ordinal)
+            .Replace("=", string.Empty, StringComparison.Ordinal)
+            + Guid.NewGuid().ToString("N");
     }
 }
 

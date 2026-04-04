@@ -84,6 +84,25 @@ public sealed record CustomerSavedLocationDto(
     string? GooglePlaceId,
     DateTime UpdatedAtUtc);
 
+public sealed record CustomerAuthRequest(
+    string MobileNumber,
+    string FullName);
+
+public sealed record CustomerAuthResponse(
+    Guid CustomerId,
+    string CustomerReference,
+    string FullName,
+    string MobileNumber,
+    string AuthToken,
+    DateTime ExpiresAtUtc,
+    bool IsNewAccount);
+
+public sealed record CustomerProfileDto(
+    Guid CustomerId,
+    string CustomerReference,
+    string FullName,
+    string MobileNumber);
+
 public interface IMarketplaceQueryService
 {
     Task<IReadOnlyList<ProviderDto>> GetProvidersAsync(CancellationToken cancellationToken = default);
@@ -99,6 +118,16 @@ public interface IMarketplaceQueryService
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CustomerSavedLocationDto>> GetCustomerSavedLocationsAsync(
         string customerReference,
+        CancellationToken cancellationToken = default);
+    Task<CustomerProfileDto?> GetCustomerProfileByTokenAsync(
+        string authToken,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICustomerAuthService
+{
+    Task<CustomerAuthResponse> RegisterOrLoginAsync(
+        CustomerAuthRequest request,
         CancellationToken cancellationToken = default);
 }
 

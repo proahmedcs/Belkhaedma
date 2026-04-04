@@ -386,7 +386,45 @@ public static class BelkhedmaDbSeeder
 
         await SeedDemoOffersAndPriceSnapshotsAsync(dbContext, cancellationToken);
         await SeedProviderJsonDocumentsAsync(dbContext, cancellationToken);
+        await SeedDemoCustomerAccountsAsync(dbContext, cancellationToken);
         await SeedCustomerSavedLocationsAsync(dbContext, cancellationToken);
+    }
+
+    private static async Task SeedDemoCustomerAccountsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        const string demoCustomerReference = "demo-customer";
+        const string demoMobile = "+966500000000";
+        const string normalizedDemoMobile = "+966500000000";
+
+        var customer = await dbContext.CustomerAccounts
+            .FirstOrDefaultAsync(x => x.CustomerReference == demoCustomerReference, cancellationToken);
+
+        if (customer is null)
+        {
+            customer = new CustomerAccount
+            {
+                CustomerReference = demoCustomerReference,
+                FullName = "Demo Customer",
+                MobileNumber = demoMobile,
+                NormalizedMobileNumber = normalizedDemoMobile,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+
+            await dbContext.CustomerAccounts.AddAsync(customer, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            customer.FullName = "Demo Customer";
+            customer.MobileNumber = demoMobile;
+            customer.NormalizedMobileNumber = normalizedDemoMobile;
+            customer.IsActive = true;
+            customer.UpdatedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private static async Task SeedDemoOffersAndPriceSnapshotsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)

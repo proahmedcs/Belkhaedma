@@ -1,18 +1,51 @@
 import { API_BASE_URL } from "../config/api";
 import {
   CustomerSavedLocation,
+  CustomerAuthResponse,
+  CustomerProfile,
   PriceSnapshot,
   Provider,
   ServiceOffer,
   ProviderJsonDocument,
 } from "../types/marketplace";
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+async function fetchJson<T>(path: string, token?: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : undefined,
+  });
   if (!response.ok) {
     throw new Error(`API request failed (${response.status}) for ${path}`);
   }
   return (await response.json()) as T;
+}
+
+async function postJson<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = `API request failed (${response.status}) for ${path}`;
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      if (errorPayload?.message) {
+        message = errorPayload.message;
+      }
+    } catch {
+      // ignore parse errors and keep default message
+    }
+    throw new Error(message);
+  }
+
+  return (await response.json()) as TResponse;
 }
 
 export async function getProviders(): Promise<Provider[]> {
@@ -54,13 +87,26 @@ export async function getProviderJsonDocuments(
 }
 
 export async function getCustomerSavedLocations(
-  customerReference: string
+  customerReference: string,
+  authToken?: string
 ): Promise<CustomerSavedLocation[]> {
   if (!customerReference.trim()) {
     return [];
   }
 
   return fetchJson<CustomerSavedLocation[]>(
-    `/api/marketplace/customers/${encodeURIComponent(customerReference)}/locations`
+    `/api/marketplace/customers/${encodeURIComponent(customerReference)}/locations`,
+    authToken
   );
+}
+
+export async function registerOrLoginCustomer(payload: {
+  mobileNumber: string;
+  fullName: string;
+}): Promise<CustomerAuthResponse> {
+  return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/register-or-login", payload);
+}
+
+export async function getCurrentCustomer(authToken: string): Promise<CustomerProfile> {
+  return fetchJson<CustomerProfile>("/api/auth/customers/me", authToken);
 }

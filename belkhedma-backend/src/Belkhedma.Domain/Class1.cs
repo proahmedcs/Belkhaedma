@@ -156,3 +156,26 @@ public sealed class CustomerSavedLocation
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
+
+public sealed class CustomerAccount
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string CustomerReference { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string MobileNumber { get; set; } = string.Empty;
+    public string NormalizedMobileNumber { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class CustomerAuthSession
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid CustomerAccountId { get; set; }
+    public string AuthToken { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAtUtc { get; set; } = DateTime.UtcNow.AddDays(30);
+    public DateTime LastUsedAtUtc { get; set; } = DateTime.UtcNow;
+    public bool IsRevoked { get; set; }
+}

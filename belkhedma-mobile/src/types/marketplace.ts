@@ -64,3 +64,20 @@ export type CustomerSavedLocation = {
   googlePlaceId?: string | null;
   updatedAtUtc: string;
 };
+
+export type CustomerAuthResponse = {
+  customerId: string;
+  customerReference: string;
+  fullName: string;
+  mobileNumber: string;
+  authToken: string;
+  expiresAtUtc: string;
+  isNewAccount: boolean;
+};
+
+export type CustomerProfile = {
+  customerId: string;
+  customerReference: string;
+  fullName: string;
+  mobileNumber: string;
+};

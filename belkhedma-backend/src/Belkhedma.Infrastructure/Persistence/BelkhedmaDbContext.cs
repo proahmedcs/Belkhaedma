@@ -11,6 +11,8 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
     public DbSet<ProviderJsonDocument> ProviderJsonDocuments => Set<ProviderJsonDocument>();
     public DbSet<CollectionJobRun> CollectionJobRuns => Set<CollectionJobRun>();
     public DbSet<CustomerSavedLocation> CustomerSavedLocations => Set<CustomerSavedLocation>();
+    public DbSet<CustomerAccount> CustomerAccounts => Set<CustomerAccount>();
+    public DbSet<CustomerAuthSession> CustomerAuthSessions => Set<CustomerAuthSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,6 +88,25 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
             entity.Property(x => x.GoogleMapsUrl).HasMaxLength(500);
             entity.Property(x => x.GooglePlaceId).HasMaxLength(120);
             entity.HasIndex(x => new { x.CustomerReference, x.UpdatedAtUtc });
+        });
+
+        modelBuilder.Entity<CustomerAccount>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CustomerReference).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.MobileNumber).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.NormalizedMobileNumber).HasMaxLength(30).IsRequired();
+            entity.HasIndex(x => x.CustomerReference).IsUnique();
+            entity.HasIndex(x => x.NormalizedMobileNumber).IsUnique();
+        });
+
+        modelBuilder.Entity<CustomerAuthSession>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.AuthToken).HasMaxLength(200).IsRequired();
+            entity.HasIndex(x => x.AuthToken).IsUnique();
+            entity.HasIndex(x => new { x.CustomerAccountId, x.ExpiresAtUtc });
         });
     }
 }
