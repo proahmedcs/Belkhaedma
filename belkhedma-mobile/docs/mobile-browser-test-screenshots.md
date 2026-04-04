@@ -9,9 +9,10 @@ These screenshots were captured in a browser using an iPhone viewport profile.
 - Sub-service: Hourly Cleaning 4 Hours
 - Date: 2026-04-06
 - Location: demo-customer saved location
-- API base URL used by Expo web: `http://127.0.0.1:5275`
-- Web app URL: `http://127.0.0.1:8085`
+- API base URL used by Expo web: `http://127.0.0.1:5276`
+- Web app URL: `http://127.0.0.1:8086`
 - Final action in current UI: `Refresh` on step 5 (provider search/results)
+- Logo verification: provider cards now always render a visible logo image via multi-source fallback (`logoUrl` -> known domain clearbit -> host-derived clearbit -> ui-avatars -> inline SVG data URI).
 
 ## Screenshots
 

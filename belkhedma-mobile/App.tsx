@@ -208,17 +208,69 @@ function extractJsonDrivenOptions(docs: ProviderJsonDocument[]): JsonDrivenOptio
   };
 }
 
+function tryExtractHost(urlValue?: string | null): string | null {
+  if (!urlValue) return null;
+  try {
+    const parsed = new URL(urlValue);
+    return parsed.hostname.replace(/^www\./i, "");
+  } catch {
+    return null;
+  }
+}
+
+function buildInlineLogoDataUri(provider?: Provider): string {
+  const displayName = provider?.nameEn?.trim() || provider?.code?.trim() || "Provider";
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 2) || "P";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#FCE7F3"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#9D208C">${initials}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 function buildLogoCandidates(provider?: Provider): string[] {
   if (!provider) return [];
+
+  const knownProviderDomains: Record<string, string> = {
+    cleanpro: "cleaningservices.com",
+    medisupport: "medicalnews.today",
+    wasata: "wasatah.sa",
+    enaya: "enaya.sa",
+    "emdad-hr": "emdadhr.com",
+    mueen: "mueen.com.sa",
+    tamkeen: "tamkeenhr.sa",
+    almutahidah: "almutahidah.com",
+    "irc-saudi": "own.irc.sa",
+    "esad-talents": "esadtalents.com",
+    eitinaa: "eitinaa.com",
+  };
 
   const candidates = new Set<string>();
   if (provider.logoUrl) {
     candidates.add(provider.logoUrl);
   }
 
-  if (provider.code === "enaya") {
-    candidates.add("https://logo.clearbit.com/enaya.sa");
+  const derivedHosts = [
+    tryExtractHost(provider.websiteUrl),
+    tryExtractHost(provider.appUrl),
+    tryExtractHost(provider.tinyUrl),
+    knownProviderDomains[provider.code],
+  ].filter((x): x is string => !!x);
+
+  for (const host of derivedHosts) {
+    candidates.add(`https://logo.clearbit.com/${host}`);
   }
+
+  // Extra provider-code fallback when backend does not provide URLs.
+  candidates.add(`https://logo.clearbit.com/${provider.code}.com`);
+
+  // Last remote fallback: generated avatar image to avoid empty logo slots.
+  const providerDisplayName = encodeURIComponent(provider.nameEn || provider.code);
+  candidates.add(`https://ui-avatars.com/api/?name=${providerDisplayName}&background=FCE7F3&color=9D208C&bold=true&size=128`);
+  // Guaranteed local fallback that does not require network access.
+  candidates.add(buildInlineLogoDataUri(provider));
 
   return Array.from(candidates);
 }
