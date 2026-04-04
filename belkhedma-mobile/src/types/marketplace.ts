@@ -30,6 +30,17 @@ export type PriceSnapshot = {
   expiresAtUtc: string;
 };
 
+export type ServiceOffer = {
+  id: string;
+  providerId: string;
+  providerServiceId: string;
+  serviceMode: number;
+  nameAr: string;
+  nameEn: string;
+  isAvailable: boolean;
+  updatedAtUtc: string;
+};
+
 export type ProviderJsonDocument = {
   id: string;
   documentKey: string;

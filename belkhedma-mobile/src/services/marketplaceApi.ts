@@ -3,6 +3,7 @@ import {
   CustomerSavedLocation,
   PriceSnapshot,
   Provider,
+  ServiceOffer,
   ProviderJsonDocument,
 } from "../types/marketplace";
 
@@ -21,6 +22,11 @@ export async function getProviders(): Promise<Provider[]> {
 export async function getLatestPrices(providerCode?: string): Promise<PriceSnapshot[]> {
   const query = providerCode ? `?providerCode=${encodeURIComponent(providerCode)}` : "";
   return fetchJson<PriceSnapshot[]>(`/api/marketplace/prices/latest${query}`);
+}
+
+export async function getServiceOffers(providerCode?: string): Promise<ServiceOffer[]> {
+  const query = providerCode ? `?providerCode=${encodeURIComponent(providerCode)}` : "";
+  return fetchJson<ServiceOffer[]>(`/api/marketplace/offers${query}`);
 }
 
 export async function getProviderJsonDocuments(
