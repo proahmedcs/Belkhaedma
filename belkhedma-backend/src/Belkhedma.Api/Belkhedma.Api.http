@@ -1,0 +1,6 @@
+@Belkhedma.Api_HostAddress = http://localhost:5275
+
+GET {{Belkhedma.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
