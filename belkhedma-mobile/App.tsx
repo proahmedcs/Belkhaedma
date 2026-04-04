@@ -33,6 +33,15 @@ import {
 type LanguageMode = "ar" | "en";
 type ServiceGroup = "hourly-cleaning" | "monthly" | "medical-services" | "mediation-services";
 type WizardStep = 0 | 1 | 2 | 3 | 4;
+type JsonDrivenOptions = {
+  shifts: string[];
+  nationalityGroups: string[];
+  contractDurations: string[];
+  workerCounts: number[];
+  hoursPerVisit: number[];
+  weeklyVisits: number[];
+  deliveryWindows: string[];
+};
 
 function normalizeText(value: string): string {
   return value.toLowerCase().trim();
@@ -74,6 +83,131 @@ function extractNumbersByRegex(value: string, regex: RegExp): number[] {
     .filter((n) => Number.isFinite(n) && n > 0);
 }
 
+function parseDurationToMonths(value: string): number | null {
+  const normalized = value.toLowerCase();
+  const numMatch = normalized.match(/\d+/);
+  if (!numMatch) return null;
+  const amount = Number(numMatch[0]);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  if (normalized.includes("week") || normalized.includes("أسبوع") || normalized.includes("اسبوع")) {
+    return Math.max(1, Math.ceil(amount / 4));
+  }
+  if (normalized.includes("month") || normalized.includes("شهر") || normalized.includes("أشهر")) {
+    return amount;
+  }
+  return null;
+}
+
+function extractJsonDrivenOptions(docs: ProviderJsonDocument[]): JsonDrivenOptions {
+  const shifts = new Set<string>();
+  const nationalityGroups = new Set<string>();
+  const contractDurations = new Set<string>();
+  const workerCounts = new Set<number>();
+  const hoursPerVisit = new Set<number>();
+  const weeklyVisits = new Set<number>();
+  const deliveryWindows = new Set<string>();
+
+  const maybeAddString = (target: Set<string>, value: unknown) => {
+    if (typeof value !== "string") return;
+    const normalized = value.trim();
+    if (!normalized || normalized.length > 60) return;
+    target.add(normalized);
+  };
+
+  const maybeAddNumber = (target: Set<number>, value: unknown) => {
+    if (typeof value !== "number") return;
+    if (!Number.isFinite(value)) return;
+    if (value <= 0 || value > 1000) return;
+    target.add(value);
+  };
+
+  const walk = (node: unknown) => {
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+
+    if (node && typeof node === "object") {
+      for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+        const lowerKey = key.toLowerCase();
+
+        if (lowerKey.includes("shift") || lowerKey === "period_tabs" || lowerKey === "shift_period") {
+          if (Array.isArray(value)) {
+            value.forEach((x) => maybeAddString(shifts, x));
+          } else {
+            maybeAddString(shifts, value);
+          }
+        }
+
+        if (lowerKey.includes("resourcegroupname") || lowerKey.includes("nationality")) {
+          if (Array.isArray(value)) {
+            value.forEach((x) => maybeAddString(nationalityGroups, x));
+          } else {
+            maybeAddString(nationalityGroups, value);
+          }
+        }
+
+        if (lowerKey.includes("contractdurationname") || lowerKey.includes("contract_duration_months")) {
+          if (Array.isArray(value)) {
+            value.forEach((x) => maybeAddString(contractDurations, x));
+          } else {
+            maybeAddString(contractDurations, value);
+          }
+        }
+        if (lowerKey === "contractduration") {
+          if (typeof value === "number") {
+            contractDurations.add(`${value} Week`);
+          } else {
+            maybeAddString(contractDurations, value);
+          }
+        }
+
+        if (lowerKey.includes("employeenumber") || lowerKey.includes("workercount")) {
+          maybeAddNumber(workerCounts, value);
+        }
+
+        if (lowerKey.includes("hoursnumber") || lowerKey.includes("visithours")) {
+          maybeAddNumber(hoursPerVisit, value);
+        }
+
+        if (lowerKey.includes("weeklyvisits")) {
+          maybeAddNumber(weeklyVisits, value);
+        }
+
+        if (lowerKey.includes("deliverywindow") || lowerKey.includes("delivery_windows")) {
+          if (Array.isArray(value)) {
+            value.forEach((x) => maybeAddString(deliveryWindows, x));
+          } else {
+            maybeAddString(deliveryWindows, value);
+          }
+        }
+
+        walk(value);
+      }
+    }
+  };
+
+  for (const doc of docs) {
+    try {
+      const parsed = JSON.parse(doc.jsonContent);
+      walk(parsed);
+    } catch {
+      // Ignore malformed json content and continue with other docs.
+    }
+  }
+
+  return {
+    shifts: Array.from(shifts),
+    nationalityGroups: Array.from(nationalityGroups),
+    contractDurations: Array.from(contractDurations),
+    workerCounts: Array.from(workerCounts).sort((a, b) => a - b),
+    hoursPerVisit: Array.from(hoursPerVisit).sort((a, b) => a - b),
+    weeklyVisits: Array.from(weeklyVisits).sort((a, b) => a - b),
+    deliveryWindows: Array.from(deliveryWindows),
+  };
+}
+
 function buildLogoCandidates(provider?: Provider): string[] {
   if (!provider) return [];
 
@@ -106,6 +240,13 @@ export default function App() {
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState<string>("");
   const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [selectedShift, setSelectedShift] = useState<string | null>(null);
+  const [selectedNationalityGroup, setSelectedNationalityGroup] = useState<string | null>(null);
+  const [selectedContractDurationName, setSelectedContractDurationName] = useState<string | null>(null);
+  const [selectedWorkersCount, setSelectedWorkersCount] = useState<number | null>(null);
+  const [selectedHoursPerVisit, setSelectedHoursPerVisit] = useState<number | null>(null);
+  const [selectedWeeklyVisits, setSelectedWeeklyVisits] = useState<number | null>(null);
+  const [selectedDeliveryWindow, setSelectedDeliveryWindow] = useState<string | null>(null);
 
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
@@ -207,6 +348,71 @@ export default function App() {
     return Array.from(values).sort((a, b) => a - b);
   }, [groupFilteredOffers]);
 
+  const jsonDrivenOptions = useMemo(() => {
+    const scopedDocs = jsonDocuments.filter((doc) => {
+      if (selectedProvider && doc.providerCode && doc.providerCode !== selectedProvider) {
+        return false;
+      }
+
+      if (!selectedGroup || doc.serviceMode == null) {
+        return true;
+      }
+
+      if (selectedGroup === "hourly-cleaning") {
+        return doc.serviceMode === 1;
+      }
+
+      if (selectedGroup === "monthly") {
+        return doc.serviceMode === 2 || doc.serviceMode === 3;
+      }
+
+      return true;
+    });
+
+    return extractJsonDrivenOptions(scopedDocs.length > 0 ? scopedDocs : jsonDocuments);
+  }, [jsonDocuments, selectedGroup, selectedProvider]);
+
+  const shiftOptions = useMemo(() => {
+    if (jsonDrivenOptions.shifts.length > 0) return jsonDrivenOptions.shifts;
+    return ["Morning", "Evening"];
+  }, [jsonDrivenOptions.shifts]);
+
+  const nationalityOptions = useMemo(() => {
+    if (jsonDrivenOptions.nationalityGroups.length > 0) return jsonDrivenOptions.nationalityGroups;
+    return ["Africa", "Philippines", "Indonesia"];
+  }, [jsonDrivenOptions.nationalityGroups]);
+
+  const contractDurationNameOptions = useMemo(() => {
+    if (jsonDrivenOptions.contractDurations.length > 0) return jsonDrivenOptions.contractDurations;
+    if (selectedGroup === "monthly") return ["1 Month", "3 Months", "6 Months", "12 Months"];
+    return ["1 Week", "2 Weeks", "1 Month"];
+  }, [jsonDrivenOptions.contractDurations, selectedGroup]);
+
+  const workerCountOptions = useMemo(() => {
+    if (jsonDrivenOptions.workerCounts.length > 0) return jsonDrivenOptions.workerCounts;
+    return [1, 2, 3];
+  }, [jsonDrivenOptions.workerCounts]);
+
+  const hoursPerVisitOptions = useMemo(() => {
+    const values = new Set<number>(jsonDrivenOptions.hoursPerVisit);
+    hourlyOptions.forEach((x) => values.add(x));
+    if (values.size === 0) {
+      values.add(4);
+      values.add(8);
+    }
+    return Array.from(values).sort((a, b) => a - b);
+  }, [hourlyOptions, jsonDrivenOptions.hoursPerVisit]);
+
+  const weeklyVisitOptions = useMemo(() => {
+    if (jsonDrivenOptions.weeklyVisits.length > 0) return jsonDrivenOptions.weeklyVisits;
+    return [1, 2, 3, 4];
+  }, [jsonDrivenOptions.weeklyVisits]);
+
+  const deliveryWindowOptions = useMemo(() => {
+    if (jsonDrivenOptions.deliveryWindows.length > 0) return jsonDrivenOptions.deliveryWindows;
+    return ["07:00-09:00", "15:00-17:00"];
+  }, [jsonDrivenOptions.deliveryWindows]);
+
   useEffect(() => {
     if (!hourlyOptions.includes(hourlyHours)) {
       setHourlyHours(hourlyOptions[0] ?? 4);
@@ -218,6 +424,65 @@ export default function App() {
       setMonthlyDurationMonths(monthlyDurationOptions[0] ?? 1);
     }
   }, [monthlyDurationMonths, monthlyDurationOptions]);
+
+  useEffect(() => {
+    if (!selectedShift && shiftOptions.length > 0) {
+      setSelectedShift(shiftOptions[0]);
+    } else if (selectedShift && !shiftOptions.includes(selectedShift)) {
+      setSelectedShift(shiftOptions[0] ?? null);
+    }
+  }, [selectedShift, shiftOptions]);
+
+  useEffect(() => {
+    if (!selectedNationalityGroup && nationalityOptions.length > 0) {
+      setSelectedNationalityGroup(nationalityOptions[0]);
+    } else if (selectedNationalityGroup && !nationalityOptions.includes(selectedNationalityGroup)) {
+      setSelectedNationalityGroup(nationalityOptions[0] ?? null);
+    }
+  }, [nationalityOptions, selectedNationalityGroup]);
+
+  useEffect(() => {
+    if (!selectedContractDurationName && contractDurationNameOptions.length > 0) {
+      setSelectedContractDurationName(contractDurationNameOptions[0]);
+      return;
+    }
+
+    if (selectedContractDurationName && !contractDurationNameOptions.includes(selectedContractDurationName)) {
+      setSelectedContractDurationName(contractDurationNameOptions[0] ?? null);
+      return;
+    }
+
+    if (selectedContractDurationName) {
+      const months = parseDurationToMonths(selectedContractDurationName);
+      if (months && months !== monthlyDurationMonths) {
+        setMonthlyDurationMonths(months);
+      }
+    }
+  }, [contractDurationNameOptions, monthlyDurationMonths, selectedContractDurationName]);
+
+  useEffect(() => {
+    if (selectedWorkersCount == null || !workerCountOptions.includes(selectedWorkersCount)) {
+      setSelectedWorkersCount(workerCountOptions[0] ?? null);
+    }
+  }, [selectedWorkersCount, workerCountOptions]);
+
+  useEffect(() => {
+    if (selectedHoursPerVisit == null || !hoursPerVisitOptions.includes(selectedHoursPerVisit)) {
+      setSelectedHoursPerVisit(hoursPerVisitOptions[0] ?? null);
+    }
+  }, [hoursPerVisitOptions, selectedHoursPerVisit]);
+
+  useEffect(() => {
+    if (selectedWeeklyVisits == null || !weeklyVisitOptions.includes(selectedWeeklyVisits)) {
+      setSelectedWeeklyVisits(weeklyVisitOptions[0] ?? null);
+    }
+  }, [selectedWeeklyVisits, weeklyVisitOptions]);
+
+  useEffect(() => {
+    if (!selectedDeliveryWindow || !deliveryWindowOptions.includes(selectedDeliveryWindow)) {
+      setSelectedDeliveryWindow(deliveryWindowOptions[0] ?? null);
+    }
+  }, [deliveryWindowOptions, selectedDeliveryWindow]);
 
   const selectedLocation = useMemo(
     () => savedLocations.find((x) => x.id === selectedLocationId) ?? null,
@@ -338,10 +603,35 @@ export default function App() {
   const canGoNext = useMemo(() => {
     if (wizardStep === 0) return !!selectedGroup;
     if (wizardStep === 1) return !!selectedSubServiceId;
-    if (wizardStep === 2) return !!serviceDate;
+    if (wizardStep === 2) {
+      return (
+        !!serviceDate &&
+        !!selectedShift &&
+        !!selectedNationalityGroup &&
+        !!selectedContractDurationName &&
+        selectedWorkersCount != null &&
+        selectedHoursPerVisit != null &&
+        selectedWeeklyVisits != null &&
+        !!selectedDeliveryWindow
+      );
+    }
     if (wizardStep === 3) return savedLocations.length === 0 || !!selectedLocationId;
     return true;
-  }, [savedLocations.length, selectedGroup, selectedLocationId, selectedSubServiceId, serviceDate, wizardStep]);
+  }, [
+    savedLocations.length,
+    selectedContractDurationName,
+    selectedDeliveryWindow,
+    selectedGroup,
+    selectedHoursPerVisit,
+    selectedLocationId,
+    selectedNationalityGroup,
+    selectedShift,
+    selectedSubServiceId,
+    selectedWeeklyVisits,
+    selectedWorkersCount,
+    serviceDate,
+    wizardStep,
+  ]);
 
   const goNext = () => {
     if (!canGoNext) return;
@@ -524,6 +814,149 @@ export default function App() {
                 </>
               ) : null}
 
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الفترة" : "Shift / Period"}</Text>
+              <Text style={styles.fieldHint}>JSON: visitShiftName / shift_period / period_tabs</Text>
+              <FlatList
+                horizontal
+                data={shiftOptions}
+                keyExtractor={(item) => item}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedShift === item;
+                  return (
+                    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={() => setSelectedShift(item)}>
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الجنسية / مجموعة الموارد" : "Nationality / Resource Group"}</Text>
+              <Text style={styles.fieldHint}>JSON: resourceGroupName / nationality</Text>
+              <FlatList
+                horizontal
+                data={nationalityOptions}
+                keyExtractor={(item) => item}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedNationalityGroup === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedNationalityGroup(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اسم مدة التعاقد" : "Contract Duration Name"}</Text>
+              <Text style={styles.fieldHint}>JSON: contractDurationName / contract_duration_months</Text>
+              <FlatList
+                horizontal
+                data={contractDurationNameOptions}
+                keyExtractor={(item) => item}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedContractDurationName === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedContractDurationName(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "عدد العاملات" : "Workers Count"}</Text>
+              <Text style={styles.fieldHint}>JSON: employeeNumber / workerCount</Text>
+              <FlatList
+                horizontal
+                data={workerCountOptions}
+                keyExtractor={(item) => item.toString()}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedWorkersCount === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedWorkersCount(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {item} {languageMode === "ar" ? "عاملة" : "Worker"}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "عدد الساعات لكل زيارة" : "Hours Per Visit"}</Text>
+              <Text style={styles.fieldHint}>JSON: hoursNumber / visitHours</Text>
+              <FlatList
+                horizontal
+                data={hoursPerVisitOptions}
+                keyExtractor={(item) => item.toString()}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedHoursPerVisit === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedHoursPerVisit(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {item} {languageMode === "ar" ? "ساعات" : "Hours"}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الزيارات الأسبوعية" : "Weekly Visits"}</Text>
+              <Text style={styles.fieldHint}>JSON: weeklyVisits</Text>
+              <FlatList
+                horizontal
+                data={weeklyVisitOptions}
+                keyExtractor={(item) => item.toString()}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedWeeklyVisits === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedWeeklyVisits(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {item} {languageMode === "ar" ? "زيارة" : "Visit"}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "نافذة وقت الزيارة" : "Delivery Window"}</Text>
+              <Text style={styles.fieldHint}>JSON: deliveryWindow / delivery_windows</Text>
+              <FlatList
+                horizontal
+                data={deliveryWindowOptions}
+                keyExtractor={(item) => item}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedDeliveryWindow === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedDeliveryWindow(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "تاريخ الخدمة" : "Service Date"}</Text>
               <TextInput
                 placeholder="YYYY-MM-DD"
@@ -614,6 +1047,16 @@ export default function App() {
                   {selectedGroup ? groupLabel(selectedGroup) : "No group"} | {selectedSubService ? (languageMode === "ar" ? selectedSubService.nameAr : selectedSubService.nameEn) : "No sub service"}
                 </Text>
                 <Text style={styles.summaryText}>{serviceDate || "No date selected"}</Text>
+                <Text style={styles.summaryText}>
+                  Shift: {selectedShift ?? "N/A"} | Nationality/Group: {selectedNationalityGroup ?? "N/A"}
+                </Text>
+                <Text style={styles.summaryText}>
+                  Duration: {selectedContractDurationName ?? "N/A"} | Workers: {selectedWorkersCount ?? "N/A"}
+                </Text>
+                <Text style={styles.summaryText}>
+                  Hours/Visit: {selectedHoursPerVisit ?? "N/A"} | Weekly Visits: {selectedWeeklyVisits ?? "N/A"}
+                </Text>
+                <Text style={styles.summaryText}>Delivery Window: {selectedDeliveryWindow ?? "N/A"}</Text>
               </View>
               <TouchableOpacity style={styles.searchButton} onPress={runSearch}>
                 <Text style={styles.searchButtonText}>{languageMode === "ar" ? "عرض كل الأسعار" : "Search All Prices"}</Text>
