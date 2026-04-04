@@ -37,6 +37,10 @@ import {
 type LanguageMode = "ar" | "en";
 type ServiceGroup = "hourly-cleaning" | "monthly" | "medical-services" | "mediation-services";
 type WizardStep = 0 | 1 | 2 | 3 | 4;
+type PersistedAuthSession = {
+  authToken: string;
+  customerReference: string;
+};
 type JsonDrivenOptions = {
   shifts: string[];
   nationalityGroups: string[];
@@ -46,6 +50,63 @@ type JsonDrivenOptions = {
   weeklyVisits: number[];
   deliveryWindows: string[];
 };
+
+const AUTH_SESSION_STORAGE_KEY = "belkhedma.auth.session.v1";
+
+function getWebStorage():
+  | {
+      getItem(key: string): string | null;
+      setItem(key: string, value: string): void;
+      removeItem(key: string): void;
+    }
+  | null {
+  const maybeGlobal = globalThis as {
+    localStorage?: {
+      getItem(key: string): string | null;
+      setItem(key: string, value: string): void;
+      removeItem(key: string): void;
+    };
+  };
+  return maybeGlobal.localStorage ?? null;
+}
+
+function readPersistedAuthSession(): PersistedAuthSession | null {
+  const storage = getWebStorage();
+  if (!storage) return null;
+
+  try {
+    const rawValue = storage.getItem(AUTH_SESSION_STORAGE_KEY);
+    if (!rawValue) return null;
+    const parsed = JSON.parse(rawValue) as Partial<PersistedAuthSession>;
+    if (!parsed.authToken || !parsed.customerReference) return null;
+    return {
+      authToken: parsed.authToken,
+      customerReference: parsed.customerReference,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistAuthSession(session: PersistedAuthSession): void {
+  const storage = getWebStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
+  } catch {
+    // Ignore storage write errors and continue app flow.
+  }
+}
+
+function clearPersistedAuthSession(): void {
+  const storage = getWebStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(AUTH_SESSION_STORAGE_KEY);
+  } catch {
+    // Ignore storage delete errors and continue app flow.
+  }
+}
 
 function normalizeText(value: string): string {
   return value.toLowerCase().trim();
@@ -306,6 +367,7 @@ export default function App() {
   const [customerFullName, setCustomerFullName] = useState<string>("");
   const [customerMobileNumber, setCustomerMobileNumber] = useState<string>("");
   const [authLoading, setAuthLoading] = useState<boolean>(false);
+  const [authBootstrapping, setAuthBootstrapping] = useState<boolean>(true);
 
   const [providers, setProviders] = useState<Provider[]>([]);
   const [serviceOffers, setServiceOffers] = useState<ServiceOffer[]>([]);
@@ -647,6 +709,12 @@ export default function App() {
       const profile = await getCurrentCustomer(response.authToken);
       setCurrentCustomer(profile);
       setCustomerReference(profile.customerReference);
+      setCustomerFullName(profile.fullName);
+      setCustomerMobileNumber(profile.mobileNumber);
+      persistAuthSession({
+        authToken: response.authToken,
+        customerReference: profile.customerReference,
+      });
       await loadData(response.authToken, profile.customerReference);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed.");
@@ -758,6 +826,61 @@ export default function App() {
   const goBack = () => {
     setWizardStep((prev) => Math.max(0, prev - 1) as WizardStep);
   };
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const bootstrapAuth = async () => {
+      const persistedSession = readPersistedAuthSession();
+      if (!persistedSession) {
+        if (!isCancelled) {
+          setAuthBootstrapping(false);
+        }
+        return;
+      }
+
+      try {
+        const profile = await getCurrentCustomer(persistedSession.authToken);
+        if (isCancelled) return;
+
+        setAuthToken(persistedSession.authToken);
+        setCurrentCustomer(profile);
+        setCustomerReference(profile.customerReference);
+        setCustomerFullName(profile.fullName);
+        setCustomerMobileNumber(profile.mobileNumber);
+        await loadData(persistedSession.authToken, profile.customerReference);
+      } catch {
+        clearPersistedAuthSession();
+        if (isCancelled) return;
+        setAuthToken(null);
+        setCurrentCustomer(null);
+        setCustomerReference("");
+      } finally {
+        if (!isCancelled) {
+          setAuthBootstrapping(false);
+        }
+      }
+    };
+
+    bootstrapAuth();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  if (authBootstrapping) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <View style={[styles.page, styles.stateBlock]}>
+          <ActivityIndicator size="large" color={Brand.colors.primary} />
+          <Text style={styles.stateText}>
+            {languageMode === "ar" ? "جاري تحميل بيانات العميل..." : "Loading customer session..."}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!currentCustomer || !authToken) {
     return (
