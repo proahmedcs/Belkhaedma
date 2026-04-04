@@ -115,6 +115,12 @@ function normalizeText(value: string): string {
 function inferServiceGroup(offer: ServiceOffer, provider?: Provider): ServiceGroup {
   const source = normalizeText(`${offer.nameEn} ${offer.nameAr} ${provider?.providerType ?? ""}`);
 
+  // ServiceMode must have priority over text heuristics to avoid misclassifying
+  // monthly offers from providers that also support recruitment.
+  if (offer.serviceMode === 2 || offer.serviceMode === 3 || source.includes("month") || source.includes("شهري")) {
+    return "monthly";
+  }
+
   if (
     source.includes("medical") ||
     source.includes("طبي") ||
@@ -132,10 +138,6 @@ function inferServiceGroup(offer: ServiceOffer, provider?: Provider): ServiceGro
     provider?.supportsRecruitment
   ) {
     return "mediation-services";
-  }
-
-  if (offer.serviceMode === 2 || offer.serviceMode === 3 || source.includes("month") || source.includes("شهري")) {
-    return "monthly";
   }
 
   return "hourly-cleaning";
