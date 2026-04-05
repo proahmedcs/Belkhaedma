@@ -1550,6 +1550,12 @@ export default function App() {
     languageMode === "ar" ? "الباقات" : "Packages",
     languageMode === "ar" ? "النتائج" : "Results",
   ];
+  const currentStepTitle = useMemo(() => {
+    if (wizardStep === 1) return languageMode === "ar" ? "شاشة الموقع" : "Location Screen";
+    if (wizardStep === 2) return languageMode === "ar" ? "شاشة الباقات" : "Packages Screen";
+    if (wizardStep === 3) return languageMode === "ar" ? "شاشة النتائج" : "Results Screen";
+    return languageMode === "ar" ? "شاشة الخدمة" : "Service Screen";
+  }, [languageMode, wizardStep]);
   const shouldShowWizardHeader = wizardStep > 0 || hasChosenServiceAndSubservice;
 
   const canGoNext = useMemo(() => {
@@ -1767,7 +1773,7 @@ export default function App() {
         <View style={styles.filterCard}>
           {shouldShowWizardHeader ? (
             <>
-              <Text style={styles.sectionTitle}>{languageMode === "ar" ? "معالج الخدمة" : "Service Wizard"}</Text>
+              <Text style={styles.sectionTitle}>{currentStepTitle}</Text>
               <View style={styles.wizardStepsRow}>
                 {wizardSteps.map((label, index) => {
                   const active = wizardStep === index;
@@ -2241,7 +2247,7 @@ export default function App() {
                 </View>
               ) : null}
 
-              {selectedLocation ? (
+              {wizardStep === 1 && selectedLocation ? (
                 <View style={styles.locationCard}>
                   <Text style={styles.meta}>
                     {selectedLocation.city}, {selectedLocation.district}
@@ -2268,7 +2274,7 @@ export default function App() {
                 </View>
               ) : null}
 
-              {selectedLocation ? (
+              {wizardStep === 1 && selectedLocation ? (
                 <View style={styles.locationCard}>
                   <Text style={styles.subSectionTitle}>
                     {languageMode === "ar" ? "تفاصيل التواصل والإرشاد" : "Contact & Reaching Details"}
