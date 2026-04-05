@@ -1692,6 +1692,7 @@ export default function App() {
     return languageMode === "ar" ? "شاشة الخدمة" : "Service Screen";
   }, [languageMode, wizardStep]);
   const isPromotionsMenu = activePrimaryMenu === "promotions";
+  const isProfileMenu = activePrimaryMenu === "account";
   const shouldShowWizardHeader = wizardStep > 0 || hasChosenServiceAndSubservice;
   const allPromotionsTitle = languageMode === "ar" ? "كل العروض" : "All Promotions";
   const emptyPromotionsText =
@@ -2027,7 +2028,7 @@ export default function App() {
           <Text style={styles.logo}>{Brand.name}</Text>
         </View>
 
-        {!isPromotionsMenu ? (
+        {!isPromotionsMenu && !isProfileMenu ? (
           <View style={styles.filterCard}>
           {shouldShowWizardHeader ? (
             <>
@@ -2594,8 +2595,20 @@ export default function App() {
             <>
               <View style={styles.rowBetween}>
                 <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "النتائج" : "Results"}</Text>
-                <TouchableOpacity style={styles.filterToggleButton} onPress={() => setShowResultsFilters((prev) => !prev)}>
-                  <Text style={styles.filterToggleText}>{languageMode === "ar" ? "فلاتر" : "Filters"}</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.wegoFilterButton,
+                    styles.resultsHeaderFilterButton,
+                    showResultsFilters && styles.wegoFilterButtonActive,
+                  ]}
+                  onPress={() => setShowResultsFilters((prev) => !prev)}
+                >
+                  <Text style={styles.wegoFilterLabel}>{languageMode === "ar" ? "فلتر" : "Filter"}</Text>
+                  {activeResultsFilterCount > 0 ? (
+                    <View style={styles.wegoFilterBadge}>
+                      <Text style={styles.wegoFilterBadgeText}>{activeResultsFilterCount}</Text>
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               </View>
               {showResultsFilters ? (
@@ -2699,7 +2712,7 @@ export default function App() {
           </View>
         ) : null}
 
-        {activePrimaryMenu === "account" ? (
+        {isProfileMenu ? (
           <View style={styles.settingsCard}>
             <Text style={styles.sectionTitle}>{languageMode === "ar" ? "الإعدادات" : "Settings"}</Text>
             <View style={styles.settingsSection}>
@@ -2798,7 +2811,7 @@ export default function App() {
           </View>
         ) : null}
 
-        {activePrimaryMenu !== "account" && !isPromotionsMenu ? (
+        {!isProfileMenu && !isPromotionsMenu ? (
           <View style={styles.listCard}>
             <View style={styles.listHeader}>
               <Text style={styles.sectionTitle}>{hasSearched ? "All Prices" : "Latest Prices"}</Text>
@@ -2976,7 +2989,7 @@ export default function App() {
           </View>
         ) : null}
 
-        {activePrimaryMenu !== "account" && !isPromotionsMenu ? (
+        {!isProfileMenu && !isPromotionsMenu ? (
           <View style={styles.listCard}>
             <Text style={styles.sectionTitle}>Provider JSON Documents</Text>
             {jsonDocuments.length === 0 ? (
@@ -3734,6 +3747,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     gap: 6,
   },
+  resultsHeaderFilterButton: {
+    minWidth: 88,
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
   wegoFilterButtonActive: {
     borderColor: Brand.colors.primary,
     backgroundColor: "#FDF2F8",
@@ -3741,7 +3763,7 @@ const styles = StyleSheet.create({
   wegoFilterLabel: {
     color: Brand.colors.primaryDark,
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: 13,
   },
   wegoFilterBadge: {
     minWidth: 18,
