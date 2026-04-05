@@ -82,6 +82,34 @@ public sealed class MarketplaceController(
         return Ok(attributes);
     }
 
+    [HttpGet("attribute-mappers")]
+    public async Task<IActionResult> GetAttributeMappers(
+        [FromQuery] string? providerCode,
+        [FromQuery] Guid? serviceOfferId,
+        [FromQuery] ServiceMode? serviceMode,
+        CancellationToken cancellationToken)
+    {
+        var mappers = await marketplaceQueryService.GetProviderAttributeValueMappersAsync(
+            providerCode,
+            serviceOfferId,
+            serviceMode,
+            cancellationToken);
+        return Ok(mappers);
+    }
+
+    [HttpGet("prices/normalized")]
+    public async Task<IActionResult> GetNormalizedPrices(
+        [FromQuery] string? providerCode,
+        [FromQuery] bool includeExpired = true,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await marketplaceQueryService.GetNormalizedPriceSnapshotsAsync(
+            providerCode,
+            includeExpired,
+            cancellationToken);
+        return Ok(rows);
+    }
+
     [HttpGet("prices/latest")]
     public async Task<IActionResult> GetLatestPrices([FromQuery] string? providerCode, CancellationToken cancellationToken)
     {

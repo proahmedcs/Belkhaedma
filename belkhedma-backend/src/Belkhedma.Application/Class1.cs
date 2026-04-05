@@ -63,6 +63,58 @@ public sealed record ServiceAttributeDto(
     bool IsActive,
     DateTime UpdatedAtUtc);
 
+public sealed record ProviderAttributeValueMapperDto(
+    Guid Id,
+    Guid ProviderId,
+    Guid? ServiceOfferId,
+    ServiceMode? ServiceMode,
+    string RawAttributeKey,
+    string RawValue,
+    string? RawTextEn,
+    string? RawTextAr,
+    string NormalizedAttributeKey,
+    string NormalizedValue,
+    string NormalizedTextEn,
+    string NormalizedTextAr,
+    bool IsActive,
+    DateTime UpdatedAtUtc);
+
+public sealed record JsonAttributeValueDto(
+    string AttributeKey,
+    string RawValue,
+    string? TextEn,
+    string? TextAr);
+
+public sealed record NormalizedAttributeValueDto(
+    string AttributeKey,
+    string Value,
+    string TextEn,
+    string TextAr,
+    string RawAttributeKey,
+    string RawValue,
+    string? RawTextEn,
+    string? RawTextAr);
+
+public sealed record NormalizedPriceSnapshotDto(
+    Guid PriceSnapshotId,
+    Guid ProviderId,
+    string ProviderCode,
+    string ProviderNameAr,
+    string ProviderNameEn,
+    Guid ServiceOfferId,
+    string ProviderServiceId,
+    ServiceMode ServiceMode,
+    string ServiceNameAr,
+    string ServiceNameEn,
+    decimal Price,
+    decimal Vat,
+    decimal PriceWithVat,
+    DataSourceType SourceType,
+    DateTime CollectedAtUtc,
+    DateTime ExpiresAtUtc,
+    IReadOnlyList<JsonAttributeValueDto> JsonAttributes,
+    IReadOnlyList<NormalizedAttributeValueDto> NormalizedAttributes);
+
 public sealed record PriceSnapshotDto(
     Guid Id,
     Guid ProviderId,
@@ -166,6 +218,15 @@ public interface IMarketplaceQueryService
         string? providerCode,
         Guid? serviceOfferId,
         ServiceMode? serviceMode,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ProviderAttributeValueMapperDto>> GetProviderAttributeValueMappersAsync(
+        string? providerCode,
+        Guid? serviceOfferId,
+        ServiceMode? serviceMode,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<NormalizedPriceSnapshotDto>> GetNormalizedPriceSnapshotsAsync(
+        string? providerCode,
+        bool includeExpired = true,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PriceSnapshotDto>> GetLatestPricesAsync(string? providerCode, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PriceSnapshotDto>> GetAllPricesAsync(

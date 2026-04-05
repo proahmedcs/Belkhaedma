@@ -3,6 +3,7 @@ using Belkhedma.Domain;
 using Belkhedma.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -195,6 +196,156 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
             .ThenBy(x => x.Attribute.NameEn)
             .Select(x => MapServiceAttribute(x.Attribute))
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ProviderAttributeValueMapperDto>> GetProviderAttributeValueMappersAsync(
+        string? providerCode,
+        Guid? serviceOfferId,
+        ServiceMode? serviceMode,
+        CancellationToken cancellationToken = default)
+    {
+        var query = from mapper in dbContext.ProviderAttributeValueMappers.AsNoTracking()
+                    join provider in dbContext.Providers.AsNoTracking() on mapper.ProviderId equals provider.Id
+                    where mapper.IsActive
+                    select new
+                    {
+                        Mapper = mapper,
+                        ProviderCode = provider.Code
+                    };
+
+        if (!string.IsNullOrWhiteSpace(providerCode))
+        {
+            query = query.Where(x => x.ProviderCode == providerCode);
+        }
+
+        if (serviceOfferId.HasValue)
+        {
+            query = query.Where(x => x.Mapper.ServiceOfferId == serviceOfferId.Value || x.Mapper.ServiceOfferId == null);
+        }
+
+        if (serviceMode.HasValue)
+        {
+            query = query.Where(x => x.Mapper.ServiceMode == serviceMode.Value || x.Mapper.ServiceMode == null);
+        }
+
+        return await query
+            .OrderBy(x => x.Mapper.ProviderId)
+            .ThenByDescending(x => x.Mapper.ServiceOfferId.HasValue)
+            .ThenByDescending(x => x.Mapper.ServiceMode.HasValue)
+            .ThenBy(x => x.Mapper.RawAttributeKey)
+            .ThenBy(x => x.Mapper.RawValue)
+            .Select(x => MapProviderAttributeValueMapper(x.Mapper))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<NormalizedPriceSnapshotDto>> GetNormalizedPriceSnapshotsAsync(
+        string? providerCode,
+        bool includeExpired = true,
+        CancellationToken cancellationToken = default)
+    {
+        var providersQuery = dbContext.Providers.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(providerCode))
+        {
+            providersQuery = providersQuery.Where(x => x.Code == providerCode);
+        }
+
+        var providers = await providersQuery.ToListAsync(cancellationToken);
+        if (providers.Count == 0)
+        {
+            return [];
+        }
+
+        var providerById = providers.ToDictionary(x => x.Id);
+        var providerIds = providerById.Keys.ToList();
+
+        var offers = await dbContext.ServiceOffers
+            .AsNoTracking()
+            .Where(x => providerIds.Contains(x.ProviderId))
+            .ToListAsync(cancellationToken);
+        var offerById = offers.ToDictionary(x => x.Id);
+        var offerIds = offerById.Keys.ToList();
+
+        var pricesQuery = dbContext.PriceSnapshots
+            .AsNoTracking()
+            .Where(x => providerIds.Contains(x.ProviderId));
+        if (!includeExpired)
+        {
+            pricesQuery = pricesQuery.Where(x => x.ExpiresAtUtc > DateTime.UtcNow);
+        }
+
+        var prices = await pricesQuery
+            .OrderByDescending(x => x.CollectedAtUtc)
+            .Take(500)
+            .ToListAsync(cancellationToken);
+
+        if (prices.Count == 0)
+        {
+            return [];
+        }
+
+        var docsQuery = dbContext.ProviderJsonDocuments
+            .AsNoTracking()
+            .Where(x => providerIds.Contains(x.ProviderId) && offerIds.Contains(x.ServiceOfferId) && x.IsActive);
+        if (!includeExpired)
+        {
+            docsQuery = docsQuery.Where(x => x.ExpiresAtUtc > DateTime.UtcNow);
+        }
+
+        var docs = await docsQuery
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+        var docsByOffer = docs
+            .GroupBy(x => x.ServiceOfferId)
+            .ToDictionary(x => x.Key, x => x.ToList());
+
+        var mappers = await dbContext.ProviderAttributeValueMappers
+            .AsNoTracking()
+            .Where(x => providerIds.Contains(x.ProviderId) && x.IsActive)
+            .ToListAsync(cancellationToken);
+
+        var result = new List<NormalizedPriceSnapshotDto>(prices.Count);
+        foreach (var price in prices)
+        {
+            if (!providerById.TryGetValue(price.ProviderId, out var provider))
+            {
+                continue;
+            }
+
+            if (!offerById.TryGetValue(price.ServiceOfferId, out var offer))
+            {
+                continue;
+            }
+
+            docsByOffer.TryGetValue(offer.Id, out var providerDocsForOffer);
+            var rawJsonAttributes = ExtractJsonAttributeValues(providerDocsForOffer);
+            var normalizedAttributes = NormalizeUsingMapperRules(rawJsonAttributes, mappers, provider.Id, offer);
+
+            var vat = price.VatAmountSar ?? Math.Round(price.FinalPriceSar * 0.15m, 2);
+            var priceWithVat = price.FinalPriceSar;
+            var netPrice = Math.Max(0m, Math.Round(priceWithVat - vat, 2));
+
+            result.Add(new NormalizedPriceSnapshotDto(
+                price.Id,
+                provider.Id,
+                provider.Code,
+                provider.NameAr,
+                provider.NameEn,
+                offer.Id,
+                offer.ProviderServiceId,
+                offer.ServiceMode,
+                offer.NameAr,
+                offer.NameEn,
+                netPrice,
+                vat,
+                priceWithVat,
+                price.SourceType,
+                price.CollectedAtUtc,
+                price.ExpiresAtUtc,
+                rawJsonAttributes,
+                normalizedAttributes));
+        }
+
+        return result;
     }
 
     public async Task<IReadOnlyList<PriceSnapshotDto>> GetLatestPricesAsync(string? providerCode, CancellationToken cancellationToken = default)
@@ -553,6 +704,234 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
             entity.DisplayOrder,
             entity.IsActive,
             entity.UpdatedAtUtc);
+    }
+
+    private static ProviderAttributeValueMapperDto MapProviderAttributeValueMapper(ProviderAttributeValueMapper entity)
+    {
+        return new ProviderAttributeValueMapperDto(
+            entity.Id,
+            entity.ProviderId,
+            entity.ServiceOfferId,
+            entity.ServiceMode,
+            entity.RawAttributeKey,
+            entity.RawValue,
+            entity.RawTextEn,
+            entity.RawTextAr,
+            entity.NormalizedAttributeKey,
+            entity.NormalizedValue,
+            entity.NormalizedTextEn,
+            entity.NormalizedTextAr,
+            entity.IsActive,
+            entity.UpdatedAtUtc);
+    }
+
+    private static IReadOnlyList<JsonAttributeValueDto> ExtractJsonAttributeValues(IReadOnlyList<ProviderJsonDocument>? providerDocs)
+    {
+        if (providerDocs is null || providerDocs.Count == 0)
+        {
+            return [];
+        }
+
+        var values = new List<JsonAttributeValueDto>(capacity: 256);
+        foreach (var providerDoc in providerDocs)
+        {
+            if (providerDoc is null || string.IsNullOrWhiteSpace(providerDoc.JsonData))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var parsed = JsonDocument.Parse(providerDoc.JsonData);
+                CollectJsonLeafValues(parsed.RootElement, null, values);
+            }
+            catch
+            {
+                // Ignore malformed provider payload and continue with other docs.
+            }
+        }
+
+        return values
+            .Where(x => !string.IsNullOrWhiteSpace(x.AttributeKey) && !string.IsNullOrWhiteSpace(x.RawValue))
+            .GroupBy(x => $"{x.AttributeKey}||{x.RawValue}", StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.First())
+            .OrderByDescending(x => x.AttributeKey.EndsWith("id", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(x => x.AttributeKey)
+            .ThenBy(x => x.RawValue)
+            .Take(500)
+            .ToList();
+    }
+
+    private static IReadOnlyList<NormalizedAttributeValueDto> NormalizeUsingMapperRules(
+        IReadOnlyList<JsonAttributeValueDto> rawAttributes,
+        IReadOnlyList<ProviderAttributeValueMapper> allMappers,
+        Guid providerId,
+        ServiceOffer offer)
+    {
+        if (rawAttributes.Count == 0)
+        {
+            return [];
+        }
+
+        var providerMappers = allMappers
+            .Where(x => x.ProviderId == providerId && x.IsActive)
+            .ToList();
+        if (providerMappers.Count == 0)
+        {
+            return [];
+        }
+
+        var normalized = new List<NormalizedAttributeValueDto>();
+        foreach (var raw in rawAttributes)
+        {
+            var matched = providerMappers
+                .Where(x =>
+                    string.Equals(x.RawAttributeKey, raw.AttributeKey, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(NormalizeComparisonToken(x.RawValue), NormalizeComparisonToken(raw.RawValue), StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.ServiceOfferId == offer.Id)
+                .ThenByDescending(x => x.ServiceMode == offer.ServiceMode)
+                .ThenByDescending(x => x.ServiceOfferId.HasValue)
+                .ThenByDescending(x => x.ServiceMode.HasValue)
+                .FirstOrDefault();
+
+            if (matched is null)
+            {
+                continue;
+            }
+
+            normalized.Add(new NormalizedAttributeValueDto(
+                matched.NormalizedAttributeKey,
+                matched.NormalizedValue,
+                matched.NormalizedTextEn,
+                matched.NormalizedTextAr,
+                raw.AttributeKey,
+                raw.RawValue,
+                string.IsNullOrWhiteSpace(matched.RawTextEn) ? raw.TextEn : matched.RawTextEn,
+                string.IsNullOrWhiteSpace(matched.RawTextAr) ? raw.TextAr : matched.RawTextAr));
+        }
+
+        return normalized
+            .GroupBy(x => $"{x.AttributeKey}||{x.Value}||{x.RawAttributeKey}||{x.RawValue}", StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.First())
+            .OrderBy(x => x.AttributeKey)
+            .ThenBy(x => x.Value)
+            .ToList();
+    }
+
+    private static void CollectJsonLeafValues(
+        JsonElement element,
+        string? currentPath,
+        List<JsonAttributeValueDto> sink)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    var nextPath = string.IsNullOrWhiteSpace(currentPath)
+                        ? property.Name
+                        : $"{currentPath}.{property.Name}";
+                    CollectJsonLeafValues(property.Value, nextPath, sink);
+                }
+                break;
+            case JsonValueKind.Array:
+            {
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (item.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    var stringValue = ParseJsonNodePrimitiveToString(item);
+                    if (string.IsNullOrWhiteSpace(stringValue) || string.IsNullOrWhiteSpace(currentPath))
+                    {
+                        continue;
+                    }
+
+                    var rawKey = currentPath;
+                    if (!LooksLikeRawAttributeKey(rawKey))
+                    {
+                        continue;
+                    }
+
+                    sink.Add(new JsonAttributeValueDto(
+                        rawKey,
+                        stringValue,
+                        stringValue,
+                        null));
+                }
+                break;
+            }
+            default:
+            {
+                var stringValue = ParseJsonNodePrimitiveToString(element);
+                if (string.IsNullOrWhiteSpace(stringValue) || string.IsNullOrWhiteSpace(currentPath))
+                {
+                    break;
+                }
+
+                var rawKey = currentPath;
+                if (!LooksLikeRawAttributeKey(rawKey))
+                {
+                    break;
+                }
+
+                sink.Add(new JsonAttributeValueDto(
+                    rawKey,
+                    stringValue,
+                    stringValue,
+                    null));
+                break;
+            }
+        }
+    }
+
+    private static bool LooksLikeRawAttributeKey(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var key = value.ToLowerInvariant();
+        return key.Contains("shift", StringComparison.Ordinal) ||
+               key.Contains("resourcegroup", StringComparison.Ordinal) ||
+               key.Contains("nationality", StringComparison.Ordinal) ||
+               key.Contains("duration", StringComparison.Ordinal) ||
+               key.Contains("hours", StringComparison.Ordinal) ||
+               key.Contains("visit", StringComparison.Ordinal) ||
+               key.Contains("employee", StringComparison.Ordinal) ||
+               key.Contains("worker", StringComparison.Ordinal) ||
+               key.Contains("delivery", StringComparison.Ordinal) ||
+               key.Contains("method", StringComparison.Ordinal) ||
+               key.Contains("date", StringComparison.Ordinal) ||
+               key.Contains("id", StringComparison.Ordinal);
+    }
+
+    private static string? ParseJsonNodePrimitiveToString(JsonElement value)
+    {
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString()?.Trim(),
+            JsonValueKind.Number => value.TryGetDecimal(out var n)
+                ? n.ToString(CultureInfo.InvariantCulture)
+                : value.ToString(),
+            JsonValueKind.True => bool.TrueString.ToLowerInvariant(),
+            JsonValueKind.False => bool.FalseString.ToLowerInvariant(),
+            _ => null
+        };
+    }
+
+    private static string NormalizeComparisonToken(string? value)
+    {
+        var token = (value ?? string.Empty).Trim();
+        if (decimal.TryParse(token, NumberStyles.Any, CultureInfo.InvariantCulture, out var number))
+        {
+            token = number.ToString("0.################", CultureInfo.InvariantCulture);
+        }
+
+        return token.ToLowerInvariant();
     }
 
     private static IReadOnlyList<string> ParsePromotionItems(string itemsJson)

@@ -62,6 +62,18 @@ public static class BelkhedmaDbSeeder
         string SourceFileKey,
         string[] AttributeFields);
 
+    private sealed record ProviderAttributeMapperSeed(
+        string ProviderCode,
+        string RawAttributeKey,
+        string RawValue,
+        string NormalizedAttributeKey,
+        string NormalizedValue,
+        string NormalizedTextEn,
+        string NormalizedTextAr,
+        ServiceMode? ServiceMode = null,
+        string? RawTextEn = null,
+        string? RawTextAr = null);
+
     private static readonly Dictionary<string, string> JsonSamples = new()
     {
         ["fawran_public_api_probe"] = "data/provider-json/fawran_public_api_probe.json",
@@ -183,6 +195,57 @@ public static class BelkhedmaDbSeeder
             "monthly-package",
             "fawran_monthly_real_json_bundle",
             ["contract_duration_months", "delivery_method", "employee_id", "contract_details", "payment"])
+    ];
+
+    private static readonly ProviderAttributeMapperSeed[] ProviderAttributeMapperSeeds =
+    [
+        // Enaya hourly mapping from real provider payload values to our normalization values.
+        new("enaya", "visitShiftName", "Morning", "shift", "morning", "Morning", "صباح", ServiceMode.Hourly),
+        new("enaya", "visitShiftName", "Evening", "shift", "evening", "Evening", "مساء", ServiceMode.Hourly),
+        new("enaya", "employeeNumber", "1", "workersCount", "1", "1 Worker", "عامل واحد", ServiceMode.Hourly),
+        new("enaya", "employeeNumber", "2", "workersCount", "2", "2 Workers", "عاملان", ServiceMode.Hourly),
+        new("enaya", "hoursNumber", "4", "hoursPerVisit", "4", "4 Hours", "4 ساعات", ServiceMode.Hourly),
+        new("enaya", "hoursNumber", "6", "hoursPerVisit", "6", "6 Hours", "6 ساعات", ServiceMode.Hourly),
+        new("enaya", "hoursNumber", "8", "hoursPerVisit", "8", "8 Hours", "8 ساعات", ServiceMode.Hourly),
+        new("enaya", "weeklyVisits", "1", "weeklyVisits", "1", "1 Visit", "زيارة واحدة", ServiceMode.Hourly),
+        new("enaya", "weeklyVisits", "2", "weeklyVisits", "2", "2 Visits", "زيارتان", ServiceMode.Hourly),
+        new("enaya", "contractDurationName", "1 Week", "contractDuration", "1-week", "1 Week", "أسبوع واحد", ServiceMode.Hourly),
+        new("enaya", "contractDurationName", "2 Weeks", "contractDuration", "2-weeks", "2 Weeks", "أسبوعين", ServiceMode.Hourly),
+
+        // GUID examples from providers mapped to normalized categories.
+        new(
+            "enaya",
+            "resourceGroupId",
+            "f14b9b77-0a5a-ee11-a8a5-000d3a227ab4",
+            "nationality",
+            "africa",
+            "Africa",
+            "أفريقيا",
+            ServiceMode.Hourly,
+            RawTextEn: "afrca",
+            RawTextAr: "أفريقيا"),
+        new(
+            "enaya",
+            "selectedHourlyPricingId",
+            "0f1b7e40-165a-ee11-a8a5-000d3a227ab4",
+            "hoursPerVisit",
+            "4",
+            "4 Hours",
+            "4 ساعات",
+            ServiceMode.Hourly,
+            RawTextEn: "hourly package id",
+            RawTextAr: "معرف باقة بالساعة"),
+
+        // Fawran/Tamkeen monthly examples.
+        new("tamkeen", "contract_duration_months", "1", "contractDuration", "1-month", "1 Month", "شهر واحد", ServiceMode.Monthly),
+        new("tamkeen", "contract_duration_months", "3", "contractDuration", "3-months", "3 Months", "3 أشهر", ServiceMode.Monthly),
+        new("tamkeen", "contract_duration_months", "6", "contractDuration", "6-months", "6 Months", "6 أشهر", ServiceMode.Monthly),
+        new("tamkeen", "employee_id", "1", "workersCount", "1", "1 Worker", "عامل واحد", ServiceMode.Monthly),
+        new("tamkeen", "employee_id", "2", "workersCount", "2", "2 Workers", "عاملان", ServiceMode.Monthly),
+
+        // Generic provider-level mapping fallback.
+        new("emdad-hr", "employeeNumber", "1", "workersCount", "1", "1 Worker", "عامل واحد", ServiceMode.Hourly),
+        new("emdad-hr", "weeklyVisits", "2", "weeklyVisits", "2", "2 Visits", "زيارتان", ServiceMode.Hourly)
     ];
 
     private static readonly ServiceAttributeSeed[] HourlyAttributeSeeds =
@@ -702,6 +765,7 @@ public static class BelkhedmaDbSeeder
         await SeedDemoOffersAndPriceSnapshotsAsync(dbContext, cancellationToken);
         await SeedServiceAttributesAsync(dbContext, cancellationToken);
         await SeedProviderJsonDocumentsAsync(dbContext, cancellationToken);
+        await SeedProviderAttributeValueMappersAsync(dbContext, cancellationToken);
         await SeedDemoCustomerAccountsAsync(dbContext, cancellationToken);
         await SeedCustomerSavedLocationsAsync(dbContext, cancellationToken);
         await SeedHomePromotionsAsync(dbContext, cancellationToken);
@@ -999,6 +1063,76 @@ public static class BelkhedmaDbSeeder
                 existing.IsMandatory = seed.IsMandatory;
                 existing.FilterScope = seed.FilterScope;
                 existing.DisplayOrder = seed.DisplayOrder;
+                existing.IsActive = true;
+                existing.UpdatedAtUtc = now;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedProviderAttributeValueMappersAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var providersByCode = await dbContext.Providers
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.Code, x => x.Id, cancellationToken);
+        var offers = await dbContext.ServiceOffers
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+        var existingMappers = await dbContext.ProviderAttributeValueMappers
+            .ToListAsync(cancellationToken);
+
+        foreach (var seed in ProviderAttributeMapperSeeds)
+        {
+            if (!providersByCode.TryGetValue(seed.ProviderCode, out var providerId))
+            {
+                continue;
+            }
+
+            var matchingOfferIds = offers
+                .Where(x =>
+                    x.ProviderId == providerId &&
+                    (!seed.ServiceMode.HasValue || x.ServiceMode == seed.ServiceMode.Value))
+                .OrderBy(x => x.DisplayOrder)
+                .Select(x => x.Id)
+                .ToList();
+
+            if (matchingOfferIds.Count == 0)
+            {
+                matchingOfferIds.Add(Guid.Empty);
+            }
+            foreach (var candidateOfferId in matchingOfferIds)
+            {
+                Guid? serviceOfferId = candidateOfferId == Guid.Empty ? null : candidateOfferId;
+
+                var existing = existingMappers.FirstOrDefault(x =>
+                    x.ProviderId == providerId &&
+                    x.ServiceOfferId == serviceOfferId &&
+                    x.ServiceMode == seed.ServiceMode &&
+                    string.Equals(x.RawAttributeKey, seed.RawAttributeKey, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(x.RawValue, seed.RawValue, StringComparison.OrdinalIgnoreCase));
+
+                if (existing is null)
+                {
+                    existing = new ProviderAttributeValueMapper
+                    {
+                        ProviderId = providerId,
+                        ServiceOfferId = serviceOfferId,
+                        ServiceMode = seed.ServiceMode,
+                        RawAttributeKey = seed.RawAttributeKey,
+                        RawValue = seed.RawValue
+                    };
+                    existingMappers.Add(existing);
+                    await dbContext.ProviderAttributeValueMappers.AddAsync(existing, cancellationToken);
+                }
+
+                existing.RawTextEn = seed.RawTextEn;
+                existing.RawTextAr = seed.RawTextAr;
+                existing.NormalizedAttributeKey = seed.NormalizedAttributeKey;
+                existing.NormalizedValue = seed.NormalizedValue;
+                existing.NormalizedTextEn = seed.NormalizedTextEn;
+                existing.NormalizedTextAr = seed.NormalizedTextAr;
                 existing.IsActive = true;
                 existing.UpdatedAtUtc = now;
             }

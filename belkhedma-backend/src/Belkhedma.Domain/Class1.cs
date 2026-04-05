@@ -140,6 +140,24 @@ public sealed class ServiceAttribute
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public sealed class ProviderAttributeValueMapper
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProviderId { get; set; }
+    public Guid? ServiceOfferId { get; set; }
+    public ServiceMode? ServiceMode { get; set; }
+    public string RawAttributeKey { get; set; } = string.Empty;
+    public string RawValue { get; set; } = string.Empty;
+    public string? RawTextEn { get; set; }
+    public string? RawTextAr { get; set; }
+    public string NormalizedAttributeKey { get; set; } = string.Empty;
+    public string NormalizedValue { get; set; } = string.Empty;
+    public string NormalizedTextEn { get; set; } = string.Empty;
+    public string NormalizedTextAr { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class PriceSnapshot
 {
     public Guid Id { get; set; } = Guid.NewGuid();

@@ -10,6 +10,7 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
     public DbSet<Provider> Providers => Set<Provider>();
     public DbSet<ServiceOffer> ServiceOffers => Set<ServiceOffer>();
     public DbSet<ServiceAttribute> ServiceAttributes => Set<ServiceAttribute>();
+    public DbSet<ProviderAttributeValueMapper> ProviderAttributeValueMappers => Set<ProviderAttributeValueMapper>();
     public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
     public DbSet<ProviderJsonDocument> ProviderJsonDocuments => Set<ProviderJsonDocument>();
     public DbSet<HomePromotion> HomePromotions => Set<HomePromotion>();
@@ -63,6 +64,28 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
             entity.Property(x => x.NameAr).HasMaxLength(200).IsRequired();
             entity.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
             entity.Property(x => x.OptionSetJson).HasColumnType("nvarchar(max)");
+        });
+
+        modelBuilder.Entity<ProviderAttributeValueMapper>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new
+            {
+                x.ProviderId,
+                x.ServiceOfferId,
+                x.ServiceMode,
+                x.RawAttributeKey,
+                x.RawValue
+            }).IsUnique();
+            entity.HasIndex(x => new { x.ProviderId, x.RawAttributeKey, x.RawValue, x.IsActive });
+            entity.Property(x => x.RawAttributeKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.RawValue).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.RawTextEn).HasMaxLength(400);
+            entity.Property(x => x.RawTextAr).HasMaxLength(400);
+            entity.Property(x => x.NormalizedAttributeKey).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.NormalizedValue).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.NormalizedTextEn).HasMaxLength(400).IsRequired();
+            entity.Property(x => x.NormalizedTextAr).HasMaxLength(400).IsRequired();
         });
 
         modelBuilder.Entity<PriceSnapshot>(entity =>
