@@ -1219,6 +1219,21 @@ export default function App() {
     selectedShift,
     serviceModeFilteredRows,
   ]);
+  const activeResultsFilterCount = useMemo(() => {
+    let count = 0;
+    if (resultsSortMode !== "recommended") count += 1;
+    if (resultsSourceFilter !== "all") count += 1;
+    if (resultsShiftFilter) count += 1;
+    if (resultsContractDurationFilter) count += 1;
+    if (resultsHoursFilter) count += 1;
+    return count;
+  }, [
+    resultsContractDurationFilter,
+    resultsHoursFilter,
+    resultsShiftFilter,
+    resultsSortMode,
+    resultsSourceFilter,
+  ]);
 
   const loadData = async (activeToken: string | null = authToken, activeCustomerReference: string | null = customerReference || currentCustomer?.customerReference || null) => {
     if (!activeToken || !activeCustomerReference) {
@@ -2609,7 +2624,73 @@ export default function App() {
           <View style={styles.listCard}>
             <View style={styles.listHeader}>
               <Text style={styles.sectionTitle}>{hasSearched ? "All Prices" : "Latest Prices"}</Text>
+              <TouchableOpacity
+                style={[styles.wegoFilterButton, showResultsFilters && styles.wegoFilterButtonActive]}
+                onPress={() => setShowResultsFilters((prev) => !prev)}
+              >
+                <Text style={styles.wegoFilterLabel}>{languageMode === "ar" ? "فلتر" : "Filter"}</Text>
+                {activeResultsFilterCount > 0 ? (
+                  <View style={styles.wegoFilterBadge}>
+                    <Text style={styles.wegoFilterBadgeText}>{activeResultsFilterCount}</Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
             </View>
+            {showResultsFilters ? (
+              <View style={styles.wegoFiltersPanel}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.fieldHint}>{languageMode === "ar" ? "الترتيب" : "Sort"}</Text>
+                  <TouchableOpacity
+                    style={styles.filterToggleButton}
+                    onPress={() => {
+                      setResultsSortMode("recommended");
+                      setResultsSourceFilter("all");
+                      setResultsShiftFilter(null);
+                      setResultsContractDurationFilter(null);
+                      setResultsHoursFilter(null);
+                    }}
+                  >
+                    <Text style={styles.filterToggleText}>{languageMode === "ar" ? "إعادة ضبط" : "Reset"}</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.rowWrap}>
+                  {([
+                    { key: "recommended", labelEn: "Recommended", labelAr: "موصى به" },
+                    { key: "cheapest", labelEn: "Cheapest", labelAr: "الأرخص" },
+                    { key: "highest", labelEn: "Highest", labelAr: "الأعلى" },
+                  ] as Array<{ key: ResultsSortMode; labelEn: string; labelAr: string }>).map((item) => (
+                    <TouchableOpacity
+                      key={`wego-sort-${item.key}`}
+                      style={[styles.chip, resultsSortMode === item.key && styles.chipActive]}
+                      onPress={() => setResultsSortMode(item.key)}
+                    >
+                      <Text style={[styles.chipText, resultsSortMode === item.key && styles.chipTextActive]}>
+                        {languageMode === "ar" ? item.labelAr : item.labelEn}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.fieldHint}>{languageMode === "ar" ? "مصدر السعر" : "Source"}</Text>
+                <View style={styles.rowWrap}>
+                  {([
+                    { key: "all", labelEn: "All", labelAr: "الكل" },
+                    { key: "api", labelEn: "API", labelAr: "API" },
+                    { key: "scraper", labelEn: "Scraper", labelAr: "استخراج" },
+                    { key: "demo", labelEn: "Enaya Copy", labelAr: "نسخة عناية" },
+                  ] as Array<{ key: "all" | "api" | "scraper" | "demo"; labelEn: string; labelAr: string }>).map((item) => (
+                    <TouchableOpacity
+                      key={`wego-source-${item.key}`}
+                      style={[styles.chip, resultsSourceFilter === item.key && styles.chipActive]}
+                      onPress={() => setResultsSourceFilter(item.key)}
+                    >
+                      <Text style={[styles.chipText, resultsSourceFilter === item.key && styles.chipTextActive]}>
+                        {languageMode === "ar" ? item.labelAr : item.labelEn}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : null}
 
             {loading ? (
               <View style={styles.stateBlock}>
@@ -3416,6 +3497,48 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
+  },
+  wegoFilterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#fff",
+    gap: 6,
+  },
+  wegoFilterButtonActive: {
+    borderColor: Brand.colors.primary,
+    backgroundColor: "#FDF2F8",
+  },
+  wegoFilterLabel: {
+    color: Brand.colors.primaryDark,
+    fontWeight: "800",
+    fontSize: 12,
+  },
+  wegoFilterBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Brand.colors.primaryDark,
+  },
+  wegoFilterBadgeText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 11,
+  },
+  wegoFiltersPanel: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    padding: 10,
+    marginBottom: 6,
   },
   stateBlock: { paddingVertical: 20, alignItems: "center", gap: 10 },
   stateText: { color: Brand.colors.textSecondary, textAlign: "center" },
