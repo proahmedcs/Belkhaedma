@@ -60,7 +60,7 @@ type ServiceDateOption = {
 };
 type MandatoryFieldKey = "serviceDate" | "shift" | "contractDurationName";
 type ResultsSortMode = "recommended" | "cheapest" | "highest";
-type PrimaryMenuKey = "main" | "search" | "orders" | "account";
+type PrimaryMenuKey = "main" | "search" | "promotions" | "orders" | "account";
 type SecondaryMenuItem = { key: string; labelEn: string; labelAr: string };
 type SampleNotification = { id: string; titleEn: string; titleAr: string; metaEn: string; metaAr: string };
 type LocationCategory = "home" | "work" | "rest" | "other";
@@ -142,7 +142,7 @@ const BOTTOM_MENU_ITEMS: Array<{
   icon: string;
 }> = [
   { key: "main", labelEn: "Home", labelAr: "الرئيسية", icon: "🏠" },
-  { key: "search", labelEn: "Offers", labelAr: "العروض", icon: "🏷️" },
+  { key: "promotions", labelEn: "Promotions", labelAr: "العروض", icon: "🎁" },
   { key: "orders", labelEn: "Contracts", labelAr: "العقود", icon: "📄" },
   { key: "account", labelEn: "Profile", labelAr: "الملف الشخصي", icon: "👤" },
 ];
@@ -1475,7 +1475,11 @@ export default function App() {
     if (wizardStep === 3) return languageMode === "ar" ? "شاشة النتائج" : "Results Screen";
     return languageMode === "ar" ? "شاشة الخدمة" : "Service Screen";
   }, [languageMode, wizardStep]);
+  const isPromotionsMenu = activePrimaryMenu === "promotions";
   const shouldShowWizardHeader = wizardStep > 0 || hasChosenServiceAndSubservice;
+  const allPromotionsTitle = languageMode === "ar" ? "كل العروض" : "All Promotions";
+  const emptyPromotionsText =
+    languageMode === "ar" ? "لا توجد عروض فعالة حالياً." : "No active promotions available right now.";
 
   const canGoNext = useMemo(() => {
     if (wizardStep === 0) return !!selectedGroup && !!selectedSubServiceId;
@@ -1536,6 +1540,11 @@ export default function App() {
     setActiveSecondaryMenu(selectedMenu?.secondary[0]?.key ?? "overview");
 
     if (key === "main") {
+      setWizardStep(0);
+      return;
+    }
+    if (key === "promotions") {
+      setShowResultsFilters(false);
       setWizardStep(0);
       return;
     }
@@ -1687,7 +1696,8 @@ export default function App() {
           <Text style={styles.logo}>{Brand.name}</Text>
         </View>
 
-        <View style={styles.filterCard}>
+        {!isPromotionsMenu ? (
+          <View style={styles.filterCard}>
           {shouldShowWizardHeader ? (
             <>
               <Text style={styles.sectionTitle}>{currentStepTitle}</Text>
@@ -2309,7 +2319,8 @@ export default function App() {
               </TouchableOpacity>
             )}
           </View>
-        </View>
+          </View>
+        ) : null}
 
         {activePrimaryMenu === "account" ? (
           <View style={styles.settingsCard}>
@@ -2383,7 +2394,34 @@ export default function App() {
           </View>
         ) : null}
 
-        {activePrimaryMenu !== "account" ? (
+        {isPromotionsMenu ? (
+          <View style={styles.listCard}>
+            <Text style={styles.sectionTitle}>{allPromotionsTitle}</Text>
+            {promotionSlides.length === 0 ? (
+              <Text style={styles.stateText}>{emptyPromotionsText}</Text>
+            ) : (
+              promotionSlides.map((promotion) => (
+                <TouchableOpacity
+                  key={`promotion-gallery-${promotion.id}`}
+                  style={styles.promotionGalleryCard}
+                  onPress={() => openPromotionLink(promotion)}
+                >
+                  <Image source={{ uri: promotion.imageUrl }} style={styles.promotionGalleryImage} />
+                  <View style={styles.promotionGalleryOverlay}>
+                    <Text style={styles.promotionGalleryTitle}>
+                      {languageMode === "ar" ? promotion.companyNameAr : promotion.companyNameEn}
+                    </Text>
+                    <Text style={styles.promotionGallerySubtitle}>
+                      {languageMode === "ar" ? promotion.titleAr : promotion.titleEn}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        ) : null}
+
+        {activePrimaryMenu !== "account" && !isPromotionsMenu ? (
           <View style={styles.listCard}>
             <View style={styles.listHeader}>
               <Text style={styles.sectionTitle}>{hasSearched ? "All Prices" : "Latest Prices"}</Text>
@@ -2561,7 +2599,7 @@ export default function App() {
           </View>
         ) : null}
 
-        {activePrimaryMenu !== "account" ? (
+        {activePrimaryMenu !== "account" && !isPromotionsMenu ? (
           <View style={styles.listCard}>
             <Text style={styles.sectionTitle}>Provider JSON Documents</Text>
             {jsonDocuments.length === 0 ? (
@@ -3160,6 +3198,38 @@ const styles = StyleSheet.create({
     width: 18,
     borderRadius: 5,
     backgroundColor: Brand.colors.primaryDark,
+  },
+  promotionGalleryCard: {
+    height: 190,
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    backgroundColor: "#E5E7EB",
+  },
+  promotionGalleryImage: {
+    width: "100%",
+    height: "100%",
+  },
+  promotionGalleryOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#00000066",
+  },
+  promotionGalleryTitle: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 18,
+  },
+  promotionGallerySubtitle: {
+    color: "#F9FAFB",
+    fontWeight: "700",
+    fontSize: 12,
+    marginTop: 2,
   },
   homeGroupsGrid: {
     gap: 10,
