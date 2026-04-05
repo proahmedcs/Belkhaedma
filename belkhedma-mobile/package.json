@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "qa:cycle": "node scripts/cycle_full_test_v2.js"
   },
   "dependencies": {
     "expo": "~54.0.33",
