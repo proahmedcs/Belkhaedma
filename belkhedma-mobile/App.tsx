@@ -23,6 +23,7 @@ import {
   getLatestPrices,
   getProviderJsonDocuments,
   getProviders,
+  getServiceAttributes,
   registerOrLoginCustomer,
   getServiceOffers,
 } from "./src/services/marketplaceApi";
@@ -35,6 +36,7 @@ import {
   PriceSnapshot,
   Provider,
   ProviderJsonDocument,
+  ServiceAttribute,
   ServiceOffer,
 } from "./src/types/marketplace";
 
@@ -54,6 +56,7 @@ type JsonDrivenOptions = {
   weeklyVisits: number[];
   deliveryWindows: string[];
 };
+type LocalizedOption = { value: string; labelEn: string; labelAr: string };
 type ServiceDateOption = {
   value: string;
   weekdayLabel: string;
@@ -421,6 +424,69 @@ function parseDurationToMonths(value: string): number | null {
   return null;
 }
 
+function normalizeAttributeKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function filterScopeMatchesServiceMode(filterScope: number, serviceMode: number | null): boolean {
+  if (!serviceMode) return true;
+
+  const scopeByMode: Record<number, number> = {
+    1: 1, // Hourly
+    2: 2, // Monthly
+    3: 4, // Resident
+    4: 8, // Business
+  };
+
+  const expectedScope = scopeByMode[serviceMode];
+  if (!expectedScope) return true;
+  if (!filterScope) return true;
+  return (filterScope & expectedScope) !== 0;
+}
+
+function parseAttributeOptionSetJson(attribute?: ServiceAttribute | null): LocalizedOption[] {
+  if (!attribute?.optionSetJson) return [];
+
+  try {
+    const parsed = JSON.parse(attribute.optionSetJson) as Array<{
+      value?: unknown;
+      labelEn?: unknown;
+      labelAr?: unknown;
+    }>;
+
+    return (Array.isArray(parsed) ? parsed : [])
+      .map((item) => {
+        const value = typeof item.value === "string" ? item.value.trim() : "";
+        if (!value) return null;
+
+        const labelEn = typeof item.labelEn === "string" && item.labelEn.trim() ? item.labelEn.trim() : value;
+        const labelAr = typeof item.labelAr === "string" && item.labelAr.trim() ? item.labelAr.trim() : labelEn;
+        return {
+          value,
+          labelEn,
+          labelAr,
+        } as LocalizedOption;
+      })
+      .filter((item): item is LocalizedOption => !!item);
+  } catch {
+    return [];
+  }
+}
+
+function toStringOptions(options: LocalizedOption[], languageMode: LanguageMode): string[] {
+  const mapped = options
+    .map((option) => (languageMode === "ar" ? option.labelAr : option.labelEn).trim())
+    .filter(Boolean);
+  return Array.from(new Set(mapped));
+}
+
+function toIntOptions(options: LocalizedOption[]): number[] {
+  const mapped = options
+    .map((option) => Number(option.value))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  return Array.from(new Set(mapped)).sort((a, b) => a - b);
+}
+
 function extractJsonDrivenOptions(docs: ProviderJsonDocument[]): JsonDrivenOptions {
   const shifts = new Set<string>();
   const nationalityGroups = new Set<string>();
@@ -634,6 +700,7 @@ export default function App() {
 
   const [providers, setProviders] = useState<Provider[]>([]);
   const [serviceOffers, setServiceOffers] = useState<ServiceOffer[]>([]);
+  const [serviceAttributes, setServiceAttributes] = useState<ServiceAttribute[]>([]);
   const [prices, setPrices] = useState<PriceSnapshot[]>([]);
   const [jsonDocuments, setJsonDocuments] = useState<ProviderJsonDocument[]>([]);
   const [savedLocations, setSavedLocations] = useState<CustomerSavedLocation[]>([]);
@@ -660,6 +727,8 @@ export default function App() {
   const [selectedHoursPerVisit, setSelectedHoursPerVisit] = useState<number | null>(null);
   const [selectedWeeklyVisits, setSelectedWeeklyVisits] = useState<number | null>(null);
   const [selectedDeliveryWindow, setSelectedDeliveryWindow] = useState<string | null>(null);
+  const [selectedProviderSource, setSelectedProviderSource] = useState<string | null>(null);
+  const [selectedNotes, setSelectedNotes] = useState<string>("");
   const [promotions, setPromotions] = useState<HomePromotion[]>([]);
   const [promotionActiveIndex, setPromotionActiveIndex] = useState<number>(0);
   const [showResultsFilters, setShowResultsFilters] = useState<boolean>(false);
@@ -741,15 +810,68 @@ export default function App() {
     [groupFilteredOffers, selectedSubServiceId]
   );
   const selectedServiceMode = selectedSubService?.serviceMode ?? null;
+
+  const allServiceAttributes = useMemo(() => {
+    const offerEmbedded = groupFilteredOffers.flatMap((offer) => offer.serviceAttributes ?? []);
+    const fromServiceApi = serviceAttributes.filter((attribute) => {
+      if (!selectedSubServiceId) return false;
+      return attribute.serviceOfferId === selectedSubServiceId;
+    });
+    const merged = [...offerEmbedded, ...fromServiceApi];
+    const byKey = new Map<string, ServiceAttribute>();
+    for (const attribute of merged) {
+      const normalizedKey = normalizeAttributeKey(attribute.attributeKey);
+      if (!normalizedKey) continue;
+      if (!filterScopeMatchesServiceMode(attribute.filterScope, selectedServiceMode)) {
+        continue;
+      }
+      byKey.set(normalizedKey, attribute);
+    }
+    return Array.from(byKey.values()).sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [groupFilteredOffers, selectedServiceMode, selectedSubServiceId, serviceAttributes]);
+
+  const optionSetByAttributeKey = useMemo(() => {
+    return allServiceAttributes.reduce<Record<string, LocalizedOption[]>>((acc, attribute) => {
+      acc[normalizeAttributeKey(attribute.attributeKey)] = parseAttributeOptionSetJson(attribute);
+      return acc;
+    }, {});
+  }, [allServiceAttributes]);
+
+  const providerSourceOptions = useMemo<LocalizedOption[]>(() => {
+    const fromAttributes = optionSetByAttributeKey.providersource ?? [];
+    if (fromAttributes.length > 0) return fromAttributes;
+    return filteredProviders.map((provider) => ({
+      value: provider.code,
+      labelEn: provider.nameEn,
+      labelAr: provider.nameAr,
+    }));
+  }, [filteredProviders, optionSetByAttributeKey.providersource]);
+
   const mandatoryFieldKeys = useMemo<MandatoryFieldKey[]>(() => {
-    if (selectedServiceMode === 1 || selectedGroup === "hourly-cleaning") {
-      return ["serviceDate", "shift"];
+    const mandatoryKeys = new Set<string>(
+      allServiceAttributes
+        .filter((attribute) => attribute.isMandatory)
+        .map((attribute) => normalizeAttributeKey(attribute.attributeKey))
+    );
+    if (mandatoryKeys.size === 0) {
+      if (selectedServiceMode === 1 || selectedGroup === "hourly-cleaning") {
+        return ["serviceDate", "shift"];
+      }
+      if (selectedServiceMode === 2 || selectedServiceMode === 3 || selectedGroup === "monthly") {
+        return ["serviceDate", "contractDurationName"];
+      }
+      return ["serviceDate"];
     }
-    if (selectedServiceMode === 2 || selectedServiceMode === 3 || selectedGroup === "monthly") {
-      return ["serviceDate", "contractDurationName"];
+
+    const fields: MandatoryFieldKey[] = ["serviceDate"];
+    if (mandatoryKeys.has("shift")) {
+      fields.push("shift");
     }
-    return ["serviceDate"];
-  }, [selectedGroup, selectedServiceMode]);
+    if (mandatoryKeys.has("contractduration")) {
+      fields.push("contractDurationName");
+    }
+    return Array.from(new Set(fields));
+  }, [allServiceAttributes, selectedGroup, selectedServiceMode]);
   const mandatoryFieldLabels = useMemo(() => {
     return mandatoryFieldKeys.map((key) => {
       if (key === "serviceDate") return languageMode === "ar" ? "تاريخ الخدمة" : "Service Date";
@@ -843,11 +965,16 @@ export default function App() {
   }, [jsonDocuments, selectedGroup, selectedProvider]);
 
   const shiftOptions = useMemo(() => {
+    const fromAttributes = toStringOptions(optionSetByAttributeKey.shift ?? [], languageMode);
+    if (fromAttributes.length > 0) return fromAttributes;
     if (jsonDrivenOptions.shifts.length > 0) return jsonDrivenOptions.shifts;
     return ["Morning", "Evening"];
-  }, [jsonDrivenOptions.shifts]);
+  }, [jsonDrivenOptions.shifts, languageMode, optionSetByAttributeKey.shift]);
 
   const nationalityOptions = useMemo(() => {
+    const fromAttributes = toStringOptions(optionSetByAttributeKey.nationality ?? [], languageMode);
+    if (fromAttributes.length > 0) return fromAttributes;
+
     const values = new Set<string>();
     for (const offer of groupFilteredOffers) {
       for (const nationality of offer.nationalityOptions ?? []) {
@@ -864,38 +991,57 @@ export default function App() {
 
     if (jsonDrivenOptions.nationalityGroups.length > 0) return jsonDrivenOptions.nationalityGroups;
     return ["Africa", "Philippines", "Indonesia"];
-  }, [groupFilteredOffers, jsonDrivenOptions.nationalityGroups]);
+  }, [
+    groupFilteredOffers,
+    jsonDrivenOptions.nationalityGroups,
+    languageMode,
+    optionSetByAttributeKey.nationality,
+  ]);
 
   const contractDurationNameOptions = useMemo(() => {
+    const fromAttributes = toStringOptions(optionSetByAttributeKey.contractduration ?? [], languageMode);
+    if (fromAttributes.length > 0) return fromAttributes;
     if (jsonDrivenOptions.contractDurations.length > 0) return jsonDrivenOptions.contractDurations;
     if (selectedGroup === "monthly") return ["1 Month", "3 Months", "6 Months", "12 Months"];
     return ["1 Week", "2 Weeks", "1 Month"];
-  }, [jsonDrivenOptions.contractDurations, selectedGroup]);
+  }, [
+    jsonDrivenOptions.contractDurations,
+    languageMode,
+    optionSetByAttributeKey.contractduration,
+    selectedGroup,
+  ]);
 
   const workerCountOptions = useMemo(() => {
+    const fromAttributes = toIntOptions(optionSetByAttributeKey.workerscount ?? []);
+    if (fromAttributes.length > 0) return fromAttributes;
     if (jsonDrivenOptions.workerCounts.length > 0) return jsonDrivenOptions.workerCounts;
     return [1, 2, 3];
-  }, [jsonDrivenOptions.workerCounts]);
+  }, [jsonDrivenOptions.workerCounts, optionSetByAttributeKey.workerscount]);
 
   const hoursPerVisitOptions = useMemo(() => {
-    const values = new Set<number>(jsonDrivenOptions.hoursPerVisit);
+    const values = new Set<number>(toIntOptions(optionSetByAttributeKey.hourspervisit ?? []));
+    jsonDrivenOptions.hoursPerVisit.forEach((x) => values.add(x));
     hourlyOptions.forEach((x) => values.add(x));
     if (values.size === 0) {
       values.add(4);
       values.add(8);
     }
     return Array.from(values).sort((a, b) => a - b);
-  }, [hourlyOptions, jsonDrivenOptions.hoursPerVisit]);
+  }, [hourlyOptions, jsonDrivenOptions.hoursPerVisit, optionSetByAttributeKey.hourspervisit]);
 
   const weeklyVisitOptions = useMemo(() => {
+    const fromAttributes = toIntOptions(optionSetByAttributeKey.weeklyvisits ?? []);
+    if (fromAttributes.length > 0) return fromAttributes;
     if (jsonDrivenOptions.weeklyVisits.length > 0) return jsonDrivenOptions.weeklyVisits;
     return [1, 2, 3, 4];
-  }, [jsonDrivenOptions.weeklyVisits]);
+  }, [jsonDrivenOptions.weeklyVisits, optionSetByAttributeKey.weeklyvisits]);
 
   const deliveryWindowOptions = useMemo(() => {
+    const fromAttributes = toStringOptions(optionSetByAttributeKey.deliverywindow ?? [], languageMode);
+    if (fromAttributes.length > 0) return fromAttributes;
     if (jsonDrivenOptions.deliveryWindows.length > 0) return jsonDrivenOptions.deliveryWindows;
     return ["07:00-09:00", "15:00-17:00"];
-  }, [jsonDrivenOptions.deliveryWindows]);
+  }, [jsonDrivenOptions.deliveryWindows, languageMode, optionSetByAttributeKey.deliverywindow]);
   const effectiveShiftOptions = useMemo(() => {
     if (selectedServiceMode === 1 || selectedGroup === "hourly-cleaning") {
       return shiftOptions.filter((option) => {
@@ -976,6 +1122,17 @@ export default function App() {
       setSelectedDeliveryWindow(deliveryWindowOptions[0] ?? null);
     }
   }, [deliveryWindowOptions, selectedDeliveryWindow]);
+
+  useEffect(() => {
+    const availableCodes = filteredProviders.map((provider) => provider.code);
+    if (availableCodes.length === 0) {
+      setSelectedProviderSource(null);
+      return;
+    }
+    if (!selectedProviderSource || !availableCodes.includes(selectedProviderSource)) {
+      setSelectedProviderSource(availableCodes[0] ?? null);
+    }
+  }, [filteredProviders, selectedProviderSource]);
 
   useEffect(() => {
     if (!serviceDate && effectiveServiceDateOptions.length > 0) {
@@ -1067,6 +1224,11 @@ export default function App() {
     return Math.round(basePriceSar * multiplier * 100) / 100;
   };
 
+  const filteredProvidersForSelectedSource = useMemo(() => {
+    if (!selectedProviderSource?.trim()) return filteredProviders;
+    return filteredProviders.filter((provider) => provider.code === selectedProviderSource);
+  }, [filteredProviders, selectedProviderSource]);
+
   const wegoStyleRows = useMemo(() => {
     const realRows = searchedPrices.map((price) => ({
       price,
@@ -1079,7 +1241,7 @@ export default function App() {
     const providerIdsInRows = new Set(rowsWithProvider.map((row) => row.provider?.id).filter((id): id is string => !!id));
 
     const syntheticRows = hasSearched && baselineRow
-      ? filteredProviders
+      ? filteredProvidersForSelectedSource
           .filter((provider) => !providerIdsInRows.has(provider.id))
           .filter((provider) => {
             if (!selectedGroup) return true;
@@ -1129,7 +1291,7 @@ export default function App() {
 
     return [...rowsWithProvider, ...syntheticRows].sort((a, b) => a.price.finalPriceSar - b.price.finalPriceSar);
   }, [
-    filteredProviders,
+    filteredProvidersForSelectedSource,
     groupFilteredOffers,
     hasSearched,
     offerById,
@@ -1146,7 +1308,7 @@ export default function App() {
     });
   }, [selectedServiceMode, wegoStyleRows]);
   const resultsRows = useMemo(() => {
-    const rows = serviceModeFilteredRows.filter(({ price }) => {
+    const rows = serviceModeFilteredRows.filter(({ price, provider, offer }) => {
       const sourceLabel = price.id.startsWith("synthetic-price-")
         ? "demo"
         : price.sourceType === 1
@@ -1201,10 +1363,14 @@ export default function App() {
     resultsSourceFilter,
   ]);
 
-  const loadData = async (activeToken: string | null = authToken, activeCustomerReference: string | null = customerReference || currentCustomer?.customerReference || null) => {
+  const loadData = async (
+    activeToken: string | null = authToken,
+    activeCustomerReference: string | null = customerReference || currentCustomer?.customerReference || null
+  ) => {
     if (!activeToken || !activeCustomerReference) {
       setProviders([]);
       setServiceOffers([]);
+      setServiceAttributes([]);
       setPrices([]);
       setJsonDocuments([]);
       setSavedLocations([]);
@@ -1216,9 +1382,10 @@ export default function App() {
       setLoading(true);
       setError(null);
 
-      const [providersData, offersData, pricesData, docsData, locationsData, promotionsData] = await Promise.all([
+      const [providersData, offersData, attributesData, pricesData, docsData, locationsData, promotionsData] = await Promise.all([
         getProviders(),
         getServiceOffers(),
+        getServiceAttributes(),
         getLatestPrices(),
         getProviderJsonDocuments(undefined, false),
         getCustomerSavedLocations(activeCustomerReference, activeToken),
@@ -1227,6 +1394,7 @@ export default function App() {
 
       setProviders(providersData);
       setServiceOffers(offersData);
+      setServiceAttributes(attributesData);
       setPrices(pricesData);
       setJsonDocuments(docsData);
       setSavedLocations(locationsData);
@@ -2250,6 +2418,39 @@ export default function App() {
                   />
                 </>
               ) : null}
+              <Text style={styles.subSectionTitle}>
+                {languageMode === "ar" ? "مزود الخدمة" : "Service Provider"}
+              </Text>
+              <FlatList
+                horizontal
+                data={providerSourceOptions}
+                keyExtractor={(item) => item.value}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const active = selectedProviderSource === item.value;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedProviderSource(item.value)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {languageMode === "ar" ? item.labelAr : item.labelEn}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+              <Text style={styles.subSectionTitle}>
+                {languageMode === "ar" ? "ملاحظات إضافية" : "Additional Notes"}
+              </Text>
+              <TextInput
+                placeholder={languageMode === "ar" ? "اكتب أي ملاحظات تفضيلية" : "Type any special notes"}
+                value={selectedNotes}
+                onChangeText={setSelectedNotes}
+                style={[styles.searchInput, styles.multiLineInput]}
+                multiline
+                placeholderTextColor={Brand.colors.textSecondary}
+              />
               {!mandatoryFiltersSatisfied ? (
                 <Text style={styles.errorText}>
                   {languageMode === "ar"
@@ -2332,6 +2533,19 @@ export default function App() {
                   Hours/Visit: {selectedHoursPerVisit ?? "N/A"} | Weekly Visits: {selectedWeeklyVisits ?? "N/A"}
                 </Text>
                 <Text style={styles.summaryText}>Delivery Window: {selectedDeliveryWindow ?? "N/A"}</Text>
+                <Text style={styles.summaryText}>
+                  {languageMode === "ar" ? "مزود الخدمة" : "Service Provider"}:{" "}
+                  {selectedProviderSource
+                    ? (filteredProviders.find((provider) => provider.code === selectedProviderSource)?.[
+                        languageMode === "ar" ? "nameAr" : "nameEn"
+                      ] ?? selectedProviderSource)
+                    : "N/A"}
+                </Text>
+                {selectedNotes.trim() ? (
+                  <Text style={styles.summaryText}>
+                    {languageMode === "ar" ? "ملاحظات" : "Notes"}: {selectedNotes}
+                  </Text>
+                ) : null}
               </View>
               <TouchableOpacity style={styles.searchButton} onPress={runSearch}>
                 <Text style={styles.searchButtonText}>{languageMode === "ar" ? "عرض كل الأسعار" : "Search All Prices"}</Text>

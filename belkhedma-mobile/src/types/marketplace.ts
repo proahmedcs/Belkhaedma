@@ -39,7 +39,23 @@ export type ServiceOffer = {
   nameEn: string;
   hourOptions: number[];
   nationalityOptions: string[];
+  serviceAttributes: ServiceAttribute[];
   isAvailable: boolean;
+  updatedAtUtc: string;
+};
+
+export type ServiceAttribute = {
+  id: string;
+  serviceOfferId: string;
+  attributeKey: string;
+  nameAr: string;
+  nameEn: string;
+  type: number;
+  optionSetJson?: string | null;
+  isMandatory: boolean;
+  filterScope: number;
+  displayOrder: number;
+  isActive: boolean;
   updatedAtUtc: string;
 };
 

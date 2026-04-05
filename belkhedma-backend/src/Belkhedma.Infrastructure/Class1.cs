@@ -128,6 +128,19 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
             .ThenByDescending(x => x.UpdatedAtUtc)
             .ToListAsync(cancellationToken);
 
+        var offerIds = rows.Select(x => x.Id).ToList();
+        var attributesByOfferId = await dbContext.ServiceAttributes
+            .AsNoTracking()
+            .Where(x => offerIds.Contains(x.ServiceOfferId) && x.IsActive)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.NameEn)
+            .ToListAsync(cancellationToken);
+        var groupedAttributes = attributesByOfferId
+            .GroupBy(x => x.ServiceOfferId)
+            .ToDictionary(
+                x => x.Key,
+                x => (IReadOnlyList<ServiceAttributeDto>)x.Select(MapServiceAttribute).ToList());
+
         return rows
             .Select(x => new ServiceOfferDto(
                 x.Id,
@@ -139,9 +152,49 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
                 x.DisplayOrder,
                 ParseHourOptions(x.HourlyHoursJson),
                 ParseStringList(x.NationalityGroupsJson),
+                groupedAttributes.TryGetValue(x.Id, out var attributes) ? attributes : [],
                 x.IsAvailable,
                 x.UpdatedAtUtc))
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<ServiceAttributeDto>> GetServiceAttributesAsync(
+        string? providerCode,
+        Guid? serviceOfferId,
+        ServiceMode? serviceMode,
+        CancellationToken cancellationToken = default)
+    {
+        var query = from attribute in dbContext.ServiceAttributes.AsNoTracking()
+                    join offer in dbContext.ServiceOffers.AsNoTracking() on attribute.ServiceOfferId equals offer.Id
+                    join provider in dbContext.Providers.AsNoTracking() on offer.ProviderId equals provider.Id
+                    where attribute.IsActive
+                    select new
+                    {
+                        Attribute = attribute,
+                        OfferServiceMode = offer.ServiceMode,
+                        ProviderCode = provider.Code
+                    };
+
+        if (!string.IsNullOrWhiteSpace(providerCode))
+        {
+            query = query.Where(x => x.ProviderCode == providerCode);
+        }
+
+        if (serviceOfferId.HasValue)
+        {
+            query = query.Where(x => x.Attribute.ServiceOfferId == serviceOfferId.Value);
+        }
+
+        if (serviceMode.HasValue)
+        {
+            query = query.Where(x => x.OfferServiceMode == serviceMode.Value);
+        }
+
+        return await query
+            .OrderBy(x => x.Attribute.DisplayOrder)
+            .ThenBy(x => x.Attribute.NameEn)
+            .Select(x => MapServiceAttribute(x.Attribute))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<PriceSnapshotDto>> GetLatestPricesAsync(string? providerCode, CancellationToken cancellationToken = default)
@@ -482,6 +535,23 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
             entity.DisplayOrder,
             entity.IsActive,
             entity.CreatedAtUtc,
+            entity.UpdatedAtUtc);
+    }
+
+    private static ServiceAttributeDto MapServiceAttribute(ServiceAttribute entity)
+    {
+        return new ServiceAttributeDto(
+            entity.Id,
+            entity.ServiceOfferId,
+            entity.AttributeKey,
+            entity.NameAr,
+            entity.NameEn,
+            entity.Type,
+            entity.OptionSetJson,
+            entity.IsMandatory,
+            entity.FilterScope,
+            entity.DisplayOrder,
+            entity.IsActive,
             entity.UpdatedAtUtc);
     }
 

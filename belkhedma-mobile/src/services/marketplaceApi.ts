@@ -6,6 +6,7 @@ import {
   HomePromotion,
   PriceSnapshot,
   Provider,
+  ServiceAttribute,
   ServiceOffer,
   ProviderJsonDocument,
 } from "../types/marketplace";
@@ -73,6 +74,25 @@ export async function getAllPrices(
 export async function getServiceOffers(providerCode?: string): Promise<ServiceOffer[]> {
   const query = providerCode ? `?providerCode=${encodeURIComponent(providerCode)}` : "";
   return fetchJson<ServiceOffer[]>(`/api/marketplace/offers${query}`);
+}
+
+export async function getServiceAttributes(
+  providerCode?: string,
+  serviceOfferId?: string,
+  serviceMode?: number
+): Promise<ServiceAttribute[]> {
+  const query = new URLSearchParams();
+  if (providerCode) {
+    query.set("providerCode", providerCode);
+  }
+  if (serviceOfferId) {
+    query.set("serviceOfferId", serviceOfferId);
+  }
+  if (typeof serviceMode === "number") {
+    query.set("serviceMode", String(serviceMode));
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return fetchJson<ServiceAttribute[]>(`/api/marketplace/service-attributes${suffix}`);
 }
 
 export async function getProviderJsonDocuments(

@@ -9,6 +9,7 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
 {
     public DbSet<Provider> Providers => Set<Provider>();
     public DbSet<ServiceOffer> ServiceOffers => Set<ServiceOffer>();
+    public DbSet<ServiceAttribute> ServiceAttributes => Set<ServiceAttribute>();
     public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
     public DbSet<ProviderJsonDocument> ProviderJsonDocuments => Set<ProviderJsonDocument>();
     public DbSet<HomePromotion> HomePromotions => Set<HomePromotion>();
@@ -51,6 +52,17 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
             entity.Property(x => x.NameEn).HasMaxLength(300).IsRequired();
             entity.Property(x => x.HourlyHoursJson).HasColumnType("nvarchar(max)").IsRequired();
             entity.Property(x => x.NationalityGroupsJson).HasColumnType("nvarchar(max)").IsRequired();
+        });
+
+        modelBuilder.Entity<ServiceAttribute>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ServiceOfferId, x.AttributeKey }).IsUnique();
+            entity.HasIndex(x => new { x.ServiceOfferId, x.DisplayOrder, x.NameEn });
+            entity.Property(x => x.AttributeKey).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.NameAr).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.NameEn).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.OptionSetJson).HasColumnType("nvarchar(max)");
         });
 
         modelBuilder.Entity<PriceSnapshot>(entity =>

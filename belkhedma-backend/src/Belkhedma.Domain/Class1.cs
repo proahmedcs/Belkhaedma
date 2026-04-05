@@ -8,6 +8,26 @@ public enum ServiceMode
     Business = 4
 }
 
+public enum ServiceAttributeType
+{
+    OptionSet = 1,
+    Date = 2,
+    Int = 3,
+    Input = 4,
+    Float = 5
+}
+
+[Flags]
+public enum ServiceAttributeFilterScope
+{
+    None = 0,
+    Hourly = 1,
+    Monthly = 2,
+    Resident = 4,
+    Business = 8,
+    All = Hourly | Monthly | Resident | Business
+}
+
 public enum DataSourceType
 {
     Api = 1,
@@ -101,6 +121,22 @@ public sealed class ServiceOffer
     public string HourlyHoursJson { get; set; } = "[]";
     public string NationalityGroupsJson { get; set; } = "[]";
     public bool IsAvailable { get; set; } = true;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class ServiceAttribute
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ServiceOfferId { get; set; }
+    public string AttributeKey { get; set; } = string.Empty;
+    public string NameAr { get; set; } = string.Empty;
+    public string NameEn { get; set; } = string.Empty;
+    public ServiceAttributeType Type { get; set; } = ServiceAttributeType.OptionSet;
+    public string? OptionSetJson { get; set; }
+    public bool IsMandatory { get; set; }
+    public ServiceAttributeFilterScope FilterScope { get; set; } = ServiceAttributeFilterScope.All;
+    public int DisplayOrder { get; set; }
+    public bool IsActive { get; set; } = true;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 

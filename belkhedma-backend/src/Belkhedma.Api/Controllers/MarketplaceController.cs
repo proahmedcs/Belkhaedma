@@ -1,5 +1,6 @@
 using Belkhedma.Application;
 using Belkhedma.Api.Security;
+using Belkhedma.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -64,6 +65,21 @@ public sealed class MarketplaceController(
     {
         var offers = await marketplaceQueryService.GetOffersAsync(providerCode, cancellationToken);
         return Ok(offers);
+    }
+
+    [HttpGet("service-attributes")]
+    public async Task<IActionResult> GetServiceAttributes(
+        [FromQuery] string? providerCode,
+        [FromQuery] Guid? serviceOfferId,
+        [FromQuery] ServiceMode? serviceMode,
+        CancellationToken cancellationToken)
+    {
+        var attributes = await marketplaceQueryService.GetServiceAttributesAsync(
+            providerCode,
+            serviceOfferId,
+            serviceMode,
+            cancellationToken);
+        return Ok(attributes);
     }
 
     [HttpGet("prices/latest")]

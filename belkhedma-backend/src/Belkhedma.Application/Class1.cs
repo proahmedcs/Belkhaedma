@@ -45,7 +45,22 @@ public sealed record ServiceOfferDto(
     int DisplayOrder,
     IReadOnlyList<int> HourOptions,
     IReadOnlyList<string> NationalityOptions,
+    IReadOnlyList<ServiceAttributeDto> ServiceAttributes,
     bool IsAvailable,
+    DateTime UpdatedAtUtc);
+
+public sealed record ServiceAttributeDto(
+    Guid Id,
+    Guid ServiceOfferId,
+    string AttributeKey,
+    string NameAr,
+    string NameEn,
+    ServiceAttributeType Type,
+    string? OptionSetJson,
+    bool IsMandatory,
+    ServiceAttributeFilterScope FilterScope,
+    int DisplayOrder,
+    bool IsActive,
     DateTime UpdatedAtUtc);
 
 public sealed record PriceSnapshotDto(
@@ -147,6 +162,11 @@ public interface IMarketplaceQueryService
 {
     Task<IReadOnlyList<ProviderDto>> GetProvidersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ServiceOfferDto>> GetOffersAsync(string? providerCode, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ServiceAttributeDto>> GetServiceAttributesAsync(
+        string? providerCode,
+        Guid? serviceOfferId,
+        ServiceMode? serviceMode,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PriceSnapshotDto>> GetLatestPricesAsync(string? providerCode, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PriceSnapshotDto>> GetAllPricesAsync(
         string? providerCode,

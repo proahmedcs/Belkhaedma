@@ -40,6 +40,21 @@ public static class BelkhedmaDbSeeder
         decimal? OriginalPriceSar,
         DataSourceType SourceType);
 
+    private sealed record LocalizedOptionSeed(
+        [property: JsonPropertyName("value")] string Value,
+        [property: JsonPropertyName("labelEn")] string LabelEn,
+        [property: JsonPropertyName("labelAr")] string LabelAr);
+
+    private sealed record ServiceAttributeSeed(
+        string AttributeKey,
+        string NameAr,
+        string NameEn,
+        ServiceAttributeType Type,
+        IReadOnlyList<LocalizedOptionSeed>? OptionSet,
+        bool IsMandatory,
+        ServiceAttributeFilterScope FilterScope,
+        int DisplayOrder);
+
     private sealed record DemoJsonDocumentSeed(
         string ProviderCode,
         ServiceMode ServiceMode,
@@ -168,6 +183,191 @@ public static class BelkhedmaDbSeeder
             "monthly-package",
             "fawran_monthly_real_json_bundle",
             ["contract_duration_months", "delivery_method", "employee_id", "contract_details", "payment"])
+    ];
+
+    private static readonly ServiceAttributeSeed[] HourlyAttributeSeeds =
+    [
+        new(
+            "providerSource",
+            "مزود الخدمة",
+            "Service Provider",
+            ServiceAttributeType.OptionSet,
+            null,
+            true,
+            ServiceAttributeFilterScope.Hourly,
+            10),
+        new(
+            "nationality",
+            "الجنسية",
+            "Nationality",
+            ServiceAttributeType.OptionSet,
+            [
+                new("africa", "Africa", "أفريقيا"),
+                new("philippines", "Philippines", "الفلبين"),
+                new("indonesia", "Indonesia", "إندونيسيا"),
+                new("east-asia", "East Asia", "شرق آسيا"),
+                new("african-countries", "African Countries", "الدول الأفريقية")
+            ],
+            true,
+            ServiceAttributeFilterScope.Hourly,
+            20),
+        new(
+            "shift",
+            "الفترة",
+            "Shift",
+            ServiceAttributeType.OptionSet,
+            [
+                new("morning", "Morning", "صباح"),
+                new("evening", "Evening", "مساء")
+            ],
+            true,
+            ServiceAttributeFilterScope.Hourly,
+            30),
+        new(
+            "contractDuration",
+            "مدة التعاقد",
+            "Contract Duration",
+            ServiceAttributeType.OptionSet,
+            [
+                new("1-week", "1 Week", "أسبوع واحد"),
+                new("2-weeks", "2 Weeks", "أسبوعين"),
+                new("1-month", "1 Month", "شهر واحد"),
+                new("3-months", "3 Months", "3 أشهر")
+            ],
+            true,
+            ServiceAttributeFilterScope.Hourly,
+            40),
+        new(
+            "weeklyVisits",
+            "عدد الزيارات الأسبوعية",
+            "Weekly Visits",
+            ServiceAttributeType.Int,
+            [
+                new("1", "1 Visit", "زيارة واحدة"),
+                new("2", "2 Visits", "زيارتان"),
+                new("3", "3 Visits", "3 زيارات"),
+                new("4", "4 Visits", "4 زيارات")
+            ],
+            true,
+            ServiceAttributeFilterScope.Hourly,
+            50),
+        new(
+            "workersCount",
+            "عدد العمال",
+            "Workers Count",
+            ServiceAttributeType.Int,
+            [
+                new("1", "1 Worker", "عامل واحد"),
+                new("2", "2 Workers", "عاملان"),
+                new("3", "3 Workers", "3 عمال")
+            ],
+            true,
+            ServiceAttributeFilterScope.Hourly,
+            60),
+        new(
+            "hoursPerVisit",
+            "ساعات الزيارة",
+            "Hours per Visit",
+            ServiceAttributeType.Int,
+            [
+                new("4", "4 Hours", "4 ساعات"),
+                new("6", "6 Hours", "6 ساعات"),
+                new("8", "8 Hours", "8 ساعات")
+            ],
+            true,
+            ServiceAttributeFilterScope.Hourly,
+            70),
+        new(
+            "serviceDate",
+            "تاريخ الخدمة",
+            "Service Date",
+            ServiceAttributeType.Date,
+            null,
+            true,
+            ServiceAttributeFilterScope.Hourly,
+            80),
+        new(
+            "deliveryWindow",
+            "نافذة التوصيل",
+            "Delivery Window",
+            ServiceAttributeType.OptionSet,
+            [
+                new("07:00-09:00", "07:00-09:00", "07:00-09:00"),
+                new("15:00-17:00", "15:00-17:00", "15:00-17:00")
+            ],
+            false,
+            ServiceAttributeFilterScope.Hourly,
+            90)
+    ];
+
+    private static readonly ServiceAttributeSeed[] MonthlyAttributeSeeds =
+    [
+        new(
+            "providerSource",
+            "مزود الخدمة",
+            "Service Provider",
+            ServiceAttributeType.OptionSet,
+            null,
+            true,
+            ServiceAttributeFilterScope.Monthly | ServiceAttributeFilterScope.Resident,
+            10),
+        new(
+            "contractDuration",
+            "مدة التعاقد",
+            "Contract Duration",
+            ServiceAttributeType.OptionSet,
+            [
+                new("1-month", "1 Month", "شهر واحد"),
+                new("3-months", "3 Months", "3 أشهر"),
+                new("6-months", "6 Months", "6 أشهر"),
+                new("12-months", "12 Months", "12 شهر")
+            ],
+            true,
+            ServiceAttributeFilterScope.Monthly | ServiceAttributeFilterScope.Resident,
+            20),
+        new(
+            "workersCount",
+            "عدد العمال",
+            "Workers Count",
+            ServiceAttributeType.Int,
+            [
+                new("1", "1 Worker", "عامل واحد"),
+                new("2", "2 Workers", "عاملان")
+            ],
+            true,
+            ServiceAttributeFilterScope.Monthly | ServiceAttributeFilterScope.Resident,
+            30),
+        new(
+            "nationality",
+            "الجنسية",
+            "Nationality",
+            ServiceAttributeType.OptionSet,
+            [
+                new("philippines", "Philippines", "الفلبين"),
+                new("indonesia", "Indonesia", "إندونيسيا"),
+                new("africa", "Africa", "أفريقيا")
+            ],
+            false,
+            ServiceAttributeFilterScope.Monthly | ServiceAttributeFilterScope.Resident,
+            40),
+        new(
+            "serviceDate",
+            "تاريخ بداية الخدمة",
+            "Service Start Date",
+            ServiceAttributeType.Date,
+            null,
+            true,
+            ServiceAttributeFilterScope.Monthly | ServiceAttributeFilterScope.Resident,
+            50),
+        new(
+            "notes",
+            "ملاحظات",
+            "Notes",
+            ServiceAttributeType.Input,
+            null,
+            false,
+            ServiceAttributeFilterScope.Monthly | ServiceAttributeFilterScope.Resident,
+            60)
     ];
 
     private static string SerializeIntList(IEnumerable<int> values)
@@ -500,6 +700,7 @@ public static class BelkhedmaDbSeeder
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await SeedDemoOffersAndPriceSnapshotsAsync(dbContext, cancellationToken);
+        await SeedServiceAttributesAsync(dbContext, cancellationToken);
         await SeedProviderJsonDocumentsAsync(dbContext, cancellationToken);
         await SeedDemoCustomerAccountsAsync(dbContext, cancellationToken);
         await SeedCustomerSavedLocationsAsync(dbContext, cancellationToken);
@@ -734,6 +935,73 @@ public static class BelkhedmaDbSeeder
             existing.JsonData = json;
             existing.IsActive = true;
             existing.ExpiresAtUtc = DateTime.UtcNow.AddMonths(6);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedServiceAttributesAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var offers = await dbContext.ServiceOffers.ToListAsync(cancellationToken);
+        var existingAttributes = await dbContext.ServiceAttributes.ToListAsync(cancellationToken);
+        var providerCodeById = await dbContext.Providers
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
+
+        foreach (var offer in offers)
+        {
+            var providerCode = providerCodeById.TryGetValue(offer.ProviderId, out var code) ? code : string.Empty;
+            var attributeSeeds = offer.ServiceMode switch
+            {
+                ServiceMode.Hourly => HourlyAttributeSeeds,
+                ServiceMode.Monthly or ServiceMode.Resident => MonthlyAttributeSeeds,
+                _ => Array.Empty<ServiceAttributeSeed>()
+            };
+
+            foreach (var seed in attributeSeeds)
+            {
+                var existing = existingAttributes.FirstOrDefault(x =>
+                    x.ServiceOfferId == offer.Id &&
+                    x.AttributeKey == seed.AttributeKey);
+
+                var optionSetJson = seed.OptionSet is { Count: > 0 }
+                    ? JsonSerializer.Serialize(seed.OptionSet)
+                    : null;
+
+                if (seed.AttributeKey == "providerSource")
+                {
+                    var providerOption = new[]
+                    {
+                        new LocalizedOptionSeed(
+                            providerCode,
+                            string.IsNullOrWhiteSpace(providerCode) ? offer.NameEn : providerCode.ToUpperInvariant(),
+                            offer.NameAr)
+                    };
+                    optionSetJson = JsonSerializer.Serialize(providerOption);
+                }
+
+                if (existing is null)
+                {
+                    existing = new ServiceAttribute
+                    {
+                        ServiceOfferId = offer.Id,
+                        AttributeKey = seed.AttributeKey
+                    };
+                    existingAttributes.Add(existing);
+                    await dbContext.ServiceAttributes.AddAsync(existing, cancellationToken);
+                }
+
+                existing.NameAr = seed.NameAr;
+                existing.NameEn = seed.NameEn;
+                existing.Type = seed.Type;
+                existing.OptionSetJson = optionSetJson;
+                existing.IsMandatory = seed.IsMandatory;
+                existing.FilterScope = seed.FilterScope;
+                existing.DisplayOrder = seed.DisplayOrder;
+                existing.IsActive = true;
+                existing.UpdatedAtUtc = now;
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
