@@ -2540,88 +2540,91 @@ export default function App() {
           </View>
         </View>
 
-        <View style={styles.settingsCard}>
-          <Text style={styles.sectionTitle}>{languageMode === "ar" ? "الإعدادات" : "Settings"}</Text>
-          <View style={styles.settingsSection}>
-            <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "حسابي" : "Account"}</Text>
-            <TouchableOpacity style={styles.settingsRow}>
-              <View style={styles.settingsRowRight}>
-                <Text style={styles.settingsRowIcon}>👤</Text>
-                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "ملفي الشخصي" : "Profile"}</Text>
-              </View>
-              <Text style={styles.settingsRowChevron}>›</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.settingsRow}>
-              <View style={styles.settingsRowRight}>
-                <Text style={styles.settingsRowIcon}>♡</Text>
-                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "تفضيلاتي" : "Preferences"}</Text>
-              </View>
-              <Text style={styles.settingsRowChevron}>›</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.settingsSection}>
-            <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "التفضيلات" : "Preferences"}</Text>
-            <View style={styles.settingsRow}>
-              <View style={styles.settingsRowRight}>
-                <Text style={styles.settingsRowIcon}>🌐</Text>
-                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "اللغة" : "Language"}</Text>
-              </View>
-              <View style={styles.settingsLangRow}>
-                <TouchableOpacity
-                  style={[styles.settingsLangButton, languageMode === "en" && styles.settingsLangButtonActive]}
-                  onPress={() => setLanguageMode("en")}
-                >
-                  <Text style={[styles.settingsLangText, languageMode === "en" && styles.settingsLangTextActive]}>EN</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.settingsLangButton, languageMode === "ar" && styles.settingsLangButtonActive]}
-                  onPress={() => setLanguageMode("ar")}
-                >
-                  <Text style={[styles.settingsLangText, languageMode === "ar" && styles.settingsLangTextActive]}>AR</Text>
-                </TouchableOpacity>
-              </View>
+        {activePrimaryMenu === "account" ? (
+          <View style={styles.settingsCard}>
+            <Text style={styles.sectionTitle}>{languageMode === "ar" ? "الإعدادات" : "Settings"}</Text>
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "حسابي" : "Account"}</Text>
+              <TouchableOpacity style={styles.settingsRow}>
+                <View style={styles.settingsRowRight}>
+                  <Text style={styles.settingsRowIcon}>👤</Text>
+                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "ملفي الشخصي" : "Profile"}</Text>
+                </View>
+                <Text style={styles.settingsRowChevron}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingsRow}>
+                <View style={styles.settingsRowRight}>
+                  <Text style={styles.settingsRowIcon}>♡</Text>
+                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "تفضيلاتي" : "Preferences"}</Text>
+                </View>
+                <Text style={styles.settingsRowChevron}>›</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.settingsRow}>
-              <View style={styles.settingsRowRight}>
-                <Text style={styles.settingsRowIcon}>🔔</Text>
-                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "الإشعارات" : "Notifications"}</Text>
+
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "التفضيلات" : "Preferences"}</Text>
+              <View style={styles.settingsRow}>
+                <View style={styles.settingsRowRight}>
+                  <Text style={styles.settingsRowIcon}>🌐</Text>
+                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "اللغة" : "Language"}</Text>
+                </View>
+                <View style={styles.settingsLangRow}>
+                  <TouchableOpacity
+                    style={[styles.settingsLangButton, languageMode === "en" && styles.settingsLangButtonActive]}
+                    onPress={() => setLanguageMode("en")}
+                  >
+                    <Text style={[styles.settingsLangText, languageMode === "en" && styles.settingsLangTextActive]}>EN</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.settingsLangButton, languageMode === "ar" && styles.settingsLangButtonActive]}
+                    onPress={() => setLanguageMode("ar")}
+                  >
+                    <Text style={[styles.settingsLangText, languageMode === "ar" && styles.settingsLangTextActive]}>AR</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text style={styles.settingsRowChevron}>›</Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity style={styles.settingsRow}>
+                <View style={styles.settingsRowRight}>
+                  <Text style={styles.settingsRowIcon}>🔔</Text>
+                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "الإشعارات" : "Notifications"}</Text>
+                </View>
+                <Text style={styles.settingsRowChevron}>›</Text>
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.settingsSection}>
-            <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "أخرى" : "More"}</Text>
-            <TouchableOpacity style={styles.settingsRow}>
-              <View style={styles.settingsRowRight}>
-                <Text style={styles.settingsRowIcon}>❓</Text>
-                <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "المساعدة والدعم" : "Help & Support"}</Text>
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "أخرى" : "More"}</Text>
+              <TouchableOpacity style={styles.settingsRow}>
+                <View style={styles.settingsRowRight}>
+                  <Text style={styles.settingsRowIcon}>❓</Text>
+                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "المساعدة والدعم" : "Help & Support"}</Text>
+                </View>
+                <Text style={styles.settingsRowChevron}>›</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
+        {activePrimaryMenu !== "account" ? (
+          <View style={styles.listCard}>
+            <View style={styles.listHeader}>
+              <Text style={styles.sectionTitle}>{hasSearched ? "All Prices" : "Latest Prices"}</Text>
+            </View>
+
+            {loading ? (
+              <View style={styles.stateBlock}>
+                <ActivityIndicator size="large" color={Brand.colors.primary} />
+                <Text style={styles.stateText}>Loading data from backend...</Text>
               </View>
-              <Text style={styles.settingsRowChevron}>›</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.listCard}>
-          <View style={styles.listHeader}>
-            <Text style={styles.sectionTitle}>{hasSearched ? "All Prices" : "Latest Prices"}</Text>
-          </View>
-
-          {loading ? (
-            <View style={styles.stateBlock}>
-              <ActivityIndicator size="large" color={Brand.colors.primary} />
-              <Text style={styles.stateText}>Loading data from backend...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.stateBlock}>
-              <Text style={styles.errorText}>{error}</Text>
-              <Text style={styles.stateText}>
-                Ensure backend is running and EXPO_PUBLIC_API_BASE_URL is reachable.
-              </Text>
-            </View>
-          ) : (
-            resultsRows.map(({ price, provider, offer }) => {
+            ) : error ? (
+              <View style={styles.stateBlock}>
+                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.stateText}>
+                  Ensure backend is running and EXPO_PUBLIC_API_BASE_URL is reachable.
+                </Text>
+              </View>
+            ) : (
+              resultsRows.map(({ price, provider, offer }) => {
               const isMonthlyFlow = selectedGroup === "monthly";
               const durationFromOffer = parseDurationToMonths(`${offer?.nameEn ?? ""} ${offer?.nameAr ?? ""}`);
               const durationFromSelection = parseDurationToMonths(selectedContractDurationName ?? "");
@@ -2709,26 +2712,29 @@ export default function App() {
                   <Text style={styles.meta}>Expires: {new Date(price.expiresAtUtc).toLocaleString()}</Text>
                 </View>
               );
-            })
-          )}
-        </View>
+              })
+            )}
+          </View>
+        ) : null}
 
-        <View style={styles.listCard}>
-          <Text style={styles.sectionTitle}>Provider JSON Documents</Text>
-          {jsonDocuments.length === 0 ? (
-            <Text style={styles.stateText}>No active JSON documents found.</Text>
-          ) : (
-            jsonDocuments.map((doc) => (
-              <View style={styles.priceCard} key={doc.id}>
-                <Text style={styles.providerName}>{doc.fileName}</Text>
-                <Text style={styles.meta}>Key: {doc.documentKey}</Text>
-                <Text style={styles.meta}>Provider: {doc.providerCode ?? "N/A"}</Text>
-                <Text style={styles.meta}>Created: {new Date(doc.createdAtUtc).toLocaleString()}</Text>
-                <Text style={styles.meta}>Expires: {new Date(doc.expiresAtUtc).toLocaleString()}</Text>
-              </View>
-            ))
-          )}
-        </View>
+        {activePrimaryMenu !== "account" ? (
+          <View style={styles.listCard}>
+            <Text style={styles.sectionTitle}>Provider JSON Documents</Text>
+            {jsonDocuments.length === 0 ? (
+              <Text style={styles.stateText}>No active JSON documents found.</Text>
+            ) : (
+              jsonDocuments.map((doc) => (
+                <View style={styles.priceCard} key={doc.id}>
+                  <Text style={styles.providerName}>{doc.fileName}</Text>
+                  <Text style={styles.meta}>Key: {doc.documentKey}</Text>
+                  <Text style={styles.meta}>Provider: {doc.providerCode ?? "N/A"}</Text>
+                  <Text style={styles.meta}>Created: {new Date(doc.createdAtUtc).toLocaleString()}</Text>
+                  <Text style={styles.meta}>Expires: {new Date(doc.expiresAtUtc).toLocaleString()}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        ) : null}
       </ScrollView>
       <View style={styles.bottomMenuBar}>
         {BOTTOM_MENU_ITEMS.map((menuItem) => {
