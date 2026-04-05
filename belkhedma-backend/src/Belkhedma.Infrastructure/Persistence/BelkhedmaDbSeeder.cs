@@ -40,6 +40,14 @@ public static class BelkhedmaDbSeeder
         decimal? OriginalPriceSar,
         DataSourceType SourceType);
 
+    private sealed record EnayaHourlyPackagePoint(
+        string Nationality,
+        int Hours,
+        int Workers,
+        int WeeklyVisits,
+        decimal FinalPriceSar,
+        decimal? OriginalPriceSar);
+
     private sealed record LocalizedOptionSeed(
         [property: JsonPropertyName("value")] string Value,
         [property: JsonPropertyName("labelEn")] string LabelEn,
@@ -81,44 +89,8 @@ public static class BelkhedmaDbSeeder
         ["fawran_monthly_real_json_bundle"] = "data/provider-json/fawran_monthly_real_json_bundle.json"
     };
 
-    private static readonly DemoOfferSeed[] DemoOfferSeeds =
+    private static readonly DemoOfferSeed[] BaseDemoOfferSeeds =
     [
-        new(
-            "enaya",
-            "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4",
-            ServiceMode.Hourly,
-            10,
-            "عناية - زيارة تنظيف 4 ساعات",
-            "Enaya - Cleaning Visit 4 Hours",
-            [4, 8],
-            ["Philippines", "Indonesia", "Africa"],
-            75.00m,
-            147.20m,
-            DataSourceType.Api),
-        new(
-            "emdad-hr",
-            "c97fdb23-4687-ec11-a837-000d3abe20f8",
-            ServiceMode.Hourly,
-            20,
-            "إمداد - فوراً 4 ساعات",
-            "Emdad - Fawran 4 Hours",
-            [4, 6, 8],
-            ["Philippines", "Indonesia", "Africa"],
-            90.00m,
-            140.00m,
-            DataSourceType.Api),
-        new(
-            "mueen",
-            "mueen-hourly-4h",
-            ServiceMode.Hourly,
-            30,
-            "معين - تنظيف بالساعة 4 ساعات",
-            "Mueen - Hourly Cleaning 4 Hours",
-            [4, 6, 8],
-            ["Philippines", "Indonesia", "Africa"],
-            94.00m,
-            129.00m,
-            DataSourceType.Scraper),
         new(
             "tamkeen",
             "tamkeen-monthly-1m",
@@ -156,6 +128,10 @@ public static class BelkhedmaDbSeeder
             2710.00m,
             DataSourceType.Scraper)
     ];
+
+    private static readonly string[] PreferredEnayaNationalities = ["Africa", "Philippines", "Indonesia"];
+    private static readonly int[] EnayaHourlyWorkersOptions = [1, 2];
+    private static readonly int[] EnayaHourlyWeeklyVisitsOptions = [1, 2];
 
     private static readonly DemoJsonDocumentSeed[] DemoJsonDocumentSeeds =
     [
@@ -495,6 +471,324 @@ public static class BelkhedmaDbSeeder
         {
             return [];
         }
+    }
+
+    private static IReadOnlyList<DemoOfferSeed> BuildDemoOfferSeeds()
+    {
+        var seeds = new List<DemoOfferSeed>(BaseDemoOfferSeeds);
+        seeds.AddRange(BuildEnayaHourlyOfferSeedsFromJson());
+        return seeds;
+    }
+
+    private static IReadOnlyList<DemoOfferSeed> BuildEnayaHourlyOfferSeedsFromJson()
+    {
+        var extractedPoints = ExtractEnayaHourlyPackagePointsFromJson();
+        var sourcePoints = extractedPoints.Count > 0 ? extractedPoints : BuildFallbackEnayaHourlyPackagePoints();
+        var expandedPoints = ExpandEnayaHourlyPackagePoints(sourcePoints);
+
+        var seeds = new List<DemoOfferSeed>(expandedPoints.Count);
+        var displayOrder = 10;
+        foreach (var point in expandedPoints
+            .OrderBy(x => x.Hours)
+            .ThenBy(x => x.Workers)
+            .ThenBy(x => x.WeeklyVisits)
+            .ThenBy(x => x.Nationality, StringComparer.OrdinalIgnoreCase))
+        {
+            var nationalityEn = NormalizeNationalityLabel(point.Nationality);
+            var nationalityAr = TranslateNationalityToArabic(nationalityEn);
+            var providerServiceId = BuildHourlyProviderServiceId(point.Hours, point.Workers, point.WeeklyVisits, nationalityEn);
+            var workersLabelEn = point.Workers == 1 ? "Worker" : "Workers";
+            var visitsLabelEn = point.WeeklyVisits == 1 ? "Visit Weekly" : "Visits Weekly";
+
+            seeds.Add(new DemoOfferSeed(
+                ProviderCode: "enaya",
+                ProviderServiceId: providerServiceId,
+                ServiceMode: ServiceMode.Hourly,
+                DisplayOrder: displayOrder,
+                NameAr: $"عناية - {point.Hours} ساعات / {point.Workers} عامل / {point.WeeklyVisits} زيارة أسبوعياً / {nationalityAr}",
+                NameEn: $"Enaya - {point.Hours} Hours / {point.Workers} {workersLabelEn} / {point.WeeklyVisits} {visitsLabelEn} / {nationalityEn}",
+                HourOptions: [point.Hours],
+                NationalityOptions: [nationalityEn],
+                FinalPriceSar: point.FinalPriceSar,
+                OriginalPriceSar: point.OriginalPriceSar,
+                SourceType: DataSourceType.Api));
+
+            displayOrder += 10;
+        }
+
+        return seeds;
+    }
+
+    private static IReadOnlyList<EnayaHourlyPackagePoint> BuildFallbackEnayaHourlyPackagePoints()
+    {
+        return
+        [
+            new("Africa", 4, 1, 1, 75.00m, 147.20m),
+            new("Philippines", 4, 1, 1, 80.00m, 147.20m),
+            new("Indonesia", 4, 1, 1, 85.00m, 147.20m)
+        ];
+    }
+
+    private static IReadOnlyList<EnayaHourlyPackagePoint> ExpandEnayaHourlyPackagePoints(
+        IReadOnlyList<EnayaHourlyPackagePoint> sourcePoints)
+    {
+        var basePoints = sourcePoints
+            .Where(x =>
+                x.Hours > 0 &&
+                x.Workers > 0 &&
+                x.WeeklyVisits > 0 &&
+                !string.IsNullOrWhiteSpace(x.Nationality) &&
+                x.FinalPriceSar > 0)
+            .GroupBy(x => $"{NormalizeToken(x.Nationality)}|{x.Hours}")
+            .Select(group =>
+                group
+                    .OrderBy(x => x.Workers)
+                    .ThenBy(x => x.WeeklyVisits)
+                    .ThenBy(x => x.FinalPriceSar)
+                    .First())
+            .ToList();
+
+        var expanded = new List<EnayaHourlyPackagePoint>();
+        foreach (var point in basePoints)
+        {
+            foreach (var workers in EnayaHourlyWorkersOptions)
+            {
+                foreach (var weeklyVisits in EnayaHourlyWeeklyVisitsOptions)
+                {
+                    var multiplier = workers * weeklyVisits;
+                    var finalPrice = Math.Round(point.FinalPriceSar * multiplier, 2);
+                    decimal? originalPrice = point.OriginalPriceSar.HasValue
+                        ? Math.Round(point.OriginalPriceSar.Value * multiplier, 2)
+                        : null;
+
+                    expanded.Add(new EnayaHourlyPackagePoint(
+                        Nationality: NormalizeNationalityLabel(point.Nationality),
+                        Hours: point.Hours,
+                        Workers: workers,
+                        WeeklyVisits: weeklyVisits,
+                        FinalPriceSar: finalPrice,
+                        OriginalPriceSar: originalPrice));
+                }
+            }
+        }
+
+        return expanded
+            .GroupBy(x => $"{NormalizeToken(x.Nationality)}|{x.Hours}|{x.Workers}|{x.WeeklyVisits}")
+            .Select(group => group.First())
+            .ToList();
+    }
+
+    private static IReadOnlyList<EnayaHourlyPackagePoint> ExtractEnayaHourlyPackagePointsFromJson()
+    {
+        if (!JsonSamples.TryGetValue("enaya_fawran_real_json_bundle", out var filePath))
+        {
+            return [];
+        }
+
+        var fullPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", filePath));
+        if (!File.Exists(fullPath))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var json = JsonDocument.Parse(File.ReadAllText(fullPath));
+            var points = new List<EnayaHourlyPackagePoint>();
+            CollectEnayaHourlyPackagePoints(json.RootElement, points);
+
+            return points
+                .Where(x =>
+                    !string.IsNullOrWhiteSpace(x.Nationality) &&
+                    x.Hours > 0 &&
+                    x.Workers > 0 &&
+                    x.WeeklyVisits > 0 &&
+                    x.FinalPriceSar > 0)
+                .GroupBy(x => $"{NormalizeToken(x.Nationality)}|{x.Hours}|{x.Workers}|{x.WeeklyVisits}")
+                .Select(group => group.OrderBy(x => x.FinalPriceSar).First())
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static void CollectEnayaHourlyPackagePoints(JsonElement element, ICollection<EnayaHourlyPackagePoint> points)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var nationality = TryReadStringValue(element, "nationality", "resourceGroupName");
+            var hours = TryReadIntValue(element, "hours", "hoursNumber", "visitHours");
+            var workers = TryReadIntValue(element, "workers", "employeeNumber");
+            var weeklyVisits = TryReadIntValue(element, "visits", "weeklyVisits");
+            var finalPrice = TryReadDecimalValue(element, "display_price_sar", "finalPrice");
+            var originalPrice = TryReadDecimalValue(element, "original_price_sar", "oneVisitPrice");
+
+            if (!string.IsNullOrWhiteSpace(nationality) &&
+                hours > 0 &&
+                workers > 0 &&
+                weeklyVisits > 0 &&
+                finalPrice.HasValue &&
+                finalPrice.Value > 0)
+            {
+                points.Add(new EnayaHourlyPackagePoint(
+                    Nationality: nationality,
+                    Hours: hours,
+                    Workers: workers,
+                    WeeklyVisits: weeklyVisits,
+                    FinalPriceSar: finalPrice.Value,
+                    OriginalPriceSar: originalPrice));
+            }
+
+            foreach (var property in element.EnumerateObject())
+            {
+                CollectEnayaHourlyPackagePoints(property.Value, points);
+            }
+            return;
+        }
+
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                CollectEnayaHourlyPackagePoints(item, points);
+            }
+        }
+    }
+
+    private static string BuildHourlyProviderServiceId(int hours, int workers, int weeklyVisits, string nationality)
+    {
+        var slug = NormalizeToken(nationality);
+        var id = $"enaya-hourly-h{hours}-w{workers}-v{weeklyVisits}-{slug}";
+        return id.Length <= 120 ? id : id[..120];
+    }
+
+    private static string NormalizeNationalityLabel(string value)
+    {
+        var normalized = NormalizeToken(value);
+        return normalized switch
+        {
+            "afrca" => "Africa",
+            "africa" => "Africa",
+            "africancountries" => "African Countries",
+            "philippines" => "Philippines",
+            "indonesia" => "Indonesia",
+            "eastasia" => "East Asia",
+            _ => value.Trim()
+        };
+    }
+
+    private static string TranslateNationalityToArabic(string value)
+    {
+        return NormalizeToken(value) switch
+        {
+            "afrca" => "أفريقيا",
+            "africa" => "أفريقيا",
+            "africancountries" => "الدول الأفريقية",
+            "philippines" => "الفلبين",
+            "indonesia" => "إندونيسيا",
+            "eastasia" => "شرق آسيا",
+            _ => value
+        };
+    }
+
+    private static string NormalizeToken(string value)
+    {
+        var chars = value
+            .Where(char.IsLetterOrDigit)
+            .Select(char.ToLowerInvariant)
+            .ToArray();
+        return chars.Length == 0 ? "unknown" : new string(chars);
+    }
+
+    private static bool TryGetPropertyIgnoreCase(JsonElement element, string propertyName, out JsonElement value)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static string? TryReadStringValue(JsonElement element, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (!TryGetPropertyIgnoreCase(element, propertyName, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                var result = value.GetString();
+                if (!string.IsNullOrWhiteSpace(result))
+                {
+                    return result.Trim();
+                }
+            }
+            else if (value.ValueKind == JsonValueKind.Number)
+            {
+                return value.ToString();
+            }
+        }
+
+        return null;
+    }
+
+    private static int TryReadIntValue(JsonElement element, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (!TryGetPropertyIgnoreCase(element, propertyName, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numberValue))
+            {
+                return numberValue;
+            }
+
+            if (value.ValueKind == JsonValueKind.String &&
+                int.TryParse(value.GetString(), out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return 0;
+    }
+
+    private static decimal? TryReadDecimalValue(JsonElement element, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (!TryGetPropertyIgnoreCase(element, propertyName, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var decimalValue))
+            {
+                return decimalValue;
+            }
+
+            if (value.ValueKind == JsonValueKind.String &&
+                decimal.TryParse(value.GetString(), out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return null;
     }
 
     public static async Task SeedAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken = default)
@@ -840,13 +1134,72 @@ public static class BelkhedmaDbSeeder
     private static async Task SeedDemoOffersAndPriceSnapshotsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
+        var demoOfferSeeds = BuildDemoOfferSeeds();
         var providerByCode = await dbContext.Providers
             .AsNoTracking()
             .ToDictionaryAsync(x => x.Code, x => x, cancellationToken);
 
         var offers = await dbContext.ServiceOffers.ToListAsync(cancellationToken);
 
-        foreach (var seed in DemoOfferSeeds)
+        if (providerByCode.TryGetValue("enaya", out var enayaProvider))
+        {
+            var allowedEnayaHourlyServiceIds = demoOfferSeeds
+                .Where(x => x.ProviderCode == "enaya" && x.ServiceMode == ServiceMode.Hourly)
+                .Select(x => x.ProviderServiceId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var staleEnayaHourlyOffers = offers
+                .Where(x =>
+                    x.ProviderId == enayaProvider.Id &&
+                    x.ServiceMode == ServiceMode.Hourly &&
+                    !allowedEnayaHourlyServiceIds.Contains(x.ProviderServiceId))
+                .ToList();
+
+            if (staleEnayaHourlyOffers.Count > 0)
+            {
+                var staleOfferIds = staleEnayaHourlyOffers
+                    .Select(x => x.Id)
+                    .ToHashSet();
+
+                var stalePriceSnapshots = await dbContext.PriceSnapshots
+                    .Where(x => staleOfferIds.Contains(x.ServiceOfferId))
+                    .ToListAsync(cancellationToken);
+                if (stalePriceSnapshots.Count > 0)
+                {
+                    dbContext.PriceSnapshots.RemoveRange(stalePriceSnapshots);
+                }
+
+                var staleAttributes = await dbContext.ServiceAttributes
+                    .Where(x => staleOfferIds.Contains(x.ServiceOfferId))
+                    .ToListAsync(cancellationToken);
+                if (staleAttributes.Count > 0)
+                {
+                    dbContext.ServiceAttributes.RemoveRange(staleAttributes);
+                }
+
+                var staleDocs = await dbContext.ProviderJsonDocuments
+                    .Where(x => staleOfferIds.Contains(x.ServiceOfferId))
+                    .ToListAsync(cancellationToken);
+                if (staleDocs.Count > 0)
+                {
+                    dbContext.ProviderJsonDocuments.RemoveRange(staleDocs);
+                }
+
+                var staleMappers = await dbContext.ProviderAttributeValueMappers
+                    .Where(x => x.ServiceOfferId.HasValue && staleOfferIds.Contains(x.ServiceOfferId.Value))
+                    .ToListAsync(cancellationToken);
+                if (staleMappers.Count > 0)
+                {
+                    dbContext.ProviderAttributeValueMappers.RemoveRange(staleMappers);
+                }
+
+                dbContext.ServiceOffers.RemoveRange(staleEnayaHourlyOffers);
+                offers.RemoveAll(x => staleOfferIds.Contains(x.Id));
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        foreach (var seed in demoOfferSeeds)
         {
             if (!providerByCode.TryGetValue(seed.ProviderCode, out var provider))
             {
@@ -891,7 +1244,7 @@ public static class BelkhedmaDbSeeder
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var priceRows = await dbContext.PriceSnapshots.ToListAsync(cancellationToken);
-        foreach (var seed in DemoOfferSeeds)
+        foreach (var seed in demoOfferSeeds)
         {
             if (!providerByCode.TryGetValue(seed.ProviderCode, out var provider))
             {
