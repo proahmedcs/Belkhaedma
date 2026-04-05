@@ -1644,7 +1644,11 @@ export default function App() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="light" />
-        <ScrollView contentContainerStyle={styles.page}>
+        <ScrollView
+          style={styles.pageScroll}
+          contentContainerStyle={styles.page}
+          showsHorizontalScrollIndicator={false}
+        >
           <View style={styles.header}>
             <Text style={styles.logo}>{Brand.name}</Text>
             <Text style={styles.subtitle}>
@@ -1703,6 +1707,7 @@ export default function App() {
       <StatusBar style="light" />
       <ScrollView
         style={styles.pageScroll}
+        showsHorizontalScrollIndicator={false}
         contentContainerStyle={[
           styles.page,
           styles.pageWithBottomMenu,
@@ -2673,8 +2678,13 @@ const styles = StyleSheet.create({
   pageScroll: {
     flex: 1,
     backgroundColor: Brand.colors.background,
+    overflow: "hidden",
   },
-  page: { paddingBottom: Brand.spacing.lg, backgroundColor: Brand.colors.background },
+  page: {
+    paddingBottom: Brand.spacing.lg,
+    backgroundColor: Brand.colors.background,
+    width: "100%",
+  },
   pageWithBottomMenu: {
     paddingBottom: 170,
   },
@@ -2703,11 +2713,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     elevation: 8,
     zIndex: 20,
-    maxWidth: 920,
-    alignSelf: "center",
   },
   bottomMenuBarDesktop: {
     position: "fixed",
+    maxWidth: 920,
+    alignSelf: "center",
   } as any,
   bottomMenuButton: {
     flex: 1,
