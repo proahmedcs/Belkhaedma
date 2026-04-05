@@ -89,6 +89,7 @@ export type CustomerAuthResponse = {
   fullName: string;
   mobileNumber: string;
   authToken: string;
+  email: string;
   expiresAtUtc: string;
   isNewAccount: boolean;
 };
@@ -98,6 +99,7 @@ export type CustomerProfile = {
   customerReference: string;
   fullName: string;
   mobileNumber: string;
+  email?: string;
 };
 
 export type HomePromotion = {

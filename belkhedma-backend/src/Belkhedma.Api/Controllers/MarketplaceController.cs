@@ -3,6 +3,7 @@ using Belkhedma.Api.Security;
 using Belkhedma.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Belkhedma.Api.Controllers;
 
@@ -33,25 +34,6 @@ public sealed class MarketplaceController(
         string CustomerReference,
         string FullName,
         string MobileNumber);
-
-    private bool TryReadBearerToken(out string token)
-    {
-        token = string.Empty;
-        if (!Request.Headers.TryGetValue("Authorization", out var authorization))
-        {
-            return false;
-        }
-
-        var headerValue = authorization.ToString();
-        const string prefix = "Bearer ";
-        if (!headerValue.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        token = headerValue[prefix.Length..].Trim();
-        return !string.IsNullOrWhiteSpace(token);
-    }
 
     [HttpGet("providers")]
     public async Task<IActionResult> GetProviders(CancellationToken cancellationToken)
@@ -265,18 +247,20 @@ public sealed class MarketplaceController(
         return Ok(new { message = "Home promotion deleted." });
     }
 
+    [Authorize(AuthenticationSchemes = AuthConstants.CustomerJwtScheme)]
     [HttpGet("customers/{customerReference}/locations")]
     public async Task<IActionResult> GetCustomerSavedLocations([FromRoute] string customerReference, CancellationToken cancellationToken = default)
     {
-        if (!TryReadBearerToken(out var authToken))
+        var customerIdClaim = User.FindFirstValue(AuthConstants.CustomerIdClaim);
+        if (!Guid.TryParse(customerIdClaim, out var customerId))
         {
-            return Unauthorized(new { message = "Authorization token is required." });
+            return Unauthorized(new { message = "Invalid customer token." });
         }
 
-        var profile = await marketplaceQueryService.GetCustomerProfileByTokenAsync(authToken, cancellationToken);
+        var profile = await marketplaceQueryService.GetCustomerProfileByIdAsync(customerId, cancellationToken);
         if (profile is null)
         {
-            return Unauthorized(new { message = "Invalid or expired token." });
+            return Unauthorized(new { message = "Invalid or inactive customer." });
         }
 
         if (string.IsNullOrWhiteSpace(customerReference))
@@ -293,18 +277,20 @@ public sealed class MarketplaceController(
         return Ok(locations);
     }
 
+    [Authorize(AuthenticationSchemes = AuthConstants.CustomerJwtScheme)]
     [HttpGet("customers/me")]
     public async Task<IActionResult> GetMyCustomerProfile(CancellationToken cancellationToken = default)
     {
-        if (!TryReadBearerToken(out var authToken))
+        var customerIdClaim = User.FindFirstValue(AuthConstants.CustomerIdClaim);
+        if (!Guid.TryParse(customerIdClaim, out var customerId))
         {
-            return Unauthorized(new { message = "Authorization token is required." });
+            return Unauthorized(new { message = "Invalid customer token." });
         }
 
-        var profile = await marketplaceQueryService.GetCustomerProfileByTokenAsync(authToken, cancellationToken);
+        var profile = await marketplaceQueryService.GetCustomerProfileByIdAsync(customerId, cancellationToken);
         if (profile is null)
         {
-            return Unauthorized(new { message = "Invalid or expired token." });
+            return Unauthorized(new { message = "Invalid or inactive customer." });
         }
 
         return Ok(new CustomerProfileResponse(

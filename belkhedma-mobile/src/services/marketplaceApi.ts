@@ -122,10 +122,29 @@ export async function getCustomerSavedLocations(
 }
 
 export async function registerOrLoginCustomer(payload: {
-  mobileNumber: string;
-  fullName: string;
+  email?: string;
+  mobileNumber?: string;
+  fullName?: string;
+  password: string;
+  userNameOrEmail?: string;
 }): Promise<CustomerAuthResponse> {
   return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/register-or-login", payload);
+}
+
+export async function registerCustomer(payload: {
+  email: string;
+  mobileNumber: string;
+  fullName: string;
+  password: string;
+}): Promise<CustomerAuthResponse> {
+  return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/register", payload);
+}
+
+export async function loginCustomer(payload: {
+  userNameOrEmail: string;
+  password: string;
+}): Promise<CustomerAuthResponse> {
+  return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/login", payload);
 }
 
 export async function getCurrentCustomer(authToken: string): Promise<CustomerProfile> {

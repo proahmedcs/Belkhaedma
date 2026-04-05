@@ -16,11 +16,24 @@ public sealed class AuthController(
     IConfiguration configuration,
     IMarketplaceQueryService marketplaceQueryService) : ControllerBase
 {
-    public sealed record CustomerAuthPayload(string MobileNumber, string FullName);
+    public sealed record CustomerRegisterPayload(
+        string Email,
+        string MobileNumber,
+        string FullName,
+        string Password);
+    public sealed record CustomerLoginPayload(
+        string UserNameOrEmail,
+        string Password);
+    public sealed record CustomerLegacyAuthPayload(
+        string? MobileNumber,
+        string? FullName,
+        string? Password,
+        string? Email,
+        string? UserNameOrEmail);
 
     [AllowAnonymous]
-    [HttpPost("customers/register-or-login")]
-    public async Task<IActionResult> RegisterOrLogin([FromBody] CustomerAuthPayload payload, CancellationToken cancellationToken)
+    [HttpPost("customers/register")]
+    public async Task<IActionResult> Register([FromBody] CustomerRegisterPayload payload, CancellationToken cancellationToken)
     {
         if (payload is null)
         {
@@ -29,8 +42,12 @@ public sealed class AuthController(
 
         try
         {
-            var result = await customerAuthService.RegisterOrLoginAsync(
-                new CustomerAuthRequest(payload.MobileNumber, payload.FullName),
+            var result = await customerAuthService.RegisterAsync(
+                new CustomerRegisterRequest(
+                    payload.Email,
+                    payload.MobileNumber,
+                    payload.FullName,
+                    payload.Password),
                 cancellationToken);
 
             var accessToken = CreateCustomerJwt(result);
@@ -44,25 +61,72 @@ public sealed class AuthController(
 
     [AllowAnonymous]
     [HttpPost("customers/login")]
-    public async Task<IActionResult> Login([FromBody] CustomerAuthPayload payload, CancellationToken cancellationToken)
+    public async Task<IActionResult> Login([FromBody] CustomerLoginPayload payload, CancellationToken cancellationToken)
     {
-        return await RegisterOrLogin(payload, cancellationToken);
+        if (payload is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
+        try
+        {
+            var result = await customerAuthService.LoginAsync(
+                new CustomerLoginRequest(
+                    payload.UserNameOrEmail,
+                    payload.Password),
+                cancellationToken);
+
+            var accessToken = CreateCustomerJwt(result);
+            return Ok(result with { AuthToken = accessToken });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("customers/register-or-login")]
+    public async Task<IActionResult> RegisterOrLogin([FromBody] CustomerLegacyAuthPayload payload, CancellationToken cancellationToken)
+    {
+        if (payload is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
+        try
+        {
+            var normalizedRequest = new CustomerAuthRequest(
+                payload.Email,
+                payload.MobileNumber,
+                payload.FullName,
+                payload.Password ?? string.Empty,
+                payload.UserNameOrEmail);
+            var result = await customerAuthService.RegisterOrLoginAsync(normalizedRequest, cancellationToken);
+
+            var accessToken = CreateCustomerJwt(result);
+            return Ok(result with { AuthToken = accessToken });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [Authorize(AuthenticationSchemes = AuthConstants.CustomerJwtScheme)]
     [HttpGet("customers/me")]
     public async Task<IActionResult> GetCurrentCustomer(CancellationToken cancellationToken)
     {
-        var authToken = User.FindFirstValue(AuthConstants.CustomerLegacyTokenClaim);
-        if (string.IsNullOrWhiteSpace(authToken))
+        var customerIdClaim = User.FindFirstValue(AuthConstants.CustomerIdClaim);
+        if (!Guid.TryParse(customerIdClaim, out var customerId))
         {
             return Unauthorized(new { message = "Invalid customer token." });
         }
 
-        var customer = await marketplaceQueryService.GetCustomerProfileByTokenAsync(authToken, cancellationToken);
+        var customer = await marketplaceQueryService.GetCustomerProfileByIdAsync(customerId, cancellationToken);
         if (customer is null)
         {
-            return Unauthorized(new { message = "Invalid or expired auth token." });
+            return Unauthorized(new { message = "Invalid or inactive customer account." });
         }
 
         return Ok(customer);
@@ -90,7 +154,10 @@ public sealed class AuthController(
             new(JwtRegisteredClaimNames.Sub, authResponse.CustomerId.ToString()),
             new(JwtRegisteredClaimNames.UniqueName, authResponse.CustomerReference),
             new(ClaimTypes.Name, authResponse.FullName),
-            new(AuthConstants.CustomerLegacyTokenClaim, authResponse.AuthToken)
+            new(AuthConstants.CustomerIdClaim, authResponse.CustomerId.ToString()),
+            new(AuthConstants.CustomerReferenceClaim, authResponse.CustomerReference),
+            new(AuthConstants.CustomerEmailClaim, authResponse.Email),
+            new(AuthConstants.CustomerMobileClaim, authResponse.MobileNumber)
         };
 
         var credentials = new SigningCredentials(

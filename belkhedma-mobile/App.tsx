@@ -21,10 +21,11 @@ import {
   getAllPrices,
   getHomePromotions,
   getLatestPrices,
+  loginCustomer,
   getProviderJsonDocuments,
   getProviders,
+  registerCustomer,
   getServiceAttributes,
-  registerOrLoginCustomer,
   getServiceOffers,
 } from "./src/services/marketplaceApi";
 import { Brand } from "./src/theme/brand";
@@ -693,8 +694,11 @@ export default function App() {
   const isDesktopWeb = Platform.OS === "web" && viewportWidth >= 768;
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentCustomer, setCurrentCustomer] = useState<CustomerProfile | null>(null);
+  const [isAuthRegisterMode, setIsAuthRegisterMode] = useState<boolean>(false);
+  const [customerEmail, setCustomerEmail] = useState<string>("");
   const [customerFullName, setCustomerFullName] = useState<string>("");
   const [customerMobileNumber, setCustomerMobileNumber] = useState<string>("");
+  const [customerPassword, setCustomerPassword] = useState<string>("");
   const [authLoading, setAuthLoading] = useState<boolean>(false);
   const [authBootstrapping, setAuthBootstrapping] = useState<boolean>(true);
 
@@ -1415,10 +1419,43 @@ export default function App() {
       setAuthLoading(true);
       setError(null);
 
-      const response = await registerOrLoginCustomer({
-        mobileNumber: customerMobileNumber,
-        fullName: customerFullName,
-      });
+      const trimmedEmail = customerEmail.trim();
+      const trimmedPassword = customerPassword.trim();
+      const trimmedFullName = customerFullName.trim();
+      const trimmedMobileNumber = customerMobileNumber.trim();
+
+      if (!trimmedEmail && !isAuthRegisterMode) {
+        setError(languageMode === "ar" ? "يرجى إدخال البريد الإلكتروني." : "Please provide email.");
+        return;
+      }
+
+      if (isAuthRegisterMode) {
+        if (!trimmedEmail || !trimmedMobileNumber || !trimmedFullName) {
+          setError(
+            languageMode === "ar"
+              ? "يرجى تعبئة البريد الإلكتروني والاسم الكامل ورقم الجوال."
+              : "Please fill email, full name, and mobile number."
+          );
+          return;
+        }
+      }
+
+      if (!trimmedPassword) {
+        setError(languageMode === "ar" ? "يرجى إدخال كلمة المرور." : "Please provide password.");
+        return;
+      }
+
+      const response = isAuthRegisterMode
+        ? await registerCustomer({
+            email: trimmedEmail,
+            mobileNumber: trimmedMobileNumber,
+            fullName: trimmedFullName,
+            password: trimmedPassword,
+          })
+        : await loginCustomer({
+            userNameOrEmail: trimmedEmail,
+            password: trimmedPassword,
+          });
 
       setAuthToken(response.authToken);
       const profile = await getCurrentCustomer(response.authToken);
@@ -1426,6 +1463,8 @@ export default function App() {
       setCustomerReference(profile.customerReference);
       setCustomerFullName(profile.fullName);
       setCustomerMobileNumber(profile.mobileNumber);
+      setCustomerEmail(profile.email ?? "");
+      setCustomerEmail(response.email ?? trimmedEmail);
       persistAuthSession({
         authToken: response.authToken,
         customerReference: profile.customerReference,
@@ -1772,6 +1811,7 @@ export default function App() {
         setAuthToken(persistedSession.authToken);
         setCurrentCustomer(profile);
         setCustomerReference(profile.customerReference);
+        setCustomerEmail(profile.email ?? "");
         setCustomerFullName(profile.fullName);
         setCustomerMobileNumber(profile.mobileNumber);
         await loadData(persistedSession.authToken, profile.customerReference);
@@ -1821,30 +1861,84 @@ export default function App() {
             <Text style={styles.logo}>{Brand.name}</Text>
             <Text style={styles.subtitle}>
               {languageMode === "ar"
-                ? "تسجيل العميل عبر رقم الجوال والاسم"
-                : "Customer authentication with mobile and name"}
+                ? "تسجيل الدخول القياسي عبر البريد الإلكتروني وكلمة المرور"
+                : "Standard sign-in with email and password"}
             </Text>
           </View>
 
           <View style={styles.filterCard}>
-            <Text style={styles.sectionTitle}>{languageMode === "ar" ? "تسجيل / دخول العميل" : "Customer Register / Login"}</Text>
-            <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الاسم الكامل" : "Full Name"}</Text>
+            <Text style={styles.sectionTitle}>
+              {isAuthRegisterMode
+                ? languageMode === "ar"
+                  ? "إنشاء حساب عميل"
+                  : "Create Customer Account"
+                : languageMode === "ar"
+                  ? "تسجيل دخول العميل"
+                  : "Customer Login"}
+            </Text>
+
+            <View style={styles.rowWrap}>
+              <TouchableOpacity
+                style={[styles.chip, !isAuthRegisterMode && styles.chipActive]}
+                onPress={() => setIsAuthRegisterMode(false)}
+              >
+                <Text style={[styles.chipText, !isAuthRegisterMode && styles.chipTextActive]}>
+                  {languageMode === "ar" ? "دخول" : "Login"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.chip, isAuthRegisterMode && styles.chipActive]}
+                onPress={() => setIsAuthRegisterMode(true)}
+              >
+                <Text style={[styles.chipText, isAuthRegisterMode && styles.chipTextActive]}>
+                  {languageMode === "ar" ? "تسجيل جديد" : "Register"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "البريد الإلكتروني" : "Email"}</Text>
             <TextInput
-              placeholder={languageMode === "ar" ? "مثال: أحمد عبدالغني" : "e.g. Ahmed Abdelghany"}
-              value={customerFullName}
-              onChangeText={setCustomerFullName}
+              placeholder={languageMode === "ar" ? "example@domain.com" : "example@domain.com"}
+              value={customerEmail}
+              onChangeText={setCustomerEmail}
               style={styles.searchInput}
               placeholderTextColor={Brand.colors.textSecondary}
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
-            <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "رقم الجوال" : "Mobile Number"}</Text>
+
+            {isAuthRegisterMode ? (
+              <>
+                <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الاسم الكامل" : "Full Name"}</Text>
+                <TextInput
+                  placeholder={languageMode === "ar" ? "مثال: أحمد عبدالغني" : "e.g. Ahmed Abdelghany"}
+                  value={customerFullName}
+                  onChangeText={setCustomerFullName}
+                  style={styles.searchInput}
+                  placeholderTextColor={Brand.colors.textSecondary}
+                />
+                <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "رقم الجوال" : "Mobile Number"}</Text>
+                <TextInput
+                  placeholder={languageMode === "ar" ? "مثال: +966500000000" : "e.g. +966500000000"}
+                  value={customerMobileNumber}
+                  onChangeText={setCustomerMobileNumber}
+                  style={styles.searchInput}
+                  placeholderTextColor={Brand.colors.textSecondary}
+                  keyboardType="phone-pad"
+                />
+              </>
+            ) : null}
+
+            <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "كلمة المرور" : "Password"}</Text>
             <TextInput
-              placeholder={languageMode === "ar" ? "مثال: +966500000000" : "e.g. +966500000000"}
-              value={customerMobileNumber}
-              onChangeText={setCustomerMobileNumber}
+              placeholder={languageMode === "ar" ? "أدخل كلمة المرور" : "Enter password"}
+              value={customerPassword}
+              onChangeText={setCustomerPassword}
               style={styles.searchInput}
               placeholderTextColor={Brand.colors.textSecondary}
-              keyboardType="phone-pad"
+              secureTextEntry
             />
+
             <TouchableOpacity
               style={[styles.searchButton, authLoading && styles.navButtonDisabled]}
               onPress={handleRegisterOrLogin}
@@ -1854,15 +1948,19 @@ export default function App() {
                   ? languageMode === "ar"
                     ? "جاري التحقق..."
                     : "Authenticating..."
-                  : languageMode === "ar"
-                    ? "تسجيل / دخول"
-                    : "Register / Login"}
+                  : isAuthRegisterMode
+                    ? languageMode === "ar"
+                      ? "إنشاء الحساب"
+                      : "Create Account"
+                    : languageMode === "ar"
+                      ? "تسجيل الدخول"
+                      : "Login"}
               </Text>
             </TouchableOpacity>
             <Text style={styles.meta}>
               {languageMode === "ar"
-                ? "باستعمال رقم الجوال سيتم إنشاء حساب جديد أو تسجيل الدخول مباشرة."
-                : "Using mobile number will create a new account or log in directly."}
+                ? "هذا التدفق متوافق مع ASP.NET Core Identity + JWT."
+                : "This flow is aligned with ASP.NET Core Identity + JWT."}
             </Text>
           </View>
         </ScrollView>

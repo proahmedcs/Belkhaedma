@@ -2,6 +2,8 @@
 using Belkhedma.Domain;
 using Belkhedma.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 using System.Text.Json;
@@ -26,7 +28,9 @@ public static class DependencyInjection
     }
 }
 
-internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IMarketplaceQueryService, IMarketplaceAdminService
+internal sealed class MarketplaceQueryService(
+    BelkhedmaDbContext dbContext,
+    UserManager<IdentityUser> userManager) : IMarketplaceQueryService, IMarketplaceAdminService
 {
     private const int MaxPromotionCodeLength = 80;
     private static readonly JsonSerializerOptions ProviderSettingsJsonOptions = new()
@@ -34,10 +38,57 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         PropertyNameCaseInsensitive = true
     };
 
+    public async Task<CustomerProfileDto?> GetCustomerProfileByIdAsync(
+        Guid customerId,
+        CancellationToken cancellationToken = default)
+    {
+        if (customerId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var customer = await dbContext.CustomerAccounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == customerId && x.IsActive, cancellationToken);
+
+        if (customer is null)
+        {
+            return null;
+        }
+
+        IdentityUser? identityUser = null;
+        if (!string.IsNullOrWhiteSpace(customer.CustomerReference) &&
+            customer.CustomerReference.StartsWith("idn-", StringComparison.OrdinalIgnoreCase))
+        {
+            var identityUserId = customer.CustomerReference["idn-".Length..];
+            if (!string.IsNullOrWhiteSpace(identityUserId))
+            {
+                identityUser = await userManager.FindByIdAsync(identityUserId);
+            }
+        }
+
+        if (identityUser is null && !string.IsNullOrWhiteSpace(customer.NormalizedMobileNumber))
+        {
+            identityUser = await userManager.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.PhoneNumber == customer.NormalizedMobileNumber,
+                    cancellationToken);
+        }
+
+        return new CustomerProfileDto(
+            customer.Id,
+            customer.CustomerReference,
+            customer.FullName,
+            customer.MobileNumber,
+            identityUser?.Email);
+    }
+
     public async Task<CustomerProfileDto?> GetCustomerProfileByTokenAsync(
         string authToken,
         CancellationToken cancellationToken = default)
     {
+        // Legacy token lookup for backward compatibility.
         if (string.IsNullOrWhiteSpace(authToken))
         {
             return null;
@@ -56,20 +107,7 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
             return null;
         }
 
-        var customer = await dbContext.CustomerAccounts
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == session.CustomerAccountId && x.IsActive, cancellationToken);
-
-        if (customer is null)
-        {
-            return null;
-        }
-
-        return new CustomerProfileDto(
-            customer.Id,
-            customer.CustomerReference,
-            customer.FullName,
-            customer.MobileNumber);
+        return await GetCustomerProfileByIdAsync(session.CustomerAccountId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<ProviderDto>> GetProvidersAsync(CancellationToken cancellationToken = default)
@@ -1106,74 +1144,292 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
     }
 }
 
-internal sealed class CustomerAuthService(BelkhedmaDbContext dbContext) : ICustomerAuthService
+internal sealed class CustomerAuthService(
+    BelkhedmaDbContext dbContext,
+    UserManager<IdentityUser> userManager) : ICustomerAuthService
 {
+    private const string CustomerReferenceClaimType = "customer_reference";
+    private const string CustomerIdClaimType = "customer_id";
+    private const string CustomerMobileClaimType = "customer_mobile";
+    private const string CustomerFullNameClaimType = "customer_full_name";
+
+    public async Task<CustomerAuthResponse> RegisterAsync(
+        CustomerRegisterRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await RegisterCoreAsync(
+            request.Email,
+            request.MobileNumber,
+            request.FullName,
+            request.Password,
+            cancellationToken);
+    }
+
+    public async Task<CustomerAuthResponse> LoginAsync(
+        CustomerLoginRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var loginIdentity = (request.UserNameOrEmail ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(loginIdentity))
+        {
+            throw new InvalidOperationException("Username/email is required.");
+        }
+
+        var password = (request.Password ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            throw new InvalidOperationException("Password is required.");
+        }
+
+        var identityUser = await userManager.FindByEmailAsync(loginIdentity);
+        if (identityUser is null)
+        {
+            identityUser = await userManager.FindByNameAsync(loginIdentity);
+        }
+
+        if (identityUser is null)
+        {
+            throw new InvalidOperationException("Invalid username/email or password.");
+        }
+
+        var validPassword = await userManager.CheckPasswordAsync(identityUser, password);
+        if (!validPassword)
+        {
+            throw new InvalidOperationException("Invalid username/email or password.");
+        }
+
+        var customer = await GetOrCreateCustomerAccountForIdentityUserAsync(identityUser, cancellationToken);
+        customer.IsActive = true;
+        customer.UpdatedAtUtc = DateTime.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BuildCustomerAuthResponse(customer, identityUser, isNewAccount: false);
+    }
+
     public async Task<CustomerAuthResponse> RegisterOrLoginAsync(
         CustomerAuthRequest request,
         CancellationToken cancellationToken = default)
     {
-        var normalizedMobile = NormalizeMobile(request.MobileNumber);
+        var userNameOrEmail = (request.UserNameOrEmail ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(userNameOrEmail))
+        {
+            return await LoginAsync(new CustomerLoginRequest(userNameOrEmail, request.Password), cancellationToken);
+        }
+
+        var email = (request.Email ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            var normalizedMobile = NormalizeMobile(request.MobileNumber);
+            if (string.IsNullOrWhiteSpace(normalizedMobile))
+            {
+                throw new InvalidOperationException("Email or mobile number is required.");
+            }
+
+            var emailLocal = normalizedMobile.TrimStart('+').Replace(" ", string.Empty, StringComparison.Ordinal);
+            email = $"m-{emailLocal}@belkhedma.local";
+        }
+
+        var mobile = request.MobileNumber ?? string.Empty;
+        var fullName = request.FullName ?? string.Empty;
+        return await RegisterCoreAsync(email, mobile, fullName, request.Password, cancellationToken);
+    }
+
+    private async Task<CustomerAuthResponse> RegisterCoreAsync(
+        string email,
+        string mobileNumber,
+        string fullName,
+        string password,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEmail = (email ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            throw new InvalidOperationException("Email is required.");
+        }
+
+        var normalizedMobile = NormalizeMobile(mobileNumber);
         if (string.IsNullOrWhiteSpace(normalizedMobile))
         {
             throw new InvalidOperationException("Valid mobile number is required.");
         }
 
-        var fullName = (request.FullName ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(fullName))
+        var normalizedFullName = (fullName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedFullName))
         {
             throw new InvalidOperationException("Full name is required.");
         }
 
-        var now = DateTime.UtcNow;
-        var customer = await dbContext.CustomerAccounts
-            .FirstOrDefaultAsync(x => x.NormalizedMobileNumber == normalizedMobile, cancellationToken);
+        var normalizedPassword = (password ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedPassword))
+        {
+            throw new InvalidOperationException("Password is required.");
+        }
 
+        using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var existingUser = await userManager.FindByEmailAsync(normalizedEmail);
         var isNewAccount = false;
-        if (customer is null)
+        IdentityUser identityUser;
+        if (existingUser is null)
         {
             isNewAccount = true;
-            customer = new CustomerAccount
+            identityUser = new IdentityUser
             {
-                CustomerReference = $"cust-{Guid.NewGuid():N}"[..18],
-                FullName = fullName,
-                MobileNumber = request.MobileNumber.Trim(),
-                NormalizedMobileNumber = normalizedMobile,
-                IsActive = true,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
+                UserName = normalizedEmail,
+                Email = normalizedEmail,
+                EmailConfirmed = true,
+                PhoneNumber = normalizedMobile,
+                PhoneNumberConfirmed = true
             };
 
-            await dbContext.CustomerAccounts.AddAsync(customer, cancellationToken);
+            var createResult = await userManager.CreateAsync(identityUser, normalizedPassword);
+            if (!createResult.Succeeded)
+            {
+                var message = createResult.Errors.FirstOrDefault()?.Description ?? "Failed to create customer account.";
+                throw new InvalidOperationException(message);
+            }
         }
         else
         {
-            customer.FullName = fullName;
-            customer.MobileNumber = request.MobileNumber.Trim();
-            customer.UpdatedAtUtc = now;
-            customer.IsActive = true;
+            identityUser = existingUser;
+
+            var validPassword = await userManager.CheckPasswordAsync(identityUser, normalizedPassword);
+            if (!validPassword)
+            {
+                throw new InvalidOperationException("Invalid password for existing account.");
+            }
         }
 
-        var token = GenerateAuthToken();
-        var expiresAtUtc = now.AddDays(30);
-        await dbContext.CustomerAuthSessions.AddAsync(new CustomerAuthSession
-        {
-            CustomerAccountId = customer.Id,
-            AuthToken = token,
-            CreatedAtUtc = now,
-            LastUsedAtUtc = now,
-            ExpiresAtUtc = expiresAtUtc,
-            IsRevoked = false
-        }, cancellationToken);
+        var customerAccount = await GetOrCreateCustomerAccountForIdentityUserAsync(identityUser, cancellationToken);
+        customerAccount.FullName = normalizedFullName;
+        customerAccount.MobileNumber = mobileNumber.Trim();
+        customerAccount.NormalizedMobileNumber = normalizedMobile;
+        customerAccount.IsActive = true;
+        customerAccount.UpdatedAtUtc = DateTime.UtcNow;
 
+        await UpsertIdentityClaimsAsync(identityUser, customerAccount, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
+        return BuildCustomerAuthResponse(customerAccount, identityUser, isNewAccount);
+    }
+
+    private async Task<CustomerAccount> GetOrCreateCustomerAccountForIdentityUserAsync(
+        IdentityUser identityUser,
+        CancellationToken cancellationToken)
+    {
+        var customerIdClaim = await userManager.GetClaimsAsync(identityUser);
+        var linkedCustomerId = customerIdClaim
+            .FirstOrDefault(x => x.Type == CustomerIdClaimType)
+            ?.Value;
+        if (Guid.TryParse(linkedCustomerId, out var parsedCustomerId))
+        {
+            var linkedAccount = await dbContext.CustomerAccounts
+                .FirstOrDefaultAsync(x => x.Id == parsedCustomerId, cancellationToken);
+            if (linkedAccount is not null)
+            {
+                return linkedAccount;
+            }
+        }
+
+        var byEmailReference = await dbContext.CustomerAccounts
+            .FirstOrDefaultAsync(x => x.CustomerReference == $"idn-{identityUser.Id}".ToLowerInvariant(), cancellationToken);
+        if (byEmailReference is not null)
+        {
+            return byEmailReference;
+        }
+
+        var normalizedPhone = NormalizeMobile(identityUser.PhoneNumber);
+        if (!string.IsNullOrWhiteSpace(normalizedPhone))
+        {
+            var byPhone = await dbContext.CustomerAccounts
+                .FirstOrDefaultAsync(x => x.NormalizedMobileNumber == normalizedPhone, cancellationToken);
+            if (byPhone is not null)
+            {
+                byPhone.CustomerReference = $"idn-{identityUser.Id}".ToLowerInvariant();
+                byPhone.UpdatedAtUtc = DateTime.UtcNow;
+                return byPhone;
+            }
+        }
+
+        var now = DateTime.UtcNow;
+        var fallbackMobile = normalizedPhone;
+        if (string.IsNullOrWhiteSpace(fallbackMobile))
+        {
+            fallbackMobile = $"+9665{Random.Shared.Next(10000000, 99999999)}";
+        }
+
+        var account = new CustomerAccount
+        {
+            CustomerReference = $"idn-{identityUser.Id}".ToLowerInvariant(),
+            FullName = identityUser.UserName ?? identityUser.Email ?? "Customer",
+            MobileNumber = identityUser.PhoneNumber ?? fallbackMobile,
+            NormalizedMobileNumber = fallbackMobile,
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        await dbContext.CustomerAccounts.AddAsync(account, cancellationToken);
+        return account;
+    }
+
+    private async Task UpsertIdentityClaimsAsync(
+        IdentityUser identityUser,
+        CustomerAccount customerAccount,
+        CancellationToken cancellationToken)
+    {
+        var claims = await userManager.GetClaimsAsync(identityUser);
+        await UpsertIdentityClaimAsync(identityUser, claims, CustomerIdClaimType, customerAccount.Id.ToString(), cancellationToken);
+        await UpsertIdentityClaimAsync(identityUser, claims, CustomerReferenceClaimType, customerAccount.CustomerReference, cancellationToken);
+        await UpsertIdentityClaimAsync(identityUser, claims, CustomerMobileClaimType, customerAccount.MobileNumber, cancellationToken);
+        await UpsertIdentityClaimAsync(identityUser, claims, CustomerFullNameClaimType, customerAccount.FullName, cancellationToken);
+    }
+
+    private async Task UpsertIdentityClaimAsync(
+        IdentityUser identityUser,
+        IList<System.Security.Claims.Claim> claims,
+        string claimType,
+        string claimValue,
+        CancellationToken cancellationToken)
+    {
+        var existing = claims.FirstOrDefault(x => x.Type == claimType);
+        if (existing is null)
+        {
+            var addResult = await userManager.AddClaimAsync(identityUser, new System.Security.Claims.Claim(claimType, claimValue));
+            if (!addResult.Succeeded)
+            {
+                var message = addResult.Errors.FirstOrDefault()?.Description ?? $"Failed to add claim '{claimType}'.";
+                throw new InvalidOperationException(message);
+            }
+            return;
+        }
+
+        if (string.Equals(existing.Value, claimValue, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var replaceResult = await userManager.ReplaceClaimAsync(identityUser, existing, new System.Security.Claims.Claim(claimType, claimValue));
+        if (!replaceResult.Succeeded)
+        {
+            var message = replaceResult.Errors.FirstOrDefault()?.Description ?? $"Failed to update claim '{claimType}'.";
+            throw new InvalidOperationException(message);
+        }
+    }
+
+    private static CustomerAuthResponse BuildCustomerAuthResponse(
+        CustomerAccount customer,
+        IdentityUser identityUser,
+        bool isNewAccount)
+    {
         return new CustomerAuthResponse(
             customer.Id,
             customer.CustomerReference,
             customer.FullName,
             customer.MobileNumber,
-            token,
-            expiresAtUtc,
+            identityUser.Id,
+            identityUser.Email ?? string.Empty,
+            DateTime.UtcNow.AddDays(30),
             isNewAccount);
     }
 
@@ -1191,14 +1447,6 @@ internal sealed class CustomerAuthService(BelkhedmaDbContext dbContext) : ICusto
         return new string(chars);
     }
 
-    private static string GenerateAuthToken()
-    {
-        return Convert.ToBase64String(Guid.NewGuid().ToByteArray())
-            .Replace("+", string.Empty, StringComparison.Ordinal)
-            .Replace("/", string.Empty, StringComparison.Ordinal)
-            .Replace("=", string.Empty, StringComparison.Ordinal)
-            + Guid.NewGuid().ToString("N");
-    }
 }
 
 internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDataCollectionService

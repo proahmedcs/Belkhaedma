@@ -157,8 +157,21 @@ public sealed record CustomerSavedLocationDto(
     DateTime UpdatedAtUtc);
 
 public sealed record CustomerAuthRequest(
+    string? Email,
+    string? MobileNumber,
+    string? FullName,
+    string Password,
+    string? UserNameOrEmail);
+
+public sealed record CustomerRegisterRequest(
+    string Email,
     string MobileNumber,
-    string FullName);
+    string FullName,
+    string Password);
+
+public sealed record CustomerLoginRequest(
+    string UserNameOrEmail,
+    string Password);
 
 public sealed record CustomerAuthResponse(
     Guid CustomerId,
@@ -166,6 +179,7 @@ public sealed record CustomerAuthResponse(
     string FullName,
     string MobileNumber,
     string AuthToken,
+    string Email,
     DateTime ExpiresAtUtc,
     bool IsNewAccount);
 
@@ -173,7 +187,8 @@ public sealed record CustomerProfileDto(
     Guid CustomerId,
     string CustomerReference,
     string FullName,
-    string MobileNumber);
+    string MobileNumber,
+    string? Email = null);
 
 public sealed record HomePromotionDto(
     Guid Id,
@@ -240,6 +255,9 @@ public interface IMarketplaceQueryService
     Task<IReadOnlyList<CustomerSavedLocationDto>> GetCustomerSavedLocationsAsync(
         string customerReference,
         CancellationToken cancellationToken = default);
+    Task<CustomerProfileDto?> GetCustomerProfileByIdAsync(
+        Guid customerId,
+        CancellationToken cancellationToken = default);
     Task<CustomerProfileDto?> GetCustomerProfileByTokenAsync(
         string authToken,
         CancellationToken cancellationToken = default);
@@ -250,6 +268,12 @@ public interface IMarketplaceQueryService
 
 public interface ICustomerAuthService
 {
+    Task<CustomerAuthResponse> RegisterAsync(
+        CustomerRegisterRequest request,
+        CancellationToken cancellationToken = default);
+    Task<CustomerAuthResponse> LoginAsync(
+        CustomerLoginRequest request,
+        CancellationToken cancellationToken = default);
     Task<CustomerAuthResponse> RegisterOrLoginAsync(
         CustomerAuthRequest request,
         CancellationToken cancellationToken = default);
