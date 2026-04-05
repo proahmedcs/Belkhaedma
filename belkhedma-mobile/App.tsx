@@ -712,6 +712,7 @@ export default function App() {
   const [activePrimaryMenu, setActivePrimaryMenu] = useState<PrimaryMenuKey>("main");
   const [activeSecondaryMenu, setActiveSecondaryMenu] = useState<string>("overview");
   const [notificationCount] = useState<number>(3);
+  const [hasChosenServiceAndSubservice, setHasChosenServiceAndSubservice] = useState<boolean>(false);
 
   const [wizardStep, setWizardStep] = useState<WizardStep>(0);
   const [languageMode, setLanguageMode] = useState<LanguageMode>("en");
@@ -1549,6 +1550,7 @@ export default function App() {
     languageMode === "ar" ? "الباقات" : "Packages",
     languageMode === "ar" ? "النتائج" : "Results",
   ];
+  const shouldShowWizardHeader = wizardStep > 0 || hasChosenServiceAndSubservice;
 
   const canGoNext = useMemo(() => {
     if (wizardStep === 0) return !!selectedGroup && !!selectedSubServiceId;
@@ -1763,21 +1765,25 @@ export default function App() {
         </View>
 
         <View style={styles.filterCard}>
-          <Text style={styles.sectionTitle}>{languageMode === "ar" ? "معالج الخدمة" : "Service Wizard"}</Text>
-          <View style={styles.wizardStepsRow}>
-            {wizardSteps.map((label, index) => {
-              const active = wizardStep === index;
-              const complete = wizardStep > index;
-              return (
-                <View key={label} style={styles.wizardStepItem}>
-                  <View style={[styles.wizardBullet, (active || complete) && styles.wizardBulletActive]}>
-                    <Text style={styles.wizardBulletText}>{index + 1}</Text>
-                  </View>
-                  <Text style={[styles.wizardStepLabel, active && styles.wizardStepLabelActive]}>{label}</Text>
-                </View>
-              );
-            })}
-          </View>
+          {shouldShowWizardHeader ? (
+            <>
+              <Text style={styles.sectionTitle}>{languageMode === "ar" ? "معالج الخدمة" : "Service Wizard"}</Text>
+              <View style={styles.wizardStepsRow}>
+                {wizardSteps.map((label, index) => {
+                  const active = wizardStep === index;
+                  const complete = wizardStep > index;
+                  return (
+                    <View key={label} style={styles.wizardStepItem}>
+                      <View style={[styles.wizardBullet, (active || complete) && styles.wizardBulletActive]}>
+                        <Text style={styles.wizardBulletText}>{index + 1}</Text>
+                      </View>
+                      <Text style={[styles.wizardStepLabel, active && styles.wizardStepLabelActive]}>{label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
 
           {wizardStep === 0 ? (
             <>
@@ -1966,7 +1972,10 @@ export default function App() {
                     <TouchableOpacity
                       key={group}
                       style={[styles.homeGroupCard, active && styles.homeGroupCardActive]}
-                      onPress={() => setSelectedGroup(group)}
+                      onPress={() => {
+                        setSelectedGroup(group);
+                        setHasChosenServiceAndSubservice(false);
+                      }}
                     >
                       <View style={styles.homeGroupIconWrap}>
                         <Text style={styles.homeGroupIcon}>{getServiceGroupIcon(group)}</Text>
@@ -2000,7 +2009,10 @@ export default function App() {
                   return (
                     <TouchableOpacity
                       style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedSubServiceId(item.id)}
+                      onPress={() => {
+                        setSelectedSubServiceId(item.id);
+                        setHasChosenServiceAndSubservice(true);
+                      }}
                     >
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {languageMode === "ar" ? item.nameAr : item.nameEn}
