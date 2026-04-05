@@ -176,6 +176,7 @@ const SAMPLE_NOTIFICATIONS: SampleNotification[] = [
 const AUTH_SESSION_STORAGE_KEY = "belkhedma.auth.session.v1";
 const LOCATION_DETAILS_STORAGE_PREFIX = "belkhedma.location.details.v1";
 const LOCAL_LOCATIONS_STORAGE_PREFIX = "belkhedma.local.locations.v1";
+const GUEST_CUSTOMER_REFERENCE = "guest-customer";
 
 function getWebStorage():
   | {
@@ -725,7 +726,7 @@ export default function App() {
   const [hourlyHours, setHourlyHours] = useState<number>(4);
   const [monthlyDurationMonths, setMonthlyDurationMonths] = useState<number>(1);
   const [serviceDate, setServiceDate] = useState<string>("");
-  const [customerReference, setCustomerReference] = useState<string>("");
+  const [customerReference, setCustomerReference] = useState<string>(GUEST_CUSTOMER_REFERENCE);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState<string>("");
   const [hasSearched, setHasSearched] = useState<boolean>(false);
@@ -1376,41 +1377,39 @@ export default function App() {
     activeToken: string | null = authToken,
     activeCustomerReference: string | null = customerReference || currentCustomer?.customerReference || null
   ) => {
-    if (!activeToken || !activeCustomerReference) {
-      setProviders([]);
-      setServiceOffers([]);
-      setServiceAttributes([]);
-      setPrices([]);
-      setJsonDocuments([]);
-      setSavedLocations([]);
-      setSelectedLocationId(null);
-      return;
-    }
+    const effectiveCustomerReference =
+      activeCustomerReference?.trim() || customerReference.trim() || GUEST_CUSTOMER_REFERENCE;
 
     try {
       setLoading(true);
       setError(null);
 
+      const locationsPromise = activeToken
+        ? getCustomerSavedLocations(effectiveCustomerReference, activeToken).catch(() => [] as CustomerSavedLocation[])
+        : Promise.resolve([] as CustomerSavedLocation[]);
       const [providersData, offersData, attributesData, pricesData, docsData, locationsData, promotionsData] = await Promise.all([
         getProviders(),
         getServiceOffers(),
-        getServiceAttributes(),
+        getServiceAttributes().catch(() => [] as ServiceAttribute[]),
         getLatestPrices(),
         getProviderJsonDocuments(undefined, false),
-        getCustomerSavedLocations(activeCustomerReference, activeToken),
-        getHomePromotions(false),
+        locationsPromise,
+        getHomePromotions(false).catch(() => [] as HomePromotion[]),
       ]);
+      const localLocations = readLocalCustomerLocations(effectiveCustomerReference);
+      const mergedLocations = mergeLocationsById(locationsData, localLocations);
 
       setProviders(providersData);
       setServiceOffers(offersData);
       setServiceAttributes(attributesData);
       setPrices(pricesData);
       setJsonDocuments(docsData);
-      setSavedLocations(locationsData);
+      setSavedLocations(mergedLocations);
+      setLocationDetailsByLocationId(readLocationExtrasByLocationId(effectiveCustomerReference));
       setPromotions(promotionsData);
-      setSelectedLocationId((current) => current ?? locationsData[0]?.id ?? null);
-      if (customerReference !== activeCustomerReference) {
-        setCustomerReference(activeCustomerReference);
+      setSelectedLocationId((current) => current ?? mergedLocations[0]?.id ?? null);
+      if (customerReference !== effectiveCustomerReference) {
+        setCustomerReference(effectiveCustomerReference);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error.");
@@ -1500,17 +1499,16 @@ export default function App() {
   };
 
   const loadSavedLocations = async () => {
-    if (!authToken) {
-      setError("Authentication token is missing. Please login again.");
-      return;
-    }
+    const effectiveCustomerReference = customerReference.trim() || GUEST_CUSTOMER_REFERENCE;
 
     try {
-      const locationsData = await getCustomerSavedLocations(customerReference, authToken);
-      const localLocations = readLocalCustomerLocations(customerReference);
+      const locationsData = authToken
+        ? await getCustomerSavedLocations(effectiveCustomerReference, authToken).catch(() => [] as CustomerSavedLocation[])
+        : ([] as CustomerSavedLocation[]);
+      const localLocations = readLocalCustomerLocations(effectiveCustomerReference);
       const mergedLocations = mergeLocationsById(locationsData, localLocations);
       setSavedLocations(mergedLocations);
-      const detailsMap = readLocationExtrasByLocationId(customerReference);
+      const detailsMap = readLocationExtrasByLocationId(effectiveCustomerReference);
       setLocationDetailsByLocationId(detailsMap);
       setSelectedLocationId((current) => {
         if (current && mergedLocations.some((x) => x.id === current)) {
@@ -1806,6 +1804,7 @@ export default function App() {
       const persistedSession = readPersistedAuthSession();
       if (!persistedSession) {
         if (!isCancelled) {
+          await loadData(null, GUEST_CUSTOMER_REFERENCE);
           setAuthBootstrapping(false);
         }
         return;
@@ -1851,8 +1850,9 @@ export default function App() {
         setAuthToken(null);
         setAuthRefreshToken(null);
         setCurrentCustomer(null);
-        setCustomerReference("");
+        setCustomerReference(GUEST_CUSTOMER_REFERENCE);
         setCustomerEmail("");
+        await loadData(null, GUEST_CUSTOMER_REFERENCE);
       } finally {
         if (!isCancelled) {
           setAuthBootstrapping(false);
@@ -1876,126 +1876,6 @@ export default function App() {
             {languageMode === "ar" ? "جاري تحميل بيانات العميل..." : "Loading customer session..."}
           </Text>
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!currentCustomer || !authToken) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="light" />
-        <ScrollView
-          style={styles.pageScroll}
-          contentContainerStyle={styles.page}
-          showsHorizontalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.logo}>{Brand.name}</Text>
-            <Text style={styles.subtitle}>
-              {languageMode === "ar"
-                ? "تسجيل الدخول القياسي عبر البريد الإلكتروني وكلمة المرور"
-                : "Standard sign-in with email and password"}
-            </Text>
-          </View>
-
-          <View style={styles.filterCard}>
-            <Text style={styles.sectionTitle}>
-              {isAuthRegisterMode
-                ? languageMode === "ar"
-                  ? "إنشاء حساب عميل"
-                  : "Create Customer Account"
-                : languageMode === "ar"
-                  ? "تسجيل دخول العميل"
-                  : "Customer Login"}
-            </Text>
-
-            <View style={styles.rowWrap}>
-              <TouchableOpacity
-                style={[styles.chip, !isAuthRegisterMode && styles.chipActive]}
-                onPress={() => setIsAuthRegisterMode(false)}
-              >
-                <Text style={[styles.chipText, !isAuthRegisterMode && styles.chipTextActive]}>
-                  {languageMode === "ar" ? "دخول" : "Login"}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.chip, isAuthRegisterMode && styles.chipActive]}
-                onPress={() => setIsAuthRegisterMode(true)}
-              >
-                <Text style={[styles.chipText, isAuthRegisterMode && styles.chipTextActive]}>
-                  {languageMode === "ar" ? "تسجيل جديد" : "Register"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "البريد الإلكتروني" : "Email"}</Text>
-            <TextInput
-              placeholder={languageMode === "ar" ? "example@domain.com" : "example@domain.com"}
-              value={customerEmail}
-              onChangeText={setCustomerEmail}
-              style={styles.searchInput}
-              placeholderTextColor={Brand.colors.textSecondary}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-
-            {isAuthRegisterMode ? (
-              <>
-                <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "الاسم الكامل" : "Full Name"}</Text>
-                <TextInput
-                  placeholder={languageMode === "ar" ? "مثال: أحمد عبدالغني" : "e.g. Ahmed Abdelghany"}
-                  value={customerFullName}
-                  onChangeText={setCustomerFullName}
-                  style={styles.searchInput}
-                  placeholderTextColor={Brand.colors.textSecondary}
-                />
-                <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "رقم الجوال" : "Mobile Number"}</Text>
-                <TextInput
-                  placeholder={languageMode === "ar" ? "مثال: +966500000000" : "e.g. +966500000000"}
-                  value={customerMobileNumber}
-                  onChangeText={setCustomerMobileNumber}
-                  style={styles.searchInput}
-                  placeholderTextColor={Brand.colors.textSecondary}
-                  keyboardType="phone-pad"
-                />
-              </>
-            ) : null}
-
-            <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "كلمة المرور" : "Password"}</Text>
-            <TextInput
-              placeholder={languageMode === "ar" ? "أدخل كلمة المرور" : "Enter password"}
-              value={customerPassword}
-              onChangeText={setCustomerPassword}
-              style={styles.searchInput}
-              placeholderTextColor={Brand.colors.textSecondary}
-              secureTextEntry
-            />
-
-            <TouchableOpacity
-              style={[styles.searchButton, authLoading && styles.navButtonDisabled]}
-              onPress={handleRegisterOrLogin}
-            >
-              <Text style={styles.searchButtonText}>
-                {authLoading
-                  ? languageMode === "ar"
-                    ? "جاري التحقق..."
-                    : "Authenticating..."
-                  : isAuthRegisterMode
-                    ? languageMode === "ar"
-                      ? "إنشاء الحساب"
-                      : "Create Account"
-                    : languageMode === "ar"
-                      ? "تسجيل الدخول"
-                      : "Login"}
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.meta}>
-              {languageMode === "ar"
-                ? "هذا التدفق متوافق مع ASP.NET Core Identity + JWT."
-                : "This flow is aligned with ASP.NET Core Identity + JWT."}
-            </Text>
-          </View>
-        </ScrollView>
       </SafeAreaView>
     );
   }
