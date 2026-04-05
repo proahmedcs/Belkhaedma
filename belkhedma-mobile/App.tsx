@@ -11,6 +11,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -77,6 +78,31 @@ type NewLocationDraft = {
   longitude: string;
   mapSearchText: string;
 } & LocationExtraDetails;
+type HomePromotion = {
+  id: string;
+  companyNameAr: string;
+  companyNameEn: string;
+  titleAr: string;
+  titleEn: string;
+  subtitleAr: string;
+  subtitleEn: string;
+  imageUrl: string;
+  targetUrl: string;
+  providerCode?: string | null;
+  isActive: boolean;
+  createdAtUtc: string;
+};
+type PromotionDraft = {
+  companyNameAr: string;
+  companyNameEn: string;
+  titleAr: string;
+  titleEn: string;
+  subtitleAr: string;
+  subtitleEn: string;
+  imageUrl: string;
+  targetUrl: string;
+  providerCode: string;
+};
 
 const PRIMARY_MENUS: Array<{
   key: PrimaryMenuKey;
@@ -153,6 +179,7 @@ const SAMPLE_NOTIFICATIONS: SampleNotification[] = [
 const AUTH_SESSION_STORAGE_KEY = "belkhedma.auth.session.v1";
 const LOCATION_DETAILS_STORAGE_PREFIX = "belkhedma.location.details.v1";
 const LOCAL_LOCATIONS_STORAGE_PREFIX = "belkhedma.local.locations.v1";
+const HOME_PROMOTIONS_STORAGE_PREFIX = "belkhedma.home.promotions.v1";
 
 function getWebStorage():
   | {
@@ -338,6 +365,13 @@ function parseFallbackLocationFromSearch(query: string): { latitude: number; lon
   const longitude = Number(match[2]);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
   return { latitude, longitude };
+}
+
+function ensureHttpsUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
 }
 
 function normalizeText(value: string): string {
@@ -606,6 +640,111 @@ function getServiceGroupIcon(group: ServiceGroup): string {
   return "🤝";
 }
 
+function createDefaultPromotionDraft(): PromotionDraft {
+  return {
+    companyNameAr: "",
+    companyNameEn: "",
+    titleAr: "",
+    titleEn: "",
+    subtitleAr: "",
+    subtitleEn: "",
+    imageUrl: "",
+    targetUrl: "",
+    providerCode: "",
+  };
+}
+
+function buildHomePromotionsStorageKey(customerReference: string): string {
+  return `${HOME_PROMOTIONS_STORAGE_PREFIX}.${normalizeStorageSuffix(customerReference)}`;
+}
+
+function readPersistedHomePromotions(customerReference: string): HomePromotion[] {
+  const storage = getWebStorage();
+  if (!storage || !customerReference.trim()) return [];
+
+  try {
+    const raw = storage.getItem(buildHomePromotionsStorageKey(customerReference));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Array<Partial<HomePromotion>>;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((promotion) => !!promotion?.id && !!promotion?.titleAr && !!promotion?.titleEn && !!promotion?.imageUrl)
+      .map((promotion) => ({
+        id: String(promotion.id),
+        companyNameAr: String(promotion.companyNameAr ?? ""),
+        companyNameEn: String(promotion.companyNameEn ?? ""),
+        titleAr: String(promotion.titleAr ?? ""),
+        titleEn: String(promotion.titleEn ?? ""),
+        subtitleAr: String(promotion.subtitleAr ?? ""),
+        subtitleEn: String(promotion.subtitleEn ?? ""),
+        imageUrl: String(promotion.imageUrl ?? ""),
+        targetUrl: String(promotion.targetUrl ?? ""),
+        providerCode: promotion.providerCode ? String(promotion.providerCode) : null,
+        isActive: promotion.isActive !== false,
+        createdAtUtc: String(promotion.createdAtUtc ?? new Date().toISOString()),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function persistHomePromotions(customerReference: string, promotions: HomePromotion[]): void {
+  const storage = getWebStorage();
+  if (!storage || !customerReference.trim()) return;
+  try {
+    storage.setItem(buildHomePromotionsStorageKey(customerReference), JSON.stringify(promotions));
+  } catch {
+    // Ignore storage write errors and continue app flow.
+  }
+}
+
+function getDefaultPromotions(): HomePromotion[] {
+  return [
+    {
+      id: "promo-1",
+      companyNameAr: "بالخدمة",
+      companyNameEn: "Belkhedma",
+      titleEn: "Mediation Service",
+      titleAr: "خدمة التوسط",
+      subtitleEn: "Bridge trust and connect with top professionals.",
+      subtitleAr: "جسر ثقة.. يوصلك بالكفاءات",
+      imageUrl: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1280&q=80",
+      targetUrl: "https://belkhedma.example.com/promotions/mediation",
+      providerCode: "wasata",
+      isActive: true,
+      createdAtUtc: new Date().toISOString(),
+    },
+    {
+      id: "promo-2",
+      companyNameAr: "عناية",
+      companyNameEn: "Enaya",
+      titleEn: "Medical Home Visit Discount",
+      titleAr: "خصم الزيارة الطبية المنزلية",
+      subtitleEn: "Get seasonal offers on home nursing packages.",
+      subtitleAr: "عروض موسمية على باقات التمريض المنزلي",
+      imageUrl: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1280&q=80",
+      targetUrl: "https://belkhedma.example.com/promotions/medical",
+      providerCode: "enaya",
+      isActive: true,
+      createdAtUtc: new Date().toISOString(),
+    },
+    {
+      id: "promo-3",
+      companyNameAr: "تمكين",
+      companyNameEn: "Tamkeen",
+      titleEn: "Monthly Package Campaign",
+      titleAr: "حملة الباقات الشهرية",
+      subtitleEn: "Best monthly plans from multiple providers.",
+      subtitleAr: "أفضل الخطط الشهرية من عدة مزودين",
+      imageUrl: "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1280&q=80",
+      targetUrl: "https://belkhedma.example.com/promotions/monthly",
+      providerCode: "tamkeen",
+      isActive: true,
+      createdAtUtc: new Date().toISOString(),
+    },
+  ];
+}
+
 export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentCustomer, setCurrentCustomer] = useState<CustomerProfile | null>(null);
@@ -642,6 +781,10 @@ export default function App() {
   const [selectedHoursPerVisit, setSelectedHoursPerVisit] = useState<number | null>(null);
   const [selectedWeeklyVisits, setSelectedWeeklyVisits] = useState<number | null>(null);
   const [selectedDeliveryWindow, setSelectedDeliveryWindow] = useState<string | null>(null);
+  const [promotions, setPromotions] = useState<HomePromotion[]>([]);
+  const [promotionActiveIndex, setPromotionActiveIndex] = useState<number>(0);
+  const [showPromotionEditor, setShowPromotionEditor] = useState<boolean>(false);
+  const [newPromotionDraft, setNewPromotionDraft] = useState<PromotionDraft>(createDefaultPromotionDraft());
   const [showResultsFilters, setShowResultsFilters] = useState<boolean>(false);
   const [resultsSortMode, setResultsSortMode] = useState<ResultsSortMode>("recommended");
   const [resultsSourceFilter, setResultsSourceFilter] = useState<"all" | "api" | "scraper" | "demo">("all");
@@ -1249,6 +1392,80 @@ export default function App() {
     }
   };
 
+  const promotionSlides = useMemo(() => promotions.filter((promotion) => promotion.isActive), [promotions]);
+
+  const activePromotion = useMemo(() => {
+    if (promotionSlides.length === 0) return null;
+    const normalizedIndex = Math.min(promotionActiveIndex, promotionSlides.length - 1);
+    return promotionSlides[normalizedIndex] ?? promotionSlides[0] ?? null;
+  }, [promotionActiveIndex, promotionSlides]);
+
+  const activePromotionId = activePromotion?.id ?? null;
+
+  const handleAddPromotion = (): void => {
+    const titleAr = newPromotionDraft.titleAr.trim();
+    const titleEn = newPromotionDraft.titleEn.trim();
+    const imageUrl = ensureHttpsUrl(newPromotionDraft.imageUrl);
+    const targetUrl = ensureHttpsUrl(newPromotionDraft.targetUrl);
+    const providerCode = newPromotionDraft.providerCode.trim() || null;
+    const companyNameAr = newPromotionDraft.companyNameAr.trim();
+    const companyNameEn = newPromotionDraft.companyNameEn.trim();
+    const subtitleAr = newPromotionDraft.subtitleAr.trim();
+    const subtitleEn = newPromotionDraft.subtitleEn.trim();
+
+    if (!titleAr || !titleEn || !imageUrl) {
+      setError(
+        languageMode === "ar"
+          ? "أدخل عنوان العرض بالعربي والإنجليزي مع رابط صورة صحيح."
+          : "Please enter Arabic/English title and a valid image URL."
+      );
+      return;
+    }
+
+    const customerRef = customerReference.trim() || currentCustomer?.customerReference || "anonymous";
+    const nextPromotion: HomePromotion = {
+      id: `promo-local-${Date.now()}`,
+      companyNameAr: companyNameAr || (languageMode === "ar" ? "شركة جديدة" : "New Company"),
+      companyNameEn: companyNameEn || "New Company",
+      titleAr,
+      titleEn,
+      subtitleAr,
+      subtitleEn,
+      imageUrl,
+      targetUrl,
+      providerCode,
+      isActive: true,
+      createdAtUtc: new Date().toISOString(),
+    };
+
+    setPromotions((previous) => {
+      const next = [nextPromotion, ...previous];
+      persistHomePromotions(customerRef, next);
+      return next;
+    });
+    setPromotionActiveIndex(0);
+    setNewPromotionDraft(createDefaultPromotionDraft());
+    setShowPromotionEditor(false);
+    setError(null);
+  };
+
+  const handleRemoveActivePromotion = (): void => {
+    if (!activePromotionId) return;
+    const customerRef = customerReference.trim() || currentCustomer?.customerReference || "anonymous";
+    setPromotions((previous) => {
+      const next = previous.filter((promotion) => promotion.id !== activePromotionId);
+      persistHomePromotions(customerRef, next);
+      return next;
+    });
+    setPromotionActiveIndex(0);
+  };
+
+  const openPromotionLink = (promotion: HomePromotion): void => {
+    const link = ensureHttpsUrl(promotion.targetUrl);
+    if (!link) return;
+    void Linking.openURL(link);
+  };
+
   const handleUseCurrentLocation = async () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setError(languageMode === "ar" ? "ميزة تحديد الموقع غير مدعومة في هذا الجهاز." : "Geolocation is not supported on this device.");
@@ -1599,6 +1816,131 @@ export default function App() {
 
           {wizardStep === 0 ? (
             <>
+              <View style={styles.promotionsCard}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.subSectionTitle}>
+                    {languageMode === "ar" ? "عروض الشركات" : "Companies Promotions"}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.filterToggleButton}
+                    onPress={() => setShowPromotionEditor((prev) => !prev)}
+                  >
+                    <Text style={styles.filterToggleText}>
+                      {showPromotionEditor
+                        ? languageMode === "ar"
+                          ? "إغلاق"
+                          : "Close"
+                        : languageMode === "ar"
+                          ? "إضافة عرض"
+                          : "Add Promotion"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  horizontal
+                  pagingEnabled
+                  data={promotionSlides}
+                  keyExtractor={(item) => item.id}
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(event) => {
+                    const width = event.nativeEvent.layoutMeasurement.width || 1;
+                    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+                    setPromotionActiveIndex(Math.max(0, Math.min(nextIndex, promotionSlides.length - 1)));
+                  }}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.promotionSlide}
+                      onPress={() => openPromotionLink(item)}
+                    >
+                      <Image source={{ uri: item.imageUrl }} style={styles.promotionImage} />
+                      <View style={styles.promotionOverlay}>
+                        <Text style={styles.promotionTitle}>{languageMode === "ar" ? item.titleAr : item.titleEn}</Text>
+                        <Text style={styles.promotionSubtitle}>
+                          {languageMode === "ar" ? item.subtitleAr : item.subtitleEn}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+                <View style={styles.promotionDotsRow}>
+                  {promotionSlides.map((slide) => (
+                    <View
+                      key={`dot-${slide.id}`}
+                      style={[
+                        styles.promotionDot,
+                        activePromotionId === slide.id && styles.promotionDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+                {showPromotionEditor ? (
+                  <View style={styles.promotionEditor}>
+                    <Text style={styles.fieldHint}>
+                      {languageMode === "ar"
+                        ? "أضف عدد غير محدود من العروض، وكل عرض قابل للنقر."
+                        : "Add unlimited promotions; each one is clickable on home."}
+                    </Text>
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "عنوان العرض (عربي)" : "Promotion title (Arabic)"}
+                      value={newPromotionDraft.titleAr}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, titleAr: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "عنوان العرض (English)" : "Promotion title (English)"}
+                      value={newPromotionDraft.titleEn}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, titleEn: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "وصف قصير (عربي)" : "Subtitle (Arabic)"}
+                      value={newPromotionDraft.subtitleAr}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, subtitleAr: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "وصف قصير (English)" : "Subtitle (English)"}
+                      value={newPromotionDraft.subtitleEn}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, subtitleEn: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "رابط صورة العرض" : "Promotion image URL"}
+                      value={newPromotionDraft.imageUrl}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, imageUrl: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "الرابط عند النقر (اختياري)" : "Click target URL (optional)"}
+                      value={newPromotionDraft.targetUrl}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, targetUrl: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                    <TouchableOpacity style={styles.searchButton} onPress={handleAddPromotion}>
+                      <Text style={styles.searchButtonText}>
+                        {languageMode === "ar" ? "حفظ العرض" : "Save Promotion"}
+                      </Text>
+                    </TouchableOpacity>
+                    {promotionSlides.length > 1 ? (
+                      <TouchableOpacity
+                        style={[styles.filterToggleButton, styles.removePromotionButton]}
+                        onPress={handleRemoveActivePromotion}
+                      >
+                        <Text style={styles.removePromotionText}>
+                          {languageMode === "ar" ? "حذف العرض المحدد" : "Remove Active Promotion"}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+
               <Text style={styles.subSectionTitle}>
                 {languageMode === "ar" ? "اختر مجموعة الخدمة المطلوبة" : "Choose required service group"}
               </Text>
@@ -2804,6 +3146,80 @@ const styles = StyleSheet.create({
     color: Brand.colors.textSecondary,
     fontSize: 12,
     marginBottom: 2,
+  },
+  promotionsCard: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    padding: 10,
+    marginBottom: 10,
+  },
+  promotionSlide: {
+    width: 300,
+    height: 170,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginRight: 10,
+    backgroundColor: "#E5E7EB",
+  },
+  promotionImage: {
+    width: "100%",
+    height: "100%",
+  },
+  promotionOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#00000066",
+  },
+  promotionTitle: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 20,
+  },
+  promotionSubtitle: {
+    color: "#F9FAFB",
+    fontWeight: "700",
+    fontSize: 13,
+    marginTop: 2,
+  },
+  promotionDotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  promotionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#D1D5DB",
+  },
+  promotionDotActive: {
+    width: 18,
+    borderRadius: 5,
+    backgroundColor: Brand.colors.primaryDark,
+  },
+  promotionEditor: {
+    borderTopWidth: 1,
+    borderTopColor: Brand.colors.border,
+    marginTop: 8,
+    paddingTop: 8,
+  },
+  removePromotionButton: {
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+  },
+  removePromotionText: {
+    color: "#991B1B",
+    fontWeight: "700",
+    fontSize: 12,
   },
   homeGroupsGrid: {
     gap: 10,
