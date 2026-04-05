@@ -124,7 +124,8 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         var rows = await dbContext.ServiceOffers
             .AsNoTracking()
             .Where(x => ids.Contains(x.ProviderId))
-            .OrderByDescending(x => x.UpdatedAtUtc)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenByDescending(x => x.UpdatedAtUtc)
             .ToListAsync(cancellationToken);
 
         return rows
@@ -135,6 +136,7 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
                 x.ServiceMode,
                 x.NameAr,
                 x.NameEn,
+                x.DisplayOrder,
                 ParseHourOptions(x.HourlyHoursJson),
                 ParseStringList(x.NationalityGroupsJson),
                 x.IsAvailable,
@@ -785,6 +787,7 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
                     ServiceMode = ServiceMode.Hourly,
                     NameAr = provider.NameAr + " - خدمة بالساعة",
                     NameEn = provider.NameEn + " - Hourly Service",
+                    DisplayOrder = 0,
                     HourlyHoursJson = SerializeIntList([4]),
                     NationalityGroupsJson = SerializeStringList(["Africa", "Philippines", "Indonesia"])
                 };
@@ -794,6 +797,10 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
             else
             {
                 offer.UpdatedAtUtc = DateTime.UtcNow;
+                if (offer.DisplayOrder < 0)
+                {
+                    offer.DisplayOrder = 0;
+                }
                 if (string.IsNullOrWhiteSpace(offer.HourlyHoursJson))
                 {
                     offer.HourlyHoursJson = SerializeIntList([4]);

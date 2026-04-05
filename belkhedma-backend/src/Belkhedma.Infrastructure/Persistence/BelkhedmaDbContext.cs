@@ -41,6 +41,7 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.ProviderId, x.ProviderServiceId }).IsUnique();
+            entity.HasIndex(x => new { x.ProviderId, x.DisplayOrder, x.NameEn });
             entity.Property(x => x.ProviderServiceId).HasMaxLength(120).IsRequired();
             entity.Property(x => x.NameAr).HasMaxLength(300).IsRequired();
             entity.Property(x => x.NameEn).HasMaxLength(300).IsRequired();

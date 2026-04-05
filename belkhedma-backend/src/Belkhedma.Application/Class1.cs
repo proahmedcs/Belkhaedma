@@ -42,6 +42,7 @@ public sealed record ServiceOfferDto(
     ServiceMode ServiceMode,
     string NameAr,
     string NameEn,
+    int DisplayOrder,
     IReadOnlyList<int> HourOptions,
     IReadOnlyList<string> NationalityOptions,
     bool IsAvailable,

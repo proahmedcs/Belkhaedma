@@ -94,6 +94,7 @@ public sealed class ServiceOffer
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ProviderId { get; set; }
     public string ProviderServiceId { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
     public ServiceMode ServiceMode { get; set; }
     public string NameAr { get; set; } = string.Empty;
     public string NameEn { get; set; } = string.Empty;

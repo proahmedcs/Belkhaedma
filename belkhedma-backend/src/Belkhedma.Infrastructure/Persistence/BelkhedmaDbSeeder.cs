@@ -31,6 +31,7 @@ public static class BelkhedmaDbSeeder
         string ProviderCode,
         string ProviderServiceId,
         ServiceMode ServiceMode,
+        int DisplayOrder,
         string NameAr,
         string NameEn,
         IReadOnlyList<int> HourOptions,
@@ -59,6 +60,7 @@ public static class BelkhedmaDbSeeder
             "enaya",
             "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4",
             ServiceMode.Hourly,
+            10,
             "عناية - زيارة تنظيف 4 ساعات",
             "Enaya - Cleaning Visit 4 Hours",
             [4, 8],
@@ -70,6 +72,7 @@ public static class BelkhedmaDbSeeder
             "emdad-hr",
             "c97fdb23-4687-ec11-a837-000d3abe20f8",
             ServiceMode.Hourly,
+            20,
             "إمداد - فوراً 4 ساعات",
             "Emdad - Fawran 4 Hours",
             [4, 6, 8],
@@ -81,6 +84,7 @@ public static class BelkhedmaDbSeeder
             "mueen",
             "mueen-hourly-4h",
             ServiceMode.Hourly,
+            30,
             "معين - تنظيف بالساعة 4 ساعات",
             "Mueen - Hourly Cleaning 4 Hours",
             [4, 6, 8],
@@ -92,6 +96,7 @@ public static class BelkhedmaDbSeeder
             "tamkeen",
             "tamkeen-monthly-1m",
             ServiceMode.Monthly,
+            40,
             "تمكين - باقة شهرية (شهر)",
             "Tamkeen - Monthly Package (1 Month)",
             [],
@@ -103,6 +108,7 @@ public static class BelkhedmaDbSeeder
             "almutahidah",
             "almutahidah-monthly-3m",
             ServiceMode.Monthly,
+            50,
             "الشركة المتحدة - باقة شهرية (3 أشهر)",
             "Almutahidah - Monthly Package (3 Months)",
             [],
@@ -114,6 +120,7 @@ public static class BelkhedmaDbSeeder
             "esad-talents",
             "esad-talents-monthly-1m",
             ServiceMode.Monthly,
+            60,
             "إسناد - باقة شهرية (شهر)",
             "Esad - Monthly Package (1 Month)",
             [],
@@ -563,6 +570,7 @@ public static class BelkhedmaDbSeeder
                     ProviderId = provider.Id,
                     ProviderServiceId = seed.ProviderServiceId,
                     ServiceMode = seed.ServiceMode,
+                    DisplayOrder = seed.DisplayOrder,
                     NameAr = seed.NameAr,
                     NameEn = seed.NameEn,
                     HourlyHoursJson = SerializeIntList(seed.HourOptions),
@@ -577,6 +585,7 @@ public static class BelkhedmaDbSeeder
             }
 
             existingOffer.ServiceMode = seed.ServiceMode;
+            existingOffer.DisplayOrder = seed.DisplayOrder;
             existingOffer.NameAr = seed.NameAr;
             existingOffer.NameEn = seed.NameEn;
             existingOffer.HourlyHoursJson = SerializeIntList(seed.HourOptions);
