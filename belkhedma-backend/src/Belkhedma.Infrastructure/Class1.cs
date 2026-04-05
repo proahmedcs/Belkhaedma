@@ -114,10 +114,13 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
 
         var ids = await providerIds.Select(x => x.Id).ToListAsync(cancellationToken);
 
-        return await dbContext.ServiceOffers
+        var rows = await dbContext.ServiceOffers
             .AsNoTracking()
             .Where(x => ids.Contains(x.ProviderId))
             .OrderByDescending(x => x.UpdatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return rows
             .Select(x => new ServiceOfferDto(
                 x.Id,
                 x.ProviderId,
@@ -125,9 +128,11 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
                 x.ServiceMode,
                 x.NameAr,
                 x.NameEn,
+                ParseHourOptions(x.HourlyHoursJson),
+                ParseStringList(x.NationalityGroupsJson),
                 x.IsAvailable,
                 x.UpdatedAtUtc))
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 
     public async Task<IReadOnlyList<PriceSnapshotDto>> GetLatestPricesAsync(string? providerCode, CancellationToken cancellationToken = default)
@@ -511,6 +516,70 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
 
+    private static IReadOnlyList<int> ParseHourOptions(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return [];
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<int>>(source) ?? [];
+            return parsed
+                .Where(x => x > 0 && x <= 24)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> ParseStringList(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return [];
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<string>>(source) ?? [];
+            return parsed
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static string SerializeIntList(IEnumerable<int> values)
+    {
+        var normalized = values
+            .Where(x => x > 0 && x <= 24)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+        return JsonSerializer.Serialize(normalized);
+    }
+
+    private static string SerializeStringList(IEnumerable<string> values)
+    {
+        var normalized = values
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return JsonSerializer.Serialize(normalized);
+    }
+
     private static string NormalizePromotionCode(string? code)
     {
         var raw = (code ?? string.Empty).Trim().ToLowerInvariant();
@@ -697,7 +766,9 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
                         : "c97fdb23-4687-ec11-a837-000d3abe20f8",
                     ServiceMode = ServiceMode.Hourly,
                     NameAr = provider.NameAr + " - خدمة بالساعة",
-                    NameEn = provider.NameEn + " - Hourly Service"
+                    NameEn = provider.NameEn + " - Hourly Service",
+                    HourlyHoursJson = SerializeIntList([4]),
+                    NationalityGroupsJson = SerializeStringList(["Africa", "Philippines", "Indonesia"])
                 };
 
                 await dbContext.ServiceOffers.AddAsync(offer, cancellationToken);
@@ -705,6 +776,14 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
             else
             {
                 offer.UpdatedAtUtc = DateTime.UtcNow;
+                if (string.IsNullOrWhiteSpace(offer.HourlyHoursJson))
+                {
+                    offer.HourlyHoursJson = SerializeIntList([4]);
+                }
+                if (string.IsNullOrWhiteSpace(offer.NationalityGroupsJson))
+                {
+                    offer.NationalityGroupsJson = SerializeStringList(["Africa", "Philippines", "Indonesia"]);
+                }
             }
 
             var random = Random.Shared.NextDouble();
@@ -769,5 +848,25 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
         {
             await CollectProviderDataAsync(providerCode, cancellationToken);
         }
+    }
+
+    private static string SerializeIntList(IEnumerable<int> values)
+    {
+        var normalized = values
+            .Where(x => x > 0 && x <= 24)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+        return JsonSerializer.Serialize(normalized);
+    }
+
+    private static string SerializeStringList(IEnumerable<string> values)
+    {
+        var normalized = values
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return JsonSerializer.Serialize(normalized);
     }
 }

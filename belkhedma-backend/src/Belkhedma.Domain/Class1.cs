@@ -97,6 +97,8 @@ public sealed class ServiceOffer
     public ServiceMode ServiceMode { get; set; }
     public string NameAr { get; set; } = string.Empty;
     public string NameEn { get; set; } = string.Empty;
+    public string HourlyHoursJson { get; set; } = "[]";
+    public string NationalityGroupsJson { get; set; } = "[]";
     public bool IsAvailable { get; set; } = true;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

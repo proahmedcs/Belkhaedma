@@ -44,6 +44,8 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
             entity.Property(x => x.ProviderServiceId).HasMaxLength(120).IsRequired();
             entity.Property(x => x.NameAr).HasMaxLength(300).IsRequired();
             entity.Property(x => x.NameEn).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.HourlyHoursJson).HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(x => x.NationalityGroupsJson).HasColumnType("nvarchar(max)").IsRequired();
         });
 
         modelBuilder.Entity<PriceSnapshot>(entity =>

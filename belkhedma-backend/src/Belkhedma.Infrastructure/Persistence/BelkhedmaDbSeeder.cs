@@ -12,6 +12,8 @@ public static class BelkhedmaDbSeeder
         ServiceMode ServiceMode,
         string NameAr,
         string NameEn,
+        IReadOnlyList<int> HourOptions,
+        IReadOnlyList<string> NationalityOptions,
         decimal FinalPriceSar,
         decimal? OriginalPriceSar,
         DataSourceType SourceType);
@@ -38,6 +40,8 @@ public static class BelkhedmaDbSeeder
             ServiceMode.Hourly,
             "عناية - زيارة تنظيف 4 ساعات",
             "Enaya - Cleaning Visit 4 Hours",
+            [4, 8],
+            ["Philippines", "Indonesia", "Africa"],
             75.00m,
             147.20m,
             DataSourceType.Api),
@@ -47,6 +51,8 @@ public static class BelkhedmaDbSeeder
             ServiceMode.Hourly,
             "إمداد - فوراً 4 ساعات",
             "Emdad - Fawran 4 Hours",
+            [4, 6, 8],
+            ["Philippines", "Indonesia", "Africa"],
             90.00m,
             140.00m,
             DataSourceType.Api),
@@ -56,6 +62,8 @@ public static class BelkhedmaDbSeeder
             ServiceMode.Hourly,
             "معين - تنظيف بالساعة 4 ساعات",
             "Mueen - Hourly Cleaning 4 Hours",
+            [4, 6, 8],
+            ["Philippines", "Indonesia", "Africa"],
             94.00m,
             129.00m,
             DataSourceType.Scraper),
@@ -65,6 +73,8 @@ public static class BelkhedmaDbSeeder
             ServiceMode.Monthly,
             "تمكين - باقة شهرية (شهر)",
             "Tamkeen - Monthly Package (1 Month)",
+            [],
+            [],
             2790.00m,
             3150.00m,
             DataSourceType.Scraper),
@@ -74,6 +84,8 @@ public static class BelkhedmaDbSeeder
             ServiceMode.Monthly,
             "الشركة المتحدة - باقة شهرية (3 أشهر)",
             "Almutahidah - Monthly Package (3 Months)",
+            [],
+            [],
             2650.00m,
             2990.00m,
             DataSourceType.Api),
@@ -83,6 +95,8 @@ public static class BelkhedmaDbSeeder
             ServiceMode.Monthly,
             "إسناد - باقة شهرية (شهر)",
             "Esad - Monthly Package (1 Month)",
+            [],
+            [],
             2390.00m,
             2710.00m,
             DataSourceType.Scraper)
@@ -127,6 +141,70 @@ public static class BelkhedmaDbSeeder
             "fawran_monthly_real_json_bundle",
             ["contract_duration_months", "delivery_method", "employee_id", "contract_details", "payment"])
     ];
+
+    private static string SerializeIntList(IEnumerable<int> values)
+    {
+        var normalized = values
+            .Where(x => x > 0)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToArray();
+        return JsonSerializer.Serialize(normalized);
+    }
+
+    private static string SerializeStringList(IEnumerable<string> values)
+    {
+        var normalized = values
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToArray();
+        return JsonSerializer.Serialize(normalized);
+    }
+
+    private static IReadOnlyList<int> ParseIntList(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return [];
+        }
+
+        try
+        {
+            return (JsonSerializer.Deserialize<List<int>>(source) ?? [])
+                .Where(x => x > 0)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToArray();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> ParseStringList(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return [];
+        }
+
+        try
+        {
+            return (JsonSerializer.Deserialize<List<string>>(source) ?? [])
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToArray();
+        }
+        catch
+        {
+            return [];
+        }
+    }
 
     public static async Task SeedAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken = default)
     {
@@ -457,6 +535,8 @@ public static class BelkhedmaDbSeeder
                     ServiceMode = seed.ServiceMode,
                     NameAr = seed.NameAr,
                     NameEn = seed.NameEn,
+                    HourlyHoursJson = SerializeIntList(seed.HourOptions),
+                    NationalityGroupsJson = SerializeStringList(seed.NationalityOptions),
                     IsAvailable = true,
                     UpdatedAtUtc = now
                 };
@@ -469,6 +549,8 @@ public static class BelkhedmaDbSeeder
             existingOffer.ServiceMode = seed.ServiceMode;
             existingOffer.NameAr = seed.NameAr;
             existingOffer.NameEn = seed.NameEn;
+            existingOffer.HourlyHoursJson = SerializeIntList(seed.HourOptions);
+            existingOffer.NationalityGroupsJson = SerializeStringList(seed.NationalityOptions);
             existingOffer.IsAvailable = true;
             existingOffer.UpdatedAtUtc = now;
         }
