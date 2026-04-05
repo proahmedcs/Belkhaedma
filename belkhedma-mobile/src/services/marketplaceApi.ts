@@ -147,6 +147,27 @@ export async function loginCustomer(payload: {
   return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/login", payload);
 }
 
+export async function refreshCustomerToken(payload: {
+  refreshToken: string;
+}): Promise<CustomerAuthResponse> {
+  return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/refresh", payload);
+}
+
+export async function revokeCustomerRefreshToken(payload: {
+  refreshToken: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/customers/revoke`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`API request failed (${response.status}) for /api/auth/customers/revoke`);
+  }
+}
+
 export async function getCurrentCustomer(authToken: string): Promise<CustomerProfile> {
   return fetchJson<CustomerProfile>("/api/auth/customers/me", authToken);
 }

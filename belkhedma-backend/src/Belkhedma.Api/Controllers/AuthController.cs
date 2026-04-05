@@ -24,6 +24,10 @@ public sealed class AuthController(
     public sealed record CustomerLoginPayload(
         string UserNameOrEmail,
         string Password);
+    public sealed record CustomerRefreshPayload(
+        string RefreshToken);
+    public sealed record CustomerRevokePayload(
+        string RefreshToken);
     public sealed record CustomerLegacyAuthPayload(
         string? MobileNumber,
         string? FullName,
@@ -130,6 +134,51 @@ public sealed class AuthController(
         }
 
         return Ok(customer);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("customers/refresh")]
+    public async Task<IActionResult> RefreshToken([FromBody] CustomerRefreshPayload payload, CancellationToken cancellationToken)
+    {
+        if (payload is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
+        try
+        {
+            var result = await customerAuthService.RefreshTokenAsync(
+                new CustomerTokenRefreshRequest(payload.RefreshToken),
+                cancellationToken);
+            var accessToken = CreateCustomerJwt(result);
+            return Ok(result with { AuthToken = accessToken });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("customers/revoke")]
+    public async Task<IActionResult> RevokeRefreshToken([FromBody] CustomerRevokePayload payload, CancellationToken cancellationToken)
+    {
+        if (payload is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
+        try
+        {
+            await customerAuthService.RevokeRefreshTokenAsync(
+                new CustomerTokenRevokeRequest(payload.RefreshToken),
+                cancellationToken);
+            return Ok(new { message = "Refresh token revoked." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     private string CreateCustomerJwt(CustomerAuthResponse authResponse)

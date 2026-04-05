@@ -251,7 +251,9 @@ public sealed class CustomerAuthSession
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid CustomerAccountId { get; set; }
-    public string AuthToken { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
+    public string? ReplacedByRefreshToken { get; set; }
+    public DateTime? RevokedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAtUtc { get; set; } = DateTime.UtcNow.AddDays(30);
     public DateTime LastUsedAtUtc { get; set; } = DateTime.UtcNow;

@@ -166,8 +166,9 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
         modelBuilder.Entity<CustomerAuthSession>(entity =>
         {
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.AuthToken).HasMaxLength(200).IsRequired();
-            entity.HasIndex(x => x.AuthToken).IsUnique();
+            entity.Property(x => x.RefreshToken).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ReplacedByRefreshToken).HasMaxLength(200);
+            entity.HasIndex(x => x.RefreshToken).IsUnique();
             entity.HasIndex(x => new { x.CustomerAccountId, x.ExpiresAtUtc });
         });
     }

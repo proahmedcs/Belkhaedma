@@ -24,6 +24,8 @@ import {
   loginCustomer,
   getProviderJsonDocuments,
   getProviders,
+  refreshCustomerToken,
+  revokeCustomerRefreshToken,
   registerCustomer,
   getServiceAttributes,
   getServiceOffers,
@@ -46,6 +48,7 @@ type ServiceGroup = "hourly-cleaning" | "monthly" | "medical-services" | "mediat
 type WizardStep = 0 | 1 | 2 | 3;
 type PersistedAuthSession = {
   authToken: string;
+  refreshToken: string;
   customerReference: string;
 };
 type JsonDrivenOptions = {
@@ -199,9 +202,10 @@ function readPersistedAuthSession(): PersistedAuthSession | null {
     const rawValue = storage.getItem(AUTH_SESSION_STORAGE_KEY);
     if (!rawValue) return null;
     const parsed = JSON.parse(rawValue) as Partial<PersistedAuthSession>;
-    if (!parsed.authToken || !parsed.customerReference) return null;
+    if (!parsed.authToken || !parsed.customerReference || !parsed.refreshToken) return null;
     return {
       authToken: parsed.authToken,
+      refreshToken: parsed.refreshToken,
       customerReference: parsed.customerReference,
     };
   } catch {
@@ -693,6 +697,7 @@ export default function App() {
   const { width: viewportWidth } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === "web" && viewportWidth >= 768;
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [authRefreshToken, setAuthRefreshToken] = useState<string | null>(null);
   const [currentCustomer, setCurrentCustomer] = useState<CustomerProfile | null>(null);
   const [isAuthRegisterMode, setIsAuthRegisterMode] = useState<boolean>(false);
   const [customerEmail, setCustomerEmail] = useState<string>("");
@@ -1458,15 +1463,16 @@ export default function App() {
           });
 
       setAuthToken(response.authToken);
+      setAuthRefreshToken(response.refreshToken);
       const profile = await getCurrentCustomer(response.authToken);
       setCurrentCustomer(profile);
       setCustomerReference(profile.customerReference);
       setCustomerFullName(profile.fullName);
       setCustomerMobileNumber(profile.mobileNumber);
-      setCustomerEmail(profile.email ?? "");
       setCustomerEmail(response.email ?? trimmedEmail);
       persistAuthSession({
         authToken: response.authToken,
+        refreshToken: response.refreshToken,
         customerReference: profile.customerReference,
       });
       await loadData(response.authToken, profile.customerReference);
@@ -1805,22 +1811,47 @@ export default function App() {
       }
 
       try {
-        const profile = await getCurrentCustomer(persistedSession.authToken);
+        let activeAuthToken = persistedSession.authToken;
+        let activeRefreshToken = persistedSession.refreshToken;
+        let profile: CustomerProfile;
+
+        try {
+          profile = await getCurrentCustomer(activeAuthToken);
+        } catch {
+          const refreshed = await refreshCustomerToken({ refreshToken: activeRefreshToken });
+          activeAuthToken = refreshed.authToken;
+          activeRefreshToken = refreshed.refreshToken;
+          profile = await getCurrentCustomer(activeAuthToken);
+          persistAuthSession({
+            authToken: activeAuthToken,
+            refreshToken: activeRefreshToken,
+            customerReference: profile.customerReference,
+          });
+        }
+
         if (isCancelled) return;
 
-        setAuthToken(persistedSession.authToken);
+        setAuthToken(activeAuthToken);
+        setAuthRefreshToken(activeRefreshToken);
         setCurrentCustomer(profile);
         setCustomerReference(profile.customerReference);
         setCustomerEmail(profile.email ?? "");
         setCustomerFullName(profile.fullName);
         setCustomerMobileNumber(profile.mobileNumber);
-        await loadData(persistedSession.authToken, profile.customerReference);
+        await loadData(activeAuthToken, profile.customerReference);
       } catch {
+        try {
+          await revokeCustomerRefreshToken({ refreshToken: persistedSession.refreshToken });
+        } catch {
+          // Ignore revoke errors during failed bootstrap cleanup.
+        }
         clearPersistedAuthSession();
         if (isCancelled) return;
         setAuthToken(null);
+        setAuthRefreshToken(null);
         setCurrentCustomer(null);
         setCustomerReference("");
+        setCustomerEmail("");
       } finally {
         if (!isCancelled) {
           setAuthBootstrapping(false);

@@ -89,6 +89,7 @@ export type CustomerAuthResponse = {
   fullName: string;
   mobileNumber: string;
   authToken: string;
+  refreshToken: string;
   email: string;
   expiresAtUtc: string;
   isNewAccount: boolean;

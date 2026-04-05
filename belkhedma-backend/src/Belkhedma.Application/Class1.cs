@@ -173,12 +173,19 @@ public sealed record CustomerLoginRequest(
     string UserNameOrEmail,
     string Password);
 
+public sealed record CustomerTokenRefreshRequest(
+    string RefreshToken);
+
+public sealed record CustomerTokenRevokeRequest(
+    string RefreshToken);
+
 public sealed record CustomerAuthResponse(
     Guid CustomerId,
     string CustomerReference,
     string FullName,
     string MobileNumber,
     string AuthToken,
+    string RefreshToken,
     string Email,
     DateTime ExpiresAtUtc,
     bool IsNewAccount);
@@ -276,6 +283,12 @@ public interface ICustomerAuthService
         CancellationToken cancellationToken = default);
     Task<CustomerAuthResponse> RegisterOrLoginAsync(
         CustomerAuthRequest request,
+        CancellationToken cancellationToken = default);
+    Task<CustomerAuthResponse> RefreshTokenAsync(
+        CustomerTokenRefreshRequest request,
+        CancellationToken cancellationToken = default);
+    Task RevokeRefreshTokenAsync(
+        CustomerTokenRevokeRequest request,
         CancellationToken cancellationToken = default);
 }
 

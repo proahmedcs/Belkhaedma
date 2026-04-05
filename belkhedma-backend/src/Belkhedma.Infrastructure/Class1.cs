@@ -85,11 +85,11 @@ internal sealed class MarketplaceQueryService(
     }
 
     public async Task<CustomerProfileDto?> GetCustomerProfileByTokenAsync(
-        string authToken,
+        string refreshToken,
         CancellationToken cancellationToken = default)
     {
         // Legacy token lookup for backward compatibility.
-        if (string.IsNullOrWhiteSpace(authToken))
+        if (string.IsNullOrWhiteSpace(refreshToken))
         {
             return null;
         }
@@ -98,7 +98,7 @@ internal sealed class MarketplaceQueryService(
         var session = await dbContext.CustomerAuthSessions
             .AsNoTracking()
             .FirstOrDefaultAsync(x =>
-                x.AuthToken == authToken &&
+                x.RefreshToken == refreshToken &&
                 !x.IsRevoked &&
                 x.ExpiresAtUtc > now, cancellationToken);
 
@@ -1152,6 +1152,8 @@ internal sealed class CustomerAuthService(
     private const string CustomerIdClaimType = "customer_id";
     private const string CustomerMobileClaimType = "customer_mobile";
     private const string CustomerFullNameClaimType = "customer_full_name";
+    private const int AccessTokenLifetimeMinutes = 30;
+    private const int RefreshTokenLifetimeDays = 30;
 
     public async Task<CustomerAuthResponse> RegisterAsync(
         CustomerRegisterRequest request,
@@ -1200,10 +1202,22 @@ internal sealed class CustomerAuthService(
 
         var customer = await GetOrCreateCustomerAccountForIdentityUserAsync(identityUser, cancellationToken);
         customer.IsActive = true;
-        customer.UpdatedAtUtc = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        customer.UpdatedAtUtc = now;
+
+        var refreshToken = GenerateRefreshToken();
+        await dbContext.CustomerAuthSessions.AddAsync(new CustomerAuthSession
+        {
+            CustomerAccountId = customer.Id,
+            RefreshToken = refreshToken,
+            CreatedAtUtc = now,
+            LastUsedAtUtc = now,
+            ExpiresAtUtc = now.AddDays(RefreshTokenLifetimeDays),
+            IsRevoked = false
+        }, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return BuildCustomerAuthResponse(customer, identityUser, isNewAccount: false);
+        return BuildCustomerAuthResponse(customer, identityUser, isNewAccount: false, refreshToken, now);
     }
 
     public async Task<CustomerAuthResponse> RegisterOrLoginAsync(
@@ -1232,6 +1246,87 @@ internal sealed class CustomerAuthService(
         var mobile = request.MobileNumber ?? string.Empty;
         var fullName = request.FullName ?? string.Empty;
         return await RegisterCoreAsync(email, mobile, fullName, request.Password, cancellationToken);
+    }
+
+    public async Task<CustomerAuthResponse> RefreshTokenAsync(
+        CustomerTokenRefreshRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var refreshToken = (request.RefreshToken ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            throw new InvalidOperationException("Refresh token is required.");
+        }
+
+        var now = DateTime.UtcNow;
+        var session = await dbContext.CustomerAuthSessions
+            .FirstOrDefaultAsync(x => x.RefreshToken == refreshToken, cancellationToken);
+        if (session is null ||
+            session.IsRevoked ||
+            session.RevokedAtUtc.HasValue ||
+            session.ExpiresAtUtc <= now)
+        {
+            throw new InvalidOperationException("Invalid or expired refresh token.");
+        }
+
+        var customer = await dbContext.CustomerAccounts
+            .FirstOrDefaultAsync(x => x.Id == session.CustomerAccountId && x.IsActive, cancellationToken);
+        if (customer is null)
+        {
+            throw new InvalidOperationException("Customer account not found or inactive.");
+        }
+
+        var identityUser = await FindIdentityUserForCustomerAsync(customer, cancellationToken);
+        if (identityUser is null)
+        {
+            throw new InvalidOperationException("Identity user not found for customer.");
+        }
+
+        var newRefreshToken = GenerateRefreshToken();
+        var newSession = new CustomerAuthSession
+        {
+            CustomerAccountId = customer.Id,
+            RefreshToken = newRefreshToken,
+            CreatedAtUtc = now,
+            LastUsedAtUtc = now,
+            ExpiresAtUtc = now.AddDays(RefreshTokenLifetimeDays),
+            IsRevoked = false
+        };
+
+        session.IsRevoked = true;
+        session.RevokedAtUtc = now;
+        session.ReplacedByRefreshToken = newRefreshToken;
+        session.LastUsedAtUtc = now;
+
+        await dbContext.CustomerAuthSessions.AddAsync(newSession, cancellationToken);
+        customer.UpdatedAtUtc = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BuildCustomerAuthResponse(customer, identityUser, isNewAccount: false, refreshToken: newRefreshToken, issuedAtUtc: now);
+    }
+
+    public async Task RevokeRefreshTokenAsync(
+        CustomerTokenRevokeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var refreshToken = (request.RefreshToken ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return;
+        }
+
+        var session = await dbContext.CustomerAuthSessions
+            .FirstOrDefaultAsync(x => x.RefreshToken == refreshToken, cancellationToken);
+        if (session is null || session.IsRevoked)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        session.IsRevoked = true;
+        session.RevokedAtUtc = now;
+        session.LastUsedAtUtc = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<CustomerAuthResponse> RegisterCoreAsync(
@@ -1311,7 +1406,19 @@ internal sealed class CustomerAuthService(
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return BuildCustomerAuthResponse(customerAccount, identityUser, isNewAccount);
+        var refreshToken = GenerateRefreshToken();
+        await dbContext.CustomerAuthSessions.AddAsync(new CustomerAuthSession
+        {
+            CustomerAccountId = customerAccount.Id,
+            RefreshToken = refreshToken,
+            CreatedAtUtc = DateTime.UtcNow,
+            LastUsedAtUtc = DateTime.UtcNow,
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(RefreshTokenLifetimeDays),
+            IsRevoked = false
+        }, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BuildCustomerAuthResponse(customerAccount, identityUser, isNewAccount, refreshToken);
     }
 
     private async Task<CustomerAccount> GetOrCreateCustomerAccountForIdentityUserAsync(
@@ -1417,19 +1524,51 @@ internal sealed class CustomerAuthService(
         }
     }
 
+    private async Task<IdentityUser?> FindIdentityUserForCustomerAsync(
+        CustomerAccount customer,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(customer.CustomerReference) &&
+            customer.CustomerReference.StartsWith("idn-", StringComparison.OrdinalIgnoreCase))
+        {
+            var identityUserId = customer.CustomerReference["idn-".Length..];
+            if (!string.IsNullOrWhiteSpace(identityUserId))
+            {
+                return await userManager.FindByIdAsync(identityUserId);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(customer.NormalizedMobileNumber))
+        {
+            var byPhone = await userManager.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.PhoneNumber == customer.NormalizedMobileNumber, cancellationToken);
+            if (byPhone is not null)
+            {
+                return byPhone;
+            }
+        }
+
+        return null;
+    }
+
     private static CustomerAuthResponse BuildCustomerAuthResponse(
         CustomerAccount customer,
         IdentityUser identityUser,
-        bool isNewAccount)
+        bool isNewAccount,
+        string refreshToken,
+        DateTime? issuedAtUtc = null)
     {
+        var now = issuedAtUtc ?? DateTime.UtcNow;
         return new CustomerAuthResponse(
             customer.Id,
             customer.CustomerReference,
             customer.FullName,
             customer.MobileNumber,
             identityUser.Id,
+            refreshToken,
             identityUser.Email ?? string.Empty,
-            DateTime.UtcNow.AddDays(30),
+            now.AddMinutes(AccessTokenLifetimeMinutes),
             isNewAccount);
     }
 
@@ -1445,6 +1584,15 @@ internal sealed class CustomerAuthService(
             .ToArray();
 
         return new string(chars);
+    }
+
+    private static string GenerateRefreshToken()
+    {
+        return Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+            .Replace("+", string.Empty, StringComparison.Ordinal)
+            .Replace("/", string.Empty, StringComparison.Ordinal)
+            .Replace("=", string.Empty, StringComparison.Ordinal)
+            + Guid.NewGuid().ToString("N");
     }
 
 }

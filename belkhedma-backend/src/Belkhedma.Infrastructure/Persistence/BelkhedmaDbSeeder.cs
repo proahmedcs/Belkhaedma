@@ -806,6 +806,35 @@ public static class BelkhedmaDbSeeder
             customer.UpdatedAtUtc = now;
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        // Seed a deterministic refresh token for test/dev compatibility.
+        var existingSession = await dbContext.CustomerAuthSessions
+            .FirstOrDefaultAsync(x => x.RefreshToken == "demo-refresh-token-123456", cancellationToken);
+        if (existingSession is null)
+        {
+            await dbContext.CustomerAuthSessions.AddAsync(new CustomerAuthSession
+            {
+                CustomerAccountId = customer.Id,
+                RefreshToken = "demo-refresh-token-123456",
+                CreatedAtUtc = now,
+                LastUsedAtUtc = now,
+                ExpiresAtUtc = now.AddDays(30),
+                IsRevoked = false,
+                RevokedAtUtc = null,
+                ReplacedByRefreshToken = null
+            }, cancellationToken);
+        }
+        else
+        {
+            existingSession.CustomerAccountId = customer.Id;
+            existingSession.LastUsedAtUtc = now;
+            existingSession.ExpiresAtUtc = now.AddDays(30);
+            existingSession.IsRevoked = false;
+            existingSession.RevokedAtUtc = null;
+            existingSession.ReplacedByRefreshToken = null;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static async Task SeedDemoOffersAndPriceSnapshotsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
