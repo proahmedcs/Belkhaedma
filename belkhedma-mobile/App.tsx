@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   Linking,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -622,6 +623,8 @@ function getServiceGroupIcon(group: ServiceGroup): string {
 }
 
 export default function App() {
+  const { width: viewportWidth } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && viewportWidth >= 768;
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentCustomer, setCurrentCustomer] = useState<CustomerProfile | null>(null);
   const [customerFullName, setCustomerFullName] = useState<string>("");
@@ -1679,7 +1682,14 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
-      <ScrollView style={styles.pageScroll} contentContainerStyle={[styles.page, styles.pageWithBottomMenu]}>
+      <ScrollView
+        style={styles.pageScroll}
+        contentContainerStyle={[
+          styles.page,
+          styles.pageWithBottomMenu,
+          isDesktopWeb ? styles.pageWithDesktopBottomMenu : null,
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.topUtilityRow}>
             <TouchableOpacity style={styles.locationPill} onPress={openLocationChooser}>
@@ -2618,7 +2628,7 @@ export default function App() {
           </View>
         ) : null}
       </ScrollView>
-      <View style={styles.bottomMenuBar}>
+      <View style={[styles.bottomMenuBar, isDesktopWeb ? styles.bottomMenuBarDesktop : null]}>
         {BOTTOM_MENU_ITEMS.map((menuItem) => {
           const isActive = activePrimaryMenu === menuItem.key;
           return (
@@ -2647,7 +2657,10 @@ const styles = StyleSheet.create({
   },
   page: { paddingBottom: Brand.spacing.lg, backgroundColor: Brand.colors.background },
   pageWithBottomMenu: {
-    paddingBottom: 146,
+    paddingBottom: 170,
+  },
+  pageWithDesktopBottomMenu: {
+    paddingBottom: 120,
   },
   bottomMenuBar: {
     position: "absolute",
@@ -2671,7 +2684,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     elevation: 8,
     zIndex: 20,
+    maxWidth: 920,
+    alignSelf: "center",
   },
+  bottomMenuBarDesktop: {
+    position: "fixed",
+  } as any,
   bottomMenuButton: {
     flex: 1,
     alignItems: "center",
