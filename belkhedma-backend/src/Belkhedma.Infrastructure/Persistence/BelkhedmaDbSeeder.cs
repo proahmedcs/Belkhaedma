@@ -681,23 +681,23 @@ public static class BelkhedmaDbSeeder
         {
             new()
             {
-                Code = "mediation-campaign",
-                CompanyNameAr = "بالخدمة",
-                CompanyNameEn = "Belkhedma",
-                TitleAr = "خدمة التوسط",
-                TitleEn = "Mediation Service",
-                SubtitleAr = "جسر ثقة.. يوصلك بالكفاءات",
-                SubtitleEn = "Bridge trust and connect with top professionals.",
-                ImageUrl = "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1280&q=80",
-                TargetUrl = "https://belkhedma.example.com/promotions/mediation",
-                DeepLink = "belkhedma://promotions/mediation",
+                Code = "tamkeen-hourly-slider",
+                CompanyNameAr = "تمكين",
+                CompanyNameEn = "Tamkeen",
+                TitleAr = "تنظيف بالساعة من تمكين",
+                TitleEn = "Tamkeen Hourly Cleaning",
+                SubtitleAr = "كوادر منزلية مدربة وحجز سريع",
+                SubtitleEn = "Trained domestic staff with fast booking.",
+                ImageUrl = "https://www.tamkeenhr.sa/_astro/medium_Banner_hourly_7492672ab9_ZdSyNi.webp",
+                TargetUrl = "https://www.tamkeenhr.sa/service-hour",
+                DeepLink = "belkhedma://promotions/tamkeen-hourly",
                 ItemsJson = JsonSerializer.Serialize(new[]
                 {
-                    "Trusted providers",
-                    "Fast approvals",
-                    "Lead + contract support"
+                    "Hourly cleaning",
+                    "Fast booking",
+                    "Licensed provider"
                 }),
-                ProviderCode = "wasata",
+                ProviderCode = "tamkeen",
                 DisplayOrder = 1,
                 IsActive = true,
                 CreatedAtUtc = now,
@@ -705,23 +705,23 @@ public static class BelkhedmaDbSeeder
             },
             new()
             {
-                Code = "medical-home-visit",
-                CompanyNameAr = "عناية",
-                CompanyNameEn = "Enaya",
-                TitleAr = "خصم الزيارة الطبية المنزلية",
-                TitleEn = "Medical Home Visit Discount",
-                SubtitleAr = "عروض موسمية على باقات التمريض المنزلي",
-                SubtitleEn = "Get seasonal offers on home nursing packages.",
-                ImageUrl = "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1280&q=80",
-                TargetUrl = "https://belkhedma.example.com/promotions/medical",
-                DeepLink = "belkhedma://promotions/medical",
+                Code = "tamkeen-resident-slider",
+                CompanyNameAr = "تمكين",
+                CompanyNameEn = "Tamkeen",
+                TitleAr = "خدمات مقيمة من تمكين",
+                TitleEn = "Tamkeen Resident Services",
+                SubtitleAr = "حلول شهرية للإقامة وخدمات المنزل",
+                SubtitleEn = "Monthly resident solutions for households.",
+                ImageUrl = "https://www.tamkeenhr.sa/_astro/medium_Banner_Ass_cleaner_c12ce5c50c_Z38BLb.webp",
+                TargetUrl = "https://www.tamkeenhr.sa/service-resident",
+                DeepLink = "belkhedma://promotions/tamkeen-resident",
                 ItemsJson = JsonSerializer.Serialize(new[]
                 {
-                    "Nursing at home",
-                    "Doctor follow-up",
-                    "Discounted seasonal prices"
+                    "Resident packages",
+                    "Monthly contracts",
+                    "Flexible service"
                 }),
-                ProviderCode = "enaya",
+                ProviderCode = "tamkeen",
                 DisplayOrder = 2,
                 IsActive = true,
                 CreatedAtUtc = now,
@@ -729,24 +729,96 @@ public static class BelkhedmaDbSeeder
             },
             new()
             {
-                Code = "monthly-package-campaign",
-                CompanyNameAr = "تمكين",
-                CompanyNameEn = "Tamkeen",
-                TitleAr = "حملة الباقات الشهرية",
-                TitleEn = "Monthly Package Campaign",
-                SubtitleAr = "أفضل الخطط الشهرية من عدة مزودين",
-                SubtitleEn = "Best monthly plans from multiple providers.",
-                ImageUrl = "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1280&q=80",
-                TargetUrl = "https://belkhedma.example.com/promotions/monthly",
-                DeepLink = "belkhedma://promotions/monthly",
+                Code = "mueen-main-banner",
+                CompanyNameAr = "معين",
+                CompanyNameEn = "Mueen",
+                TitleAr = "عروض معين للخدمات المنزلية",
+                TitleEn = "Mueen Home Services Offers",
+                SubtitleAr = "خدمات منزلية متنوعة للأفراد والشركات",
+                SubtitleEn = "Diverse on-demand services for home and business.",
+                ImageUrl = "https://www.mueen.com.sa/uploads/banners/Mueen_banner.png",
+                TargetUrl = "https://www.mueen.com.sa/",
+                DeepLink = "belkhedma://promotions/mueen-home",
                 ItemsJson = JsonSerializer.Serialize(new[]
                 {
-                    "1/3/6 months plans",
-                    "Compare providers",
-                    "Transparent contract terms"
+                    "On-demand labor",
+                    "Multiple sectors",
+                    "Nationwide branches"
                 }),
-                ProviderCode = "tamkeen",
+                ProviderCode = "mueen",
                 DisplayOrder = 3,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "mueen-featured-banner",
+                CompanyNameAr = "معين",
+                CompanyNameEn = "Mueen",
+                TitleAr = "خدمة فورية من معين",
+                TitleEn = "Featured Mueen Campaign",
+                SubtitleAr = "احجز بسرعة عبر منصة معين",
+                SubtitleEn = "Book quickly through Mueen platform.",
+                ImageUrl = "https://www.mueen.com.sa/uploads/banners/Z62_3957_new.png",
+                TargetUrl = "https://www.mueen.com.sa/en/on-demand-services",
+                DeepLink = "belkhedma://promotions/mueen-featured",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Quick booking",
+                    "Reliable workers",
+                    "Service flexibility"
+                }),
+                ProviderCode = "mueen",
+                DisplayOrder = 4,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "emdad-fawran-app",
+                CompanyNameAr = "إمداد",
+                CompanyNameEn = "Emdad",
+                TitleAr = "فوراً من إمداد",
+                TitleEn = "Emdad Fawran",
+                SubtitleAr = "حلول مرنة وفورية للعمالة المنزلية",
+                SubtitleEn = "Flexible and instant domestic labor solutions.",
+                ImageUrl = "https://emdadhr.com:8020//media/0u5beaal/app2.png",
+                TargetUrl = "https://emdadhr.com/#/fawran",
+                DeepLink = "belkhedma://promotions/emdad-fawran",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Instant services",
+                    "Domestic workers",
+                    "Digital booking journey"
+                }),
+                ProviderCode = "emdad-hr",
+                DisplayOrder = 5,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "almutahidah-main-card",
+                CompanyNameAr = "الشركة المتحدة",
+                CompanyNameEn = "Almutahidah",
+                TitleAr = "بطاقة الخدمة الرئيسية",
+                TitleEn = "Almutahidah Main Service Card",
+                SubtitleAr = "استعرض خدمات الشركة المتحدة بسهولة",
+                SubtitleEn = "Explore Almutahidah services easily.",
+                ImageUrl = "https://almutahidah.com/assets/images/dynamic/main-card-bg-image.svg",
+                TargetUrl = "https://almutahidah.com/home",
+                DeepLink = "belkhedma://promotions/almutahidah-main",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Main dashboard offer",
+                    "Domestic services",
+                    "Easy navigation"
+                }),
+                ProviderCode = "almutahidah",
+                DisplayOrder = 6,
                 IsActive = true,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
