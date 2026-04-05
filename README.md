@@ -45,6 +45,7 @@ npm run start
 If services are already running on the standard desktop ports used in this workspace:
 
 - Mobile web app: `http://127.0.0.1:8090`
+- Backend admin dashboard: `http://127.0.0.1:5278/admin/`
 - Backend admin (home promotions): `http://127.0.0.1:5278/admin/home-promotions.html`
 
 You can print both URLs quickly with:
