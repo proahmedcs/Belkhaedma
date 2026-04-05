@@ -747,6 +747,8 @@ export default function App() {
   const [resultsShiftFilter, setResultsShiftFilter] = useState<string | null>(null);
   const [resultsContractDurationFilter, setResultsContractDurationFilter] = useState<string | null>(null);
   const [resultsHoursFilter, setResultsHoursFilter] = useState<number | null>(null);
+  const [resultsNationalityFilter, setResultsNationalityFilter] = useState<string | null>(null);
+  const [resultsWeeklyVisitsFilter, setResultsWeeklyVisitsFilter] = useState<number | null>(null);
   const [activePrimaryMenu, setActivePrimaryMenu] = useState<PrimaryMenuKey>("main");
   const [activeSecondaryMenu, setActiveSecondaryMenu] = useState<string>("overview");
   const [notificationCount] = useState<number>(3);
@@ -973,6 +975,21 @@ export default function App() {
 
     return extractJsonDrivenOptions(scopedDocs.length > 0 ? scopedDocs : jsonDocuments);
   }, [jsonDocuments, selectedGroup, selectedProvider]);
+  const providerJsonOptionsByCode = useMemo(() => {
+    const groupedDocs = new Map<string, ProviderJsonDocument[]>();
+    for (const doc of jsonDocuments) {
+      if (!doc.providerCode) continue;
+      const key = normalizeText(doc.providerCode);
+      const existing = groupedDocs.get(key) ?? [];
+      existing.push(doc);
+      groupedDocs.set(key, existing);
+    }
+
+    return Array.from(groupedDocs.entries()).reduce<Record<string, JsonDrivenOptions>>((acc, [providerCode, docs]) => {
+      acc[providerCode] = extractJsonDrivenOptions(docs);
+      return acc;
+    }, {});
+  }, [jsonDocuments]);
 
   const shiftOptions = useMemo(() => {
     const fromAttributes = toStringOptions(optionSetByAttributeKey.shift ?? [], languageMode);
@@ -1318,6 +1335,11 @@ export default function App() {
     });
   }, [selectedServiceMode, wegoStyleRows]);
   const resultsRows = useMemo(() => {
+    const includesText = (values: string[], target: string): boolean => {
+      const normalizedTarget = normalizeText(target);
+      return values.some((value) => normalizeText(value) === normalizedTarget);
+    };
+
     const rows = serviceModeFilteredRows.filter(({ price, provider, offer }) => {
       const sourceLabel = price.id.startsWith("synthetic-price-")
         ? "demo"
@@ -1327,13 +1349,39 @@ export default function App() {
       if (resultsSourceFilter !== "all" && sourceLabel !== resultsSourceFilter) {
         return false;
       }
-      if (resultsShiftFilter && selectedShift && selectedShift !== resultsShiftFilter) {
+      const providerJsonOptions = provider?.code ? providerJsonOptionsByCode[normalizeText(provider.code)] : undefined;
+      const providerShiftOptions = providerJsonOptions?.shifts ?? [];
+      if (resultsShiftFilter && providerShiftOptions.length > 0 && !includesText(providerShiftOptions, resultsShiftFilter)) {
         return false;
       }
-      if (resultsContractDurationFilter && selectedContractDurationName && selectedContractDurationName !== resultsContractDurationFilter) {
-        return false;
+      if (resultsContractDurationFilter) {
+        const selectedDurationMonths = parseDurationToMonths(resultsContractDurationFilter);
+        const offerDurationMonths = parseDurationToMonths(`${offer?.nameEn ?? ""} ${offer?.nameAr ?? ""}`);
+        if (selectedDurationMonths && offerDurationMonths && selectedDurationMonths !== offerDurationMonths) {
+          return false;
+        }
       }
-      if (resultsHoursFilter && selectedHoursPerVisit && selectedHoursPerVisit !== resultsHoursFilter) {
+      if (resultsHoursFilter != null) {
+        const combinedHourOptions = Array.from(
+          new Set([...(offer?.hourOptions ?? []), ...(providerJsonOptions?.hoursPerVisit ?? [])].filter((value) => value > 0))
+        );
+        if (combinedHourOptions.length > 0 && !combinedHourOptions.includes(resultsHoursFilter)) {
+          return false;
+        }
+      }
+      if (resultsNationalityFilter) {
+        const combinedNationalityOptions = [...(offer?.nationalityOptions ?? []), ...(providerJsonOptions?.nationalityGroups ?? [])];
+        if (combinedNationalityOptions.length > 0 && !includesText(combinedNationalityOptions, resultsNationalityFilter)) {
+          return false;
+        }
+      }
+      if (resultsWeeklyVisitsFilter != null) {
+        const weeklyVisitOptions = providerJsonOptions?.weeklyVisits ?? [];
+        if (weeklyVisitOptions.length > 0 && !weeklyVisitOptions.includes(resultsWeeklyVisitsFilter)) {
+          return false;
+        }
+      }
+      if (resultsShiftFilter && selectedShift && !providerShiftOptions.length && selectedShift !== resultsShiftFilter) {
         return false;
       }
       return true;
@@ -1349,9 +1397,12 @@ export default function App() {
   }, [
     resultsContractDurationFilter,
     resultsHoursFilter,
+    resultsNationalityFilter,
     resultsShiftFilter,
     resultsSortMode,
     resultsSourceFilter,
+    resultsWeeklyVisitsFilter,
+    providerJsonOptionsByCode,
     selectedContractDurationName,
     selectedHoursPerVisit,
     selectedShift,
@@ -1364,13 +1415,17 @@ export default function App() {
     if (resultsShiftFilter) count += 1;
     if (resultsContractDurationFilter) count += 1;
     if (resultsHoursFilter) count += 1;
+    if (resultsNationalityFilter) count += 1;
+    if (resultsWeeklyVisitsFilter != null) count += 1;
     return count;
   }, [
     resultsContractDurationFilter,
     resultsHoursFilter,
+    resultsNationalityFilter,
     resultsShiftFilter,
     resultsSortMode,
     resultsSourceFilter,
+    resultsWeeklyVisitsFilter,
   ]);
 
   const loadData = async (
@@ -2719,6 +2774,8 @@ export default function App() {
                       setResultsShiftFilter(null);
                       setResultsContractDurationFilter(null);
                       setResultsHoursFilter(null);
+                      setResultsNationalityFilter(null);
+                      setResultsWeeklyVisitsFilter(null);
                     }}
                   >
                     <Text style={styles.filterToggleText}>{languageMode === "ar" ? "إعادة ضبط" : "Reset"}</Text>
@@ -2760,6 +2817,136 @@ export default function App() {
                     </TouchableOpacity>
                   ))}
                 </View>
+                {effectiveShiftOptions.length > 0 ? (
+                  <>
+                    <Text style={styles.fieldHint}>{languageMode === "ar" ? "الفترة" : "Shift"}</Text>
+                    <View style={styles.rowWrap}>
+                      <TouchableOpacity
+                        style={[styles.chip, !resultsShiftFilter && styles.chipActive]}
+                        onPress={() => setResultsShiftFilter(null)}
+                      >
+                        <Text style={[styles.chipText, !resultsShiftFilter && styles.chipTextActive]}>
+                          {languageMode === "ar" ? "الكل" : "All"}
+                        </Text>
+                      </TouchableOpacity>
+                      {effectiveShiftOptions.map((item) => (
+                        <TouchableOpacity
+                          key={`wego-shift-${item}`}
+                          style={[styles.chip, resultsShiftFilter === item && styles.chipActive]}
+                          onPress={() => setResultsShiftFilter(item)}
+                        >
+                          <Text style={[styles.chipText, resultsShiftFilter === item && styles.chipTextActive]}>
+                            {item}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+                {nationalityOptions.length > 0 ? (
+                  <>
+                    <Text style={styles.fieldHint}>{languageMode === "ar" ? "الجنسية" : "Nationality"}</Text>
+                    <View style={styles.rowWrap}>
+                      <TouchableOpacity
+                        style={[styles.chip, !resultsNationalityFilter && styles.chipActive]}
+                        onPress={() => setResultsNationalityFilter(null)}
+                      >
+                        <Text style={[styles.chipText, !resultsNationalityFilter && styles.chipTextActive]}>
+                          {languageMode === "ar" ? "الكل" : "All"}
+                        </Text>
+                      </TouchableOpacity>
+                      {nationalityOptions.map((item) => (
+                        <TouchableOpacity
+                          key={`wego-nationality-${item}`}
+                          style={[styles.chip, resultsNationalityFilter === item && styles.chipActive]}
+                          onPress={() => setResultsNationalityFilter(item)}
+                        >
+                          <Text style={[styles.chipText, resultsNationalityFilter === item && styles.chipTextActive]}>
+                            {item}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+                {hoursPerVisitOptions.length > 0 ? (
+                  <>
+                    <Text style={styles.fieldHint}>{languageMode === "ar" ? "عدد الساعات لكل زيارة" : "Hours per Visit"}</Text>
+                    <View style={styles.rowWrap}>
+                      <TouchableOpacity
+                        style={[styles.chip, resultsHoursFilter == null && styles.chipActive]}
+                        onPress={() => setResultsHoursFilter(null)}
+                      >
+                        <Text style={[styles.chipText, resultsHoursFilter == null && styles.chipTextActive]}>
+                          {languageMode === "ar" ? "الكل" : "All"}
+                        </Text>
+                      </TouchableOpacity>
+                      {hoursPerVisitOptions.map((item) => (
+                        <TouchableOpacity
+                          key={`wego-hours-${item}`}
+                          style={[styles.chip, resultsHoursFilter === item && styles.chipActive]}
+                          onPress={() => setResultsHoursFilter(item)}
+                        >
+                          <Text style={[styles.chipText, resultsHoursFilter === item && styles.chipTextActive]}>
+                            {item}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+                {weeklyVisitOptions.length > 0 ? (
+                  <>
+                    <Text style={styles.fieldHint}>{languageMode === "ar" ? "عدد الزيارات الأسبوعية" : "Weekly Visits"}</Text>
+                    <View style={styles.rowWrap}>
+                      <TouchableOpacity
+                        style={[styles.chip, resultsWeeklyVisitsFilter == null && styles.chipActive]}
+                        onPress={() => setResultsWeeklyVisitsFilter(null)}
+                      >
+                        <Text style={[styles.chipText, resultsWeeklyVisitsFilter == null && styles.chipTextActive]}>
+                          {languageMode === "ar" ? "الكل" : "All"}
+                        </Text>
+                      </TouchableOpacity>
+                      {weeklyVisitOptions.map((item) => (
+                        <TouchableOpacity
+                          key={`wego-visits-${item}`}
+                          style={[styles.chip, resultsWeeklyVisitsFilter === item && styles.chipActive]}
+                          onPress={() => setResultsWeeklyVisitsFilter(item)}
+                        >
+                          <Text style={[styles.chipText, resultsWeeklyVisitsFilter === item && styles.chipTextActive]}>
+                            {item}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+                {contractDurationNameOptions.length > 0 ? (
+                  <>
+                    <Text style={styles.fieldHint}>{languageMode === "ar" ? "مدة التعاقد" : "Contract Duration"}</Text>
+                    <View style={styles.rowWrap}>
+                      <TouchableOpacity
+                        style={[styles.chip, !resultsContractDurationFilter && styles.chipActive]}
+                        onPress={() => setResultsContractDurationFilter(null)}
+                      >
+                        <Text style={[styles.chipText, !resultsContractDurationFilter && styles.chipTextActive]}>
+                          {languageMode === "ar" ? "الكل" : "All"}
+                        </Text>
+                      </TouchableOpacity>
+                      {contractDurationNameOptions.map((item) => (
+                        <TouchableOpacity
+                          key={`wego-duration-${item}`}
+                          style={[styles.chip, resultsContractDurationFilter === item && styles.chipActive]}
+                          onPress={() => setResultsContractDurationFilter(item)}
+                        >
+                          <Text style={[styles.chipText, resultsContractDurationFilter === item && styles.chipTextActive]}>
+                            {item}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
               </View>
             ) : null}
 
