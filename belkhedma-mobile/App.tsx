@@ -437,13 +437,6 @@ function parseDurationToMonths(value: string): number | null {
   return null;
 }
 
-function inferOfferHours(offer?: ServiceOffer | null): number | null {
-  if (!offer) return null;
-  const source = `${offer.nameEn} ${offer.nameAr}`;
-  const numbers = extractNumbersByRegex(source, /\d+\s*(hour|hours|ساعة|ساعات)/gi);
-  return numbers[0] ?? null;
-}
-
 function extractJsonDrivenOptions(docs: ProviderJsonDocument[]): JsonDrivenOptions {
   const shifts = new Set<string>();
   const nationalityGroups = new Set<string>();
@@ -802,6 +795,15 @@ export default function App() {
   const hourlyOptions = useMemo(() => {
     const values = new Set<number>();
     for (const offer of groupFilteredOffers) {
+      if (offer.hourOptions?.length) {
+        offer.hourOptions.forEach((n) => {
+          if (Number.isFinite(n) && n > 0) {
+            values.add(n);
+          }
+        });
+        continue;
+      }
+
       const source = `${offer.nameEn} ${offer.nameAr}`;
       extractNumbersByRegex(source, /\d+\s*(hour|hours|ساعة|ساعات)/gi).forEach((n) => values.add(n));
     }
@@ -880,9 +882,23 @@ export default function App() {
   }, [jsonDrivenOptions.shifts]);
 
   const nationalityOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const offer of groupFilteredOffers) {
+      for (const nationality of offer.nationalityOptions ?? []) {
+        const trimmed = nationality.trim();
+        if (trimmed) {
+          values.add(trimmed);
+        }
+      }
+    }
+
+    if (values.size > 0) {
+      return Array.from(values);
+    }
+
     if (jsonDrivenOptions.nationalityGroups.length > 0) return jsonDrivenOptions.nationalityGroups;
     return ["Africa", "Philippines", "Indonesia"];
-  }, [jsonDrivenOptions.nationalityGroups]);
+  }, [groupFilteredOffers, jsonDrivenOptions.nationalityGroups]);
 
   const contractDurationNameOptions = useMemo(() => {
     if (jsonDrivenOptions.contractDurations.length > 0) return jsonDrivenOptions.contractDurations;

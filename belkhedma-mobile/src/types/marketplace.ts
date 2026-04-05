@@ -37,6 +37,8 @@ export type ServiceOffer = {
   serviceMode: number;
   nameAr: string;
   nameEn: string;
+  hourOptions: number[];
+  nationalityOptions: string[];
   isAvailable: boolean;
   updatedAtUtc: string;
 };
