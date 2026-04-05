@@ -1746,6 +1746,7 @@ export default function App() {
   }, [languageMode, wizardStep]);
   const isPromotionsMenu = activePrimaryMenu === "promotions";
   const isProfileMenu = activePrimaryMenu === "account";
+  const isArabic = languageMode === "ar";
   const shouldShowWizardHeader = wizardStep > 0 || hasChosenServiceAndSubservice;
   const allPromotionsTitle = languageMode === "ar" ? "كل العروض" : "All Promotions";
   const emptyPromotionsText =
@@ -2649,40 +2650,57 @@ export default function App() {
 
         {isProfileMenu ? (
           <View style={styles.settingsCard}>
-            <Text style={styles.sectionTitle}>{languageMode === "ar" ? "الإعدادات" : "Settings"}</Text>
+            <Text style={[styles.sectionTitle, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+              {languageMode === "ar" ? "الإعدادات" : "Settings"}
+            </Text>
             <View style={styles.settingsSection}>
-              <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "حسابي" : "Account"}</Text>
-              <TouchableOpacity style={styles.settingsRow} onPress={goToHomeFromProfile}>
-                <View style={styles.settingsRowRight}>
-                  <Text style={styles.settingsRowIcon}>🏠</Text>
-                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "الرئيسية" : "Home"}</Text>
+              <Text style={[styles.settingsSectionTitle, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                {languageMode === "ar" ? "حسابي" : "Account"}
+              </Text>
+              <TouchableOpacity
+                style={[styles.settingsRow, isArabic ? styles.settingsRowRtl : styles.settingsRowLtr]}
+                onPress={goToHomeFromProfile}
+              >
+                <View style={[styles.settingsRowRight, isArabic ? styles.settingsRowRightRtl : null]}>
+                  <Text style={[styles.settingsRowIcon, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>🏠</Text>
+                  <Text style={[styles.settingsRowLabel, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                    {languageMode === "ar" ? "الرئيسية" : "Home"}
+                  </Text>
                 </View>
-                <Text style={styles.settingsRowChevron}>›</Text>
+                <Text style={styles.settingsRowChevron}>{isArabic ? "‹" : "›"}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.settingsRow}>
-                <View style={styles.settingsRowRight}>
-                  <Text style={styles.settingsRowIcon}>👤</Text>
-                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "ملفي الشخصي" : "Profile"}</Text>
+              <TouchableOpacity style={[styles.settingsRow, isArabic ? styles.settingsRowRtl : styles.settingsRowLtr]}>
+                <View style={[styles.settingsRowRight, isArabic ? styles.settingsRowRightRtl : null]}>
+                  <Text style={[styles.settingsRowIcon, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>👤</Text>
+                  <Text style={[styles.settingsRowLabel, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                    {languageMode === "ar" ? "ملفي الشخصي" : "Profile"}
+                  </Text>
                 </View>
-                <Text style={styles.settingsRowChevron}>›</Text>
+                <Text style={styles.settingsRowChevron}>{isArabic ? "‹" : "›"}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.settingsRow}>
-                <View style={styles.settingsRowRight}>
-                  <Text style={styles.settingsRowIcon}>♡</Text>
-                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "تفضيلاتي" : "Preferences"}</Text>
+              <TouchableOpacity style={[styles.settingsRow, isArabic ? styles.settingsRowRtl : styles.settingsRowLtr]}>
+                <View style={[styles.settingsRowRight, isArabic ? styles.settingsRowRightRtl : null]}>
+                  <Text style={[styles.settingsRowIcon, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>♡</Text>
+                  <Text style={[styles.settingsRowLabel, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                    {languageMode === "ar" ? "تفضيلاتي" : "Preferences"}
+                  </Text>
                 </View>
-                <Text style={styles.settingsRowChevron}>›</Text>
+                <Text style={styles.settingsRowChevron}>{isArabic ? "‹" : "›"}</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.settingsSection}>
-              <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "التفضيلات" : "Preferences"}</Text>
-              <View style={styles.settingsRow}>
-                <View style={styles.settingsRowRight}>
-                  <Text style={styles.settingsRowIcon}>🌐</Text>
-                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "اللغة" : "Language"}</Text>
+              <Text style={[styles.settingsSectionTitle, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                {languageMode === "ar" ? "التفضيلات" : "Preferences"}
+              </Text>
+              <View style={[styles.settingsRow, isArabic ? styles.settingsRowRtl : styles.settingsRowLtr]}>
+                <View style={[styles.settingsRowRight, isArabic ? styles.settingsRowRightRtl : null]}>
+                  <Text style={[styles.settingsRowIcon, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>🌐</Text>
+                  <Text style={[styles.settingsRowLabel, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                    {languageMode === "ar" ? "اللغة" : "Language"}
+                  </Text>
                 </View>
-                <View style={styles.settingsLangRow}>
+                <View style={[styles.settingsLangRow, isArabic ? styles.settingsLangRowRtl : null]}>
                   <TouchableOpacity
                     style={[styles.settingsLangButton, languageMode === "en" && styles.settingsLangButtonActive]}
                     onPress={() => setLanguageMode("en")}
@@ -2697,23 +2715,29 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
               </View>
-              <TouchableOpacity style={styles.settingsRow}>
-                <View style={styles.settingsRowRight}>
-                  <Text style={styles.settingsRowIcon}>🔔</Text>
-                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "الإشعارات" : "Notifications"}</Text>
+              <TouchableOpacity style={[styles.settingsRow, isArabic ? styles.settingsRowRtl : styles.settingsRowLtr]}>
+                <View style={[styles.settingsRowRight, isArabic ? styles.settingsRowRightRtl : null]}>
+                  <Text style={[styles.settingsRowIcon, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>🔔</Text>
+                  <Text style={[styles.settingsRowLabel, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                    {languageMode === "ar" ? "الإشعارات" : "Notifications"}
+                  </Text>
                 </View>
-                <Text style={styles.settingsRowChevron}>›</Text>
+                <Text style={styles.settingsRowChevron}>{isArabic ? "‹" : "›"}</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.settingsSection}>
-              <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "أخرى" : "More"}</Text>
-              <TouchableOpacity style={styles.settingsRow}>
-                <View style={styles.settingsRowRight}>
-                  <Text style={styles.settingsRowIcon}>❓</Text>
-                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "المساعدة والدعم" : "Help & Support"}</Text>
+              <Text style={[styles.settingsSectionTitle, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                {languageMode === "ar" ? "أخرى" : "More"}
+              </Text>
+              <TouchableOpacity style={[styles.settingsRow, isArabic ? styles.settingsRowRtl : styles.settingsRowLtr]}>
+                <View style={[styles.settingsRowRight, isArabic ? styles.settingsRowRightRtl : null]}>
+                  <Text style={[styles.settingsRowIcon, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>❓</Text>
+                  <Text style={[styles.settingsRowLabel, isArabic ? styles.settingsTextRtl : styles.settingsTextLtr]}>
+                    {languageMode === "ar" ? "المساعدة والدعم" : "Help & Support"}
+                  </Text>
                 </View>
-                <Text style={styles.settingsRowChevron}>›</Text>
+                <Text style={styles.settingsRowChevron}>{isArabic ? "‹" : "›"}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3237,6 +3261,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  settingsLangRowRtl: {
+    flexDirection: "row-reverse",
+  },
   settingsLangButton: {
     borderWidth: 1,
     borderColor: Brand.colors.border,
@@ -3277,6 +3304,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
   },
+  settingsRowLtr: {
+    flexDirection: "row",
+  },
+  settingsRowRtl: {
+    flexDirection: "row-reverse",
+  },
   settingsListCard: {
     marginHorizontal: Brand.spacing.md,
     marginTop: 10,
@@ -3313,7 +3346,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
+  },
+  settingsRowRightRtl: {
+    flexDirection: "row-reverse",
+    justifyContent: "flex-start",
   },
   settingsRowChevron: {
     color: "#C5CAD3",
@@ -3337,6 +3374,12 @@ const styles = StyleSheet.create({
     color: Brand.colors.textPrimary,
     fontSize: 20,
     fontWeight: "800",
+  },
+  settingsTextLtr: {
+    textAlign: "left",
+  },
+  settingsTextRtl: {
+    textAlign: "right",
   },
   settingsRowValue: {
     color: "#2563EB",
