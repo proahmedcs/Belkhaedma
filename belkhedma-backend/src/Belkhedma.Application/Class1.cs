@@ -103,6 +103,41 @@ public sealed record CustomerProfileDto(
     string FullName,
     string MobileNumber);
 
+public sealed record HomePromotionDto(
+    Guid Id,
+    string Code,
+    string CompanyNameAr,
+    string CompanyNameEn,
+    string TitleAr,
+    string TitleEn,
+    string SubtitleAr,
+    string SubtitleEn,
+    string ImageUrl,
+    string? TargetUrl,
+    string? DeepLink,
+    IReadOnlyList<string> Items,
+    string? ProviderCode,
+    int DisplayOrder,
+    bool IsActive,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);
+
+public sealed record CreateOrUpdateHomePromotionRequest(
+    string? Code,
+    string CompanyNameAr,
+    string CompanyNameEn,
+    string TitleAr,
+    string TitleEn,
+    string SubtitleAr,
+    string SubtitleEn,
+    string ImageUrl,
+    string? TargetUrl,
+    string? DeepLink,
+    IReadOnlyList<string>? Items,
+    string? ProviderCode,
+    int DisplayOrder,
+    bool IsActive);
+
 public interface IMarketplaceQueryService
 {
     Task<IReadOnlyList<ProviderDto>> GetProvidersAsync(CancellationToken cancellationToken = default);
@@ -121,6 +156,9 @@ public interface IMarketplaceQueryService
         CancellationToken cancellationToken = default);
     Task<CustomerProfileDto?> GetCustomerProfileByTokenAsync(
         string authToken,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<HomePromotionDto>> GetHomePromotionsAsync(
+        bool includeInactive = false,
         CancellationToken cancellationToken = default);
 }
 
@@ -143,4 +181,12 @@ public interface IMarketplaceAdminService
     Task<int> SetPriceExpirationAsync(Guid priceSnapshotId, DateTime? expiresAtUtc, CancellationToken cancellationToken = default);
     Task<int> SetJsonDocumentsExpirationBulkAsync(string? providerCode, DateTime? expiresAtUtc, CancellationToken cancellationToken = default);
     Task<int> SetJsonDocumentExpirationAsync(Guid documentId, DateTime? expiresAtUtc, CancellationToken cancellationToken = default);
+    Task<HomePromotionDto> CreateHomePromotionAsync(
+        CreateOrUpdateHomePromotionRequest request,
+        CancellationToken cancellationToken = default);
+    Task<HomePromotionDto?> UpdateHomePromotionAsync(
+        Guid promotionId,
+        CreateOrUpdateHomePromotionRequest request,
+        CancellationToken cancellationToken = default);
+    Task<bool> DeleteHomePromotionAsync(Guid promotionId, CancellationToken cancellationToken = default);
 }

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Belkhedma Admin - Home Promotions</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #102a43;
+      --muted: #5c6f82;
+      --primary: #0f766e;
+      --danger: #b42318;
+      --border: #d8e1eb;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: Inter, "Segoe UI", Tahoma, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 24px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(16, 42, 67, 0.06);
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .muted {
+      color: var(--muted);
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+    }
+
+    button.secondary {
+      background: #475467;
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      padding: 10px 8px;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      background: #f7fafc;
+    }
+
+    .thumb {
+      width: 110px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #e9eef5;
+    }
+
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Home Promotions Control Panel</h1>
+      <p class="muted">Manage slider photos, items, target URL, and deeplink for the mobile home screen.</p>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Add Promotion</h2>
+      <div class="grid">
+        <div>
+          <label>Company Name (Arabic)</label>
+          <input id="companyNameAr" />
+        </div>
+        <div>
+          <label>Company Name (English)</label>
+          <input id="companyNameEn" />
+        </div>
+
+        <div>
+          <label>Title (Arabic)</label>
+          <input id="titleAr" />
+        </div>
+        <div>
+          <label>Title (English)</label>
+          <input id="titleEn" />
+        </div>
+
+        <div>
+          <label>Subtitle (Arabic)</label>
+          <input id="subtitleAr" />
+        </div>
+        <div>
+          <label>Subtitle (English)</label>
+          <input id="subtitleEn" />
+        </div>
+
+        <div class="full">
+          <label>Image URL</label>
+          <input id="imageUrl" placeholder="https://..." />
+        </div>
+
+        <div>
+          <label>Target Link (HTTP URL)</label>
+          <input id="targetUrl" placeholder="https://..." />
+        </div>
+        <div>
+          <label>Deep Link</label>
+          <input id="deepLink" placeholder="belkhedma://promotions/..." />
+        </div>
+
+        <div>
+          <label>Provider Code (optional)</label>
+          <input id="providerCode" />
+        </div>
+        <div>
+          <label>Display Order</label>
+          <input id="displayOrder" type="number" min="0" value="1" />
+        </div>
+
+        <div class="full">
+          <label>Items (one per line)</label>
+          <textarea id="items"></textarea>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <label style="display:flex;align-items:center;gap:8px;margin:0;">
+          <input id="isActive" type="checkbox" checked style="width:auto;" />
+          Active
+        </label>
+        <button id="saveBtn">Save Promotion</button>
+        <button class="secondary" id="cancelEditBtn" style="display:none;">Cancel Edit</button>
+        <button class="secondary" id="refreshBtn">Refresh List</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Existing Promotions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Preview</th>
+            <th>Title</th>
+            <th>Links</th>
+            <th>Items</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const rowsEl = document.getElementById("rows");
+    const saveBtn = document.getElementById("saveBtn");
+    const cancelEditBtn = document.getElementById("cancelEditBtn");
+    let editingPromotionId = null;
+
+    const fields = {
+      companyNameAr: document.getElementById("companyNameAr"),
+      companyNameEn: document.getElementById("companyNameEn"),
+      titleAr: document.getElementById("titleAr"),
+      titleEn: document.getElementById("titleEn"),
+      subtitleAr: document.getElementById("subtitleAr"),
+      subtitleEn: document.getElementById("subtitleEn"),
+      imageUrl: document.getElementById("imageUrl"),
+      targetUrl: document.getElementById("targetUrl"),
+      deepLink: document.getElementById("deepLink"),
+      providerCode: document.getElementById("providerCode"),
+      displayOrder: document.getElementById("displayOrder"),
+      isActive: document.getElementById("isActive"),
+      items: document.getElementById("items"),
+    };
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.style.color = isError ? "#b42318" : "#5c6f82";
+    }
+
+    function resetForm() {
+      fields.companyNameAr.value = "";
+      fields.companyNameEn.value = "";
+      fields.titleAr.value = "";
+      fields.titleEn.value = "";
+      fields.subtitleAr.value = "";
+      fields.subtitleEn.value = "";
+      fields.imageUrl.value = "";
+      fields.targetUrl.value = "";
+      fields.deepLink.value = "";
+      fields.providerCode.value = "";
+      fields.displayOrder.value = "1";
+      fields.isActive.checked = true;
+      fields.items.value = "";
+      editingPromotionId = null;
+      saveBtn.textContent = "Save Promotion";
+      cancelEditBtn.style.display = "none";
+    }
+
+    async function fetchPromotions() {
+      const response = await fetch("/api/marketplace/home-promotions?includeInactive=true");
+      if (!response.ok) {
+        throw new Error("Failed loading promotions.");
+      }
+      return response.json();
+    }
+
+    function escapeHtml(value) {
+      return (value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    async function renderRows() {
+      setStatus("Loading promotions...");
+      try {
+        const promotions = await fetchPromotions();
+        rowsEl.innerHTML = "";
+        for (const promo of promotions) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${promo.displayOrder}</td>
+            <td><img class="thumb" src="${escapeHtml(promo.imageUrl)}" alt="promo"></td>
+            <td>
+              <strong>${escapeHtml(promo.titleEn)}</strong><br>
+              <span class="muted">${escapeHtml(promo.titleAr)}</span>
+            </td>
+            <td>
+              <div><strong>URL:</strong> ${escapeHtml(promo.targetUrl || "-")}</div>
+              <div><strong>Deep:</strong> ${escapeHtml(promo.deepLink || "-")}</div>
+            </td>
+            <td>${(promo.items || []).map(escapeHtml).join("<br>") || "-"}</td>
+            <td>${promo.isActive ? "Active" : "Inactive"}</td>
+            <td>
+              <button class="secondary" data-edit="${promo.id}">Edit</button>
+              <button class="danger" data-delete="${promo.id}">Delete</button>
+            </td>
+          `;
+          rowsEl.appendChild(tr);
+        }
+
+        rowsEl.querySelectorAll("button[data-delete]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const id = button.getAttribute("data-delete");
+            if (!id) return;
+            const confirmed = confirm("Delete this promotion?");
+            if (!confirmed) return;
+            try {
+              const response = await fetch(`/api/marketplace/home-promotions/${encodeURIComponent(id)}`, {
+                method: "DELETE"
+              });
+              if (!response.ok) {
+                throw new Error("Delete failed.");
+              }
+              setStatus("Promotion deleted.");
+              await renderRows();
+            } catch (error) {
+              setStatus(error.message || "Delete failed.", true);
+            }
+          });
+        });
+
+        rowsEl.querySelectorAll("button[data-edit]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const id = button.getAttribute("data-edit");
+            if (!id) return;
+            const promo = promotions.find((x) => x.id === id);
+            if (!promo) return;
+
+            editingPromotionId = promo.id;
+            fields.companyNameAr.value = promo.companyNameAr || "";
+            fields.companyNameEn.value = promo.companyNameEn || "";
+            fields.titleAr.value = promo.titleAr || "";
+            fields.titleEn.value = promo.titleEn || "";
+            fields.subtitleAr.value = promo.subtitleAr || "";
+            fields.subtitleEn.value = promo.subtitleEn || "";
+            fields.imageUrl.value = promo.imageUrl || "";
+            fields.targetUrl.value = promo.targetUrl || "";
+            fields.deepLink.value = promo.deepLink || "";
+            fields.providerCode.value = promo.providerCode || "";
+            fields.displayOrder.value = String(promo.displayOrder ?? 0);
+            fields.isActive.checked = !!promo.isActive;
+            fields.items.value = (promo.items || []).join("\n");
+            saveBtn.textContent = "Update Promotion";
+            cancelEditBtn.style.display = "inline-block";
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            setStatus(`Editing "${promo.titleEn}"`);
+          });
+        });
+
+        setStatus(`Loaded ${promotions.length} promotions.`);
+      } catch (error) {
+        setStatus(error.message || "Failed loading promotions.", true);
+      }
+    }
+
+    async function savePromotion() {
+      const payload = {
+        companyNameAr: fields.companyNameAr.value.trim(),
+        companyNameEn: fields.companyNameEn.value.trim(),
+        titleAr: fields.titleAr.value.trim(),
+        titleEn: fields.titleEn.value.trim(),
+        subtitleAr: fields.subtitleAr.value.trim(),
+        subtitleEn: fields.subtitleEn.value.trim(),
+        imageUrl: fields.imageUrl.value.trim(),
+        targetUrl: fields.targetUrl.value.trim() || null,
+        deepLink: fields.deepLink.value.trim() || null,
+        providerCode: fields.providerCode.value.trim() || null,
+        displayOrder: Number(fields.displayOrder.value || "0"),
+        isActive: Boolean(fields.isActive.checked),
+        items: fields.items.value
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      };
+
+      try {
+        const isEditMode = !!editingPromotionId;
+        setStatus(isEditMode ? "Updating promotion..." : "Saving promotion...");
+        const endpoint = isEditMode
+          ? `/api/marketplace/home-promotions/${encodeURIComponent(editingPromotionId)}`
+          : "/api/marketplace/home-promotions";
+        const response = await fetch(endpoint, {
+          method: isEditMode ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Save failed.");
+        }
+
+        setStatus(isEditMode ? "Promotion updated successfully." : "Promotion saved successfully.");
+        resetForm();
+        await renderRows();
+      } catch (error) {
+        setStatus(error.message || "Save failed.", true);
+      }
+    }
+
+    saveBtn.addEventListener("click", savePromotion);
+    cancelEditBtn.addEventListener("click", () => {
+      resetForm();
+      setStatus("Edit cancelled.");
+    });
+    document.getElementById("refreshBtn").addEventListener("click", renderRows);
+    resetForm();
+    renderRows();
+  </script>
+</body>
+</html>

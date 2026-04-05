@@ -10,6 +10,21 @@ public sealed class MarketplaceController(
     IMarketplaceAdminService marketplaceAdminService) : ControllerBase
 {
     public sealed record UpdateExpirationRequest(DateTime? ExpiresAtUtc);
+    public sealed record HomePromotionPayload(
+        string? Code,
+        string CompanyNameAr,
+        string CompanyNameEn,
+        string TitleAr,
+        string TitleEn,
+        string SubtitleAr,
+        string SubtitleEn,
+        string ImageUrl,
+        string? TargetUrl,
+        string? DeepLink,
+        IReadOnlyList<string>? Items,
+        string? ProviderCode,
+        int DisplayOrder,
+        bool IsActive);
     public sealed record CustomerProfileResponse(
         Guid CustomerId,
         string CustomerReference,
@@ -99,6 +114,104 @@ public sealed class MarketplaceController(
     {
         var documents = await marketplaceQueryService.GetProviderJsonDocumentsAsync(providerCode, includeExpired, cancellationToken);
         return Ok(documents);
+    }
+
+    [HttpGet("home-promotions")]
+    public async Task<IActionResult> GetHomePromotions([FromQuery] bool includeInactive = false, CancellationToken cancellationToken = default)
+    {
+        var promotions = await marketplaceQueryService.GetHomePromotionsAsync(includeInactive, cancellationToken);
+        return Ok(promotions);
+    }
+
+    [HttpPost("home-promotions")]
+    public async Task<IActionResult> CreateHomePromotion([FromBody] HomePromotionPayload payload, CancellationToken cancellationToken = default)
+    {
+        if (payload is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
+        try
+        {
+            var created = await marketplaceAdminService.CreateHomePromotionAsync(
+                new CreateOrUpdateHomePromotionRequest(
+                    payload.Code,
+                    payload.CompanyNameAr,
+                    payload.CompanyNameEn,
+                    payload.TitleAr,
+                    payload.TitleEn,
+                    payload.SubtitleAr,
+                    payload.SubtitleEn,
+                    payload.ImageUrl,
+                    payload.TargetUrl,
+                    payload.DeepLink,
+                    payload.Items,
+                    payload.ProviderCode,
+                    payload.DisplayOrder,
+                    payload.IsActive),
+                cancellationToken);
+            return Ok(created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("home-promotions/{promotionId:guid}")]
+    public async Task<IActionResult> UpdateHomePromotion(
+        [FromRoute] Guid promotionId,
+        [FromBody] HomePromotionPayload payload,
+        CancellationToken cancellationToken = default)
+    {
+        if (payload is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
+        try
+        {
+            var updated = await marketplaceAdminService.UpdateHomePromotionAsync(
+                promotionId,
+                new CreateOrUpdateHomePromotionRequest(
+                    payload.Code,
+                    payload.CompanyNameAr,
+                    payload.CompanyNameEn,
+                    payload.TitleAr,
+                    payload.TitleEn,
+                    payload.SubtitleAr,
+                    payload.SubtitleEn,
+                    payload.ImageUrl,
+                    payload.TargetUrl,
+                    payload.DeepLink,
+                    payload.Items,
+                    payload.ProviderCode,
+                    payload.DisplayOrder,
+                    payload.IsActive),
+                cancellationToken);
+            if (updated is null)
+            {
+                return NotFound(new { message = "Home promotion not found." });
+            }
+
+            return Ok(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("home-promotions/{promotionId:guid}")]
+    public async Task<IActionResult> DeleteHomePromotion([FromRoute] Guid promotionId, CancellationToken cancellationToken = default)
+    {
+        var deleted = await marketplaceAdminService.DeleteHomePromotionAsync(promotionId, cancellationToken);
+        if (!deleted)
+        {
+            return NotFound(new { message = "Home promotion not found." });
+        }
+
+        return Ok(new { message = "Home promotion deleted." });
     }
 
     [HttpGet("customers/{customerReference}/locations")]

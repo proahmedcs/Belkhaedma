@@ -388,6 +388,7 @@ public static class BelkhedmaDbSeeder
         await SeedProviderJsonDocumentsAsync(dbContext, cancellationToken);
         await SeedDemoCustomerAccountsAsync(dbContext, cancellationToken);
         await SeedCustomerSavedLocationsAsync(dbContext, cancellationToken);
+        await SeedHomePromotionsAsync(dbContext, cancellationToken);
     }
 
     private static async Task SeedDemoCustomerAccountsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
@@ -667,6 +668,114 @@ public static class BelkhedmaDbSeeder
             existing.Longitude = location.Longitude;
             existing.GoogleMapsUrl = location.GoogleMapsUrl;
             existing.GooglePlaceId = location.GooglePlaceId;
+            existing.UpdatedAtUtc = now;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedHomePromotionsAsync(BelkhedmaDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var seeds = new List<HomePromotion>
+        {
+            new()
+            {
+                Code = "mediation-campaign",
+                CompanyNameAr = "بالخدمة",
+                CompanyNameEn = "Belkhedma",
+                TitleAr = "خدمة التوسط",
+                TitleEn = "Mediation Service",
+                SubtitleAr = "جسر ثقة.. يوصلك بالكفاءات",
+                SubtitleEn = "Bridge trust and connect with top professionals.",
+                ImageUrl = "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1280&q=80",
+                TargetUrl = "https://belkhedma.example.com/promotions/mediation",
+                DeepLink = "belkhedma://promotions/mediation",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Trusted providers",
+                    "Fast approvals",
+                    "Lead + contract support"
+                }),
+                ProviderCode = "wasata",
+                DisplayOrder = 1,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "medical-home-visit",
+                CompanyNameAr = "عناية",
+                CompanyNameEn = "Enaya",
+                TitleAr = "خصم الزيارة الطبية المنزلية",
+                TitleEn = "Medical Home Visit Discount",
+                SubtitleAr = "عروض موسمية على باقات التمريض المنزلي",
+                SubtitleEn = "Get seasonal offers on home nursing packages.",
+                ImageUrl = "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1280&q=80",
+                TargetUrl = "https://belkhedma.example.com/promotions/medical",
+                DeepLink = "belkhedma://promotions/medical",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Nursing at home",
+                    "Doctor follow-up",
+                    "Discounted seasonal prices"
+                }),
+                ProviderCode = "enaya",
+                DisplayOrder = 2,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "monthly-package-campaign",
+                CompanyNameAr = "تمكين",
+                CompanyNameEn = "Tamkeen",
+                TitleAr = "حملة الباقات الشهرية",
+                TitleEn = "Monthly Package Campaign",
+                SubtitleAr = "أفضل الخطط الشهرية من عدة مزودين",
+                SubtitleEn = "Best monthly plans from multiple providers.",
+                ImageUrl = "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1280&q=80",
+                TargetUrl = "https://belkhedma.example.com/promotions/monthly",
+                DeepLink = "belkhedma://promotions/monthly",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "1/3/6 months plans",
+                    "Compare providers",
+                    "Transparent contract terms"
+                }),
+                ProviderCode = "tamkeen",
+                DisplayOrder = 3,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            }
+        };
+
+        var existingRows = await dbContext.HomePromotions.ToListAsync(cancellationToken);
+        foreach (var seed in seeds)
+        {
+            var existing = existingRows.FirstOrDefault(x => x.Code == seed.Code);
+            if (existing is null)
+            {
+                await dbContext.HomePromotions.AddAsync(seed, cancellationToken);
+                continue;
+            }
+
+            existing.CompanyNameAr = seed.CompanyNameAr;
+            existing.CompanyNameEn = seed.CompanyNameEn;
+            existing.TitleAr = seed.TitleAr;
+            existing.TitleEn = seed.TitleEn;
+            existing.SubtitleAr = seed.SubtitleAr;
+            existing.SubtitleEn = seed.SubtitleEn;
+            existing.ImageUrl = seed.ImageUrl;
+            existing.TargetUrl = seed.TargetUrl;
+            existing.DeepLink = seed.DeepLink;
+            existing.ItemsJson = seed.ItemsJson;
+            existing.ProviderCode = seed.ProviderCode;
+            existing.DisplayOrder = seed.DisplayOrder;
+            existing.IsActive = seed.IsActive;
             existing.UpdatedAtUtc = now;
         }
 

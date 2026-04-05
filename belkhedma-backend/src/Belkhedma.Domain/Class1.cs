@@ -131,6 +131,27 @@ public sealed class ProviderJsonDocument
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public sealed class HomePromotion
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Code { get; set; } = string.Empty;
+    public string CompanyNameAr { get; set; } = string.Empty;
+    public string CompanyNameEn { get; set; } = string.Empty;
+    public string TitleAr { get; set; } = string.Empty;
+    public string TitleEn { get; set; } = string.Empty;
+    public string SubtitleAr { get; set; } = string.Empty;
+    public string SubtitleEn { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public string? TargetUrl { get; set; }
+    public string? DeepLink { get; set; }
+    public string ItemsJson { get; set; } = "[]";
+    public string? ProviderCode { get; set; }
+    public int DisplayOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class CollectionJobRun
 {
     public Guid Id { get; set; } = Guid.NewGuid();

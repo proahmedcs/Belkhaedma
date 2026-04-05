@@ -3,6 +3,7 @@ using Belkhedma.Domain;
 using Belkhedma.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace Belkhedma.Infrastructure;
 
@@ -25,6 +26,8 @@ public static class DependencyInjection
 
 internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IMarketplaceQueryService, IMarketplaceAdminService
 {
+    private const int MaxPromotionCodeLength = 80;
+
     public async Task<CustomerProfileDto?> GetCustomerProfileByTokenAsync(
         string authToken,
         CancellationToken cancellationToken = default)
@@ -234,6 +237,24 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<HomePromotionDto>> GetHomePromotionsAsync(
+        bool includeInactive = false,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.HomePromotions.AsNoTracking();
+        if (!includeInactive)
+        {
+            query = query.Where(x => x.IsActive);
+        }
+
+        var rows = await query
+            .OrderBy(x => x.DisplayOrder)
+            .ThenByDescending(x => x.UpdatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(MapHomePromotion).ToList();
+    }
+
     public async Task<IReadOnlyList<PriceSnapshotDto>> GetAllPricesAsync(string? providerCode, bool includeExpired, CancellationToken cancellationToken = default)
     {
         var providers = dbContext.Providers.AsNoTracking();
@@ -338,6 +359,218 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         }
 
         return await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<HomePromotionDto> CreateHomePromotionAsync(
+        CreateOrUpdateHomePromotionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateHomePromotionRequest(request);
+
+        var now = DateTime.UtcNow;
+        var normalizedCode = NormalizePromotionCode(request.Code);
+        var uniqueCode = await EnsureUniquePromotionCodeAsync(normalizedCode, null, cancellationToken);
+
+        var entity = new HomePromotion
+        {
+            Code = uniqueCode,
+            CompanyNameAr = request.CompanyNameAr.Trim(),
+            CompanyNameEn = request.CompanyNameEn.Trim(),
+            TitleAr = request.TitleAr.Trim(),
+            TitleEn = request.TitleEn.Trim(),
+            SubtitleAr = request.SubtitleAr.Trim(),
+            SubtitleEn = request.SubtitleEn.Trim(),
+            ImageUrl = request.ImageUrl.Trim(),
+            TargetUrl = NormalizeNullable(request.TargetUrl),
+            DeepLink = NormalizeNullable(request.DeepLink),
+            ItemsJson = SerializePromotionItems(request.Items),
+            ProviderCode = NormalizeNullable(request.ProviderCode),
+            DisplayOrder = request.DisplayOrder,
+            IsActive = request.IsActive,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await dbContext.HomePromotions.AddAsync(entity, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return MapHomePromotion(entity);
+    }
+
+    public async Task<HomePromotionDto?> UpdateHomePromotionAsync(
+        Guid promotionId,
+        CreateOrUpdateHomePromotionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateHomePromotionRequest(request);
+
+        var entity = await dbContext.HomePromotions
+            .FirstOrDefaultAsync(x => x.Id == promotionId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        var normalizedCode = string.IsNullOrWhiteSpace(request.Code)
+            ? entity.Code
+            : NormalizePromotionCode(request.Code);
+        var uniqueCode = await EnsureUniquePromotionCodeAsync(normalizedCode, promotionId, cancellationToken);
+
+        entity.Code = uniqueCode;
+        entity.CompanyNameAr = request.CompanyNameAr.Trim();
+        entity.CompanyNameEn = request.CompanyNameEn.Trim();
+        entity.TitleAr = request.TitleAr.Trim();
+        entity.TitleEn = request.TitleEn.Trim();
+        entity.SubtitleAr = request.SubtitleAr.Trim();
+        entity.SubtitleEn = request.SubtitleEn.Trim();
+        entity.ImageUrl = request.ImageUrl.Trim();
+        entity.TargetUrl = NormalizeNullable(request.TargetUrl);
+        entity.DeepLink = NormalizeNullable(request.DeepLink);
+        entity.ItemsJson = SerializePromotionItems(request.Items);
+        entity.ProviderCode = NormalizeNullable(request.ProviderCode);
+        entity.DisplayOrder = request.DisplayOrder;
+        entity.IsActive = request.IsActive;
+        entity.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return MapHomePromotion(entity);
+    }
+
+    public async Task<bool> DeleteHomePromotionAsync(Guid promotionId, CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.HomePromotions
+            .FirstOrDefaultAsync(x => x.Id == promotionId, cancellationToken);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        dbContext.HomePromotions.Remove(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    private static HomePromotionDto MapHomePromotion(HomePromotion entity)
+    {
+        return new HomePromotionDto(
+            entity.Id,
+            entity.Code,
+            entity.CompanyNameAr,
+            entity.CompanyNameEn,
+            entity.TitleAr,
+            entity.TitleEn,
+            entity.SubtitleAr,
+            entity.SubtitleEn,
+            entity.ImageUrl,
+            entity.TargetUrl,
+            entity.DeepLink,
+            ParsePromotionItems(entity.ItemsJson),
+            entity.ProviderCode,
+            entity.DisplayOrder,
+            entity.IsActive,
+            entity.CreatedAtUtc,
+            entity.UpdatedAtUtc);
+    }
+
+    private static IReadOnlyList<string> ParsePromotionItems(string itemsJson)
+    {
+        if (string.IsNullOrWhiteSpace(itemsJson))
+        {
+            return [];
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<string>>(itemsJson) ?? [];
+            return parsed
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(20)
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static string SerializePromotionItems(IReadOnlyList<string>? items)
+    {
+        var normalized = (items ?? [])
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
+        return JsonSerializer.Serialize(normalized);
+    }
+
+    private static string? NormalizeNullable(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static string NormalizePromotionCode(string? code)
+    {
+        var raw = (code ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            raw = $"promo-{Guid.NewGuid():N}"[..14];
+        }
+
+        var normalizedChars = raw.Select(ch => char.IsLetterOrDigit(ch) ? ch : '-').ToArray();
+        var normalized = new string(normalizedChars).Trim('-');
+        while (normalized.Contains("--", StringComparison.Ordinal))
+        {
+            normalized = normalized.Replace("--", "-", StringComparison.Ordinal);
+        }
+
+        if (normalized.Length > MaxPromotionCodeLength)
+        {
+            normalized = normalized[..MaxPromotionCodeLength];
+        }
+
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            normalized = $"promo-{Guid.NewGuid():N}"[..14];
+        }
+
+        return normalized;
+    }
+
+    private async Task<string> EnsureUniquePromotionCodeAsync(
+        string requestedCode,
+        Guid? excludingPromotionId,
+        CancellationToken cancellationToken)
+    {
+        var code = requestedCode;
+        var suffix = 2;
+        while (await dbContext.HomePromotions.AnyAsync(
+            x => x.Code == code && (!excludingPromotionId.HasValue || x.Id != excludingPromotionId.Value),
+            cancellationToken))
+        {
+            var suffixText = $"-{suffix}";
+            var maxBaseLength = Math.Max(1, MaxPromotionCodeLength - suffixText.Length);
+            var baseCode = requestedCode.Length > maxBaseLength ? requestedCode[..maxBaseLength] : requestedCode;
+            code = $"{baseCode}{suffixText}";
+            suffix++;
+        }
+
+        return code;
+    }
+
+    private static void ValidateHomePromotionRequest(CreateOrUpdateHomePromotionRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.TitleAr) || string.IsNullOrWhiteSpace(request.TitleEn))
+        {
+            throw new InvalidOperationException("Arabic and English title are required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ImageUrl))
+        {
+            throw new InvalidOperationException("Image URL is required.");
+        }
     }
 }
 

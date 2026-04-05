@@ -9,6 +9,7 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
     public DbSet<ServiceOffer> ServiceOffers => Set<ServiceOffer>();
     public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
     public DbSet<ProviderJsonDocument> ProviderJsonDocuments => Set<ProviderJsonDocument>();
+    public DbSet<HomePromotion> HomePromotions => Set<HomePromotion>();
     public DbSet<CollectionJobRun> CollectionJobRuns => Set<CollectionJobRun>();
     public DbSet<CustomerSavedLocation> CustomerSavedLocations => Set<CustomerSavedLocation>();
     public DbSet<CustomerAccount> CustomerAccounts => Set<CustomerAccount>();
@@ -67,6 +68,25 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
             entity.Property(x => x.JsonAttributes).HasColumnType("nvarchar(max)").IsRequired();
             entity.Property(x => x.JsonData).HasColumnType("nvarchar(max)").IsRequired();
             entity.HasIndex(x => x.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<HomePromotion>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => new { x.IsActive, x.DisplayOrder, x.CreatedAtUtc });
+            entity.Property(x => x.Code).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.CompanyNameAr).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.CompanyNameEn).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.TitleAr).HasMaxLength(250).IsRequired();
+            entity.Property(x => x.TitleEn).HasMaxLength(250).IsRequired();
+            entity.Property(x => x.SubtitleAr).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.SubtitleEn).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ImageUrl).HasMaxLength(1500).IsRequired();
+            entity.Property(x => x.TargetUrl).HasMaxLength(1500);
+            entity.Property(x => x.DeepLink).HasMaxLength(500);
+            entity.Property(x => x.ItemsJson).HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(x => x.ProviderCode).HasMaxLength(80);
         });
 
         modelBuilder.Entity<CollectionJobRun>(entity =>
