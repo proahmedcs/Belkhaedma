@@ -68,6 +68,7 @@ type ServiceDateOption = {
 };
 type MandatoryFieldKey = "serviceDate" | "shift" | "contractDurationName";
 type ResultsSortMode = "recommended" | "cheapest" | "highest";
+type ResultsSourceFilter = "all" | "api" | "scraper" | "demo";
 type PrimaryMenuKey = "main" | "search" | "promotions" | "orders" | "account";
 type SecondaryMenuItem = { key: string; labelEn: string; labelAr: string };
 type SampleNotification = { id: string; titleEn: string; titleAr: string; metaEn: string; metaAr: string };
@@ -743,12 +744,19 @@ export default function App() {
   const [promotionActiveIndex, setPromotionActiveIndex] = useState<number>(0);
   const [showResultsFilters, setShowResultsFilters] = useState<boolean>(false);
   const [resultsSortMode, setResultsSortMode] = useState<ResultsSortMode>("recommended");
-  const [resultsSourceFilter, setResultsSourceFilter] = useState<"all" | "api" | "scraper" | "demo">("all");
+  const [resultsSourceFilter, setResultsSourceFilter] = useState<ResultsSourceFilter>("all");
   const [resultsShiftFilter, setResultsShiftFilter] = useState<string | null>(null);
   const [resultsContractDurationFilter, setResultsContractDurationFilter] = useState<string | null>(null);
   const [resultsHoursFilter, setResultsHoursFilter] = useState<number | null>(null);
   const [resultsNationalityFilter, setResultsNationalityFilter] = useState<string | null>(null);
   const [resultsWeeklyVisitsFilter, setResultsWeeklyVisitsFilter] = useState<number | null>(null);
+  const [draftResultsSortMode, setDraftResultsSortMode] = useState<ResultsSortMode>("recommended");
+  const [draftResultsSourceFilter, setDraftResultsSourceFilter] = useState<ResultsSourceFilter>("all");
+  const [draftResultsShiftFilter, setDraftResultsShiftFilter] = useState<string | null>(null);
+  const [draftResultsContractDurationFilter, setDraftResultsContractDurationFilter] = useState<string | null>(null);
+  const [draftResultsHoursFilter, setDraftResultsHoursFilter] = useState<number | null>(null);
+  const [draftResultsNationalityFilter, setDraftResultsNationalityFilter] = useState<string | null>(null);
+  const [draftResultsWeeklyVisitsFilter, setDraftResultsWeeklyVisitsFilter] = useState<number | null>(null);
   const [activePrimaryMenu, setActivePrimaryMenu] = useState<PrimaryMenuKey>("main");
   const [activeSecondaryMenu, setActiveSecondaryMenu] = useState<string>("overview");
   const [notificationCount] = useState<number>(3);
@@ -1427,6 +1435,46 @@ export default function App() {
     resultsSourceFilter,
     resultsWeeklyVisitsFilter,
   ]);
+
+  const syncDraftResultsFiltersFromApplied = () => {
+    setDraftResultsSortMode(resultsSortMode);
+    setDraftResultsSourceFilter(resultsSourceFilter);
+    setDraftResultsShiftFilter(resultsShiftFilter);
+    setDraftResultsContractDurationFilter(resultsContractDurationFilter);
+    setDraftResultsHoursFilter(resultsHoursFilter);
+    setDraftResultsNationalityFilter(resultsNationalityFilter);
+    setDraftResultsWeeklyVisitsFilter(resultsWeeklyVisitsFilter);
+  };
+
+  const resetDraftResultsFilters = () => {
+    setDraftResultsSortMode("recommended");
+    setDraftResultsSourceFilter("all");
+    setDraftResultsShiftFilter(null);
+    setDraftResultsContractDurationFilter(null);
+    setDraftResultsHoursFilter(null);
+    setDraftResultsNationalityFilter(null);
+    setDraftResultsWeeklyVisitsFilter(null);
+  };
+
+  const applyDraftResultsFilters = () => {
+    setResultsSortMode(draftResultsSortMode);
+    setResultsSourceFilter(draftResultsSourceFilter);
+    setResultsShiftFilter(draftResultsShiftFilter);
+    setResultsContractDurationFilter(draftResultsContractDurationFilter);
+    setResultsHoursFilter(draftResultsHoursFilter);
+    setResultsNationalityFilter(draftResultsNationalityFilter);
+    setResultsWeeklyVisitsFilter(draftResultsWeeklyVisitsFilter);
+    setShowResultsFilters(false);
+  };
+
+  const toggleResultsFilters = () => {
+    if (showResultsFilters) {
+      setShowResultsFilters(false);
+      return;
+    }
+    syncDraftResultsFiltersFromApplied();
+    setShowResultsFilters(true);
+  };
 
   const loadData = async (
     activeToken: string | null = authToken,
@@ -2537,7 +2585,7 @@ export default function App() {
                     styles.resultsHeaderFilterButton,
                     showResultsFilters && styles.wegoFilterButtonActive,
                   ]}
-                  onPress={() => setShowResultsFilters((prev) => !prev)}
+                  onPress={toggleResultsFilters}
                 >
                   <Text style={styles.wegoFilterLabel}>{languageMode === "ar" ? "فلتر" : "Filter"}</Text>
                   {activeResultsFilterCount > 0 ? (
@@ -2559,10 +2607,10 @@ export default function App() {
                     ] as Array<{ key: ResultsSortMode; labelEn: string; labelAr: string }>).map((item) => (
                       <TouchableOpacity
                         key={item.key}
-                        style={[styles.chip, resultsSortMode === item.key && styles.chipActive]}
-                        onPress={() => setResultsSortMode(item.key)}
+                        style={[styles.chip, draftResultsSortMode === item.key && styles.chipActive]}
+                        onPress={() => setDraftResultsSortMode(item.key)}
                       >
-                        <Text style={[styles.chipText, resultsSortMode === item.key && styles.chipTextActive]}>
+                        <Text style={[styles.chipText, draftResultsSortMode === item.key && styles.chipTextActive]}>
                           {languageMode === "ar" ? item.labelAr : item.labelEn}
                         </Text>
                       </TouchableOpacity>
@@ -2578,14 +2626,22 @@ export default function App() {
                     ] as Array<{ key: "all" | "api" | "scraper" | "demo"; labelEn: string; labelAr: string }>).map((item) => (
                       <TouchableOpacity
                         key={item.key}
-                        style={[styles.chip, resultsSourceFilter === item.key && styles.chipActive]}
-                        onPress={() => setResultsSourceFilter(item.key)}
+                        style={[styles.chip, draftResultsSourceFilter === item.key && styles.chipActive]}
+                        onPress={() => setDraftResultsSourceFilter(item.key)}
                       >
-                        <Text style={[styles.chipText, resultsSourceFilter === item.key && styles.chipTextActive]}>
+                        <Text style={[styles.chipText, draftResultsSourceFilter === item.key && styles.chipTextActive]}>
                           {languageMode === "ar" ? item.labelAr : item.labelEn}
                         </Text>
                       </TouchableOpacity>
                     ))}
+                  </View>
+                  <View style={styles.filterActionsRow}>
+                    <TouchableOpacity style={styles.filterToggleButton} onPress={resetDraftResultsFilters}>
+                      <Text style={styles.filterToggleText}>{languageMode === "ar" ? "إعادة ضبط" : "Reset"}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.filterApplyButton} onPress={applyDraftResultsFilters}>
+                      <Text style={styles.filterApplyText}>{languageMode === "ar" ? "تطبيق" : "Apply"}</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               ) : null}
@@ -2776,7 +2832,7 @@ export default function App() {
               <Text style={styles.sectionTitle}>{hasSearched ? "All Prices" : "Latest Prices"}</Text>
               <TouchableOpacity
                 style={[styles.wegoFilterButton, showResultsFilters && styles.wegoFilterButtonActive]}
-                onPress={() => setShowResultsFilters((prev) => !prev)}
+                onPress={toggleResultsFilters}
               >
                 <Text style={styles.wegoFilterLabel}>{languageMode === "ar" ? "فلتر" : "Filter"}</Text>
                 {activeResultsFilterCount > 0 ? (
@@ -2792,15 +2848,7 @@ export default function App() {
                   <Text style={styles.fieldHint}>{languageMode === "ar" ? "الترتيب" : "Sort"}</Text>
                   <TouchableOpacity
                     style={styles.filterToggleButton}
-                    onPress={() => {
-                      setResultsSortMode("recommended");
-                      setResultsSourceFilter("all");
-                      setResultsShiftFilter(null);
-                      setResultsContractDurationFilter(null);
-                      setResultsHoursFilter(null);
-                      setResultsNationalityFilter(null);
-                      setResultsWeeklyVisitsFilter(null);
-                    }}
+                    onPress={resetDraftResultsFilters}
                   >
                     <Text style={styles.filterToggleText}>{languageMode === "ar" ? "إعادة ضبط" : "Reset"}</Text>
                   </TouchableOpacity>
@@ -2813,10 +2861,10 @@ export default function App() {
                   ] as Array<{ key: ResultsSortMode; labelEn: string; labelAr: string }>).map((item) => (
                     <TouchableOpacity
                       key={`wego-sort-${item.key}`}
-                      style={[styles.chip, resultsSortMode === item.key && styles.chipActive]}
-                      onPress={() => setResultsSortMode(item.key)}
+                      style={[styles.chip, draftResultsSortMode === item.key && styles.chipActive]}
+                      onPress={() => setDraftResultsSortMode(item.key)}
                     >
-                      <Text style={[styles.chipText, resultsSortMode === item.key && styles.chipTextActive]}>
+                      <Text style={[styles.chipText, draftResultsSortMode === item.key && styles.chipTextActive]}>
                         {languageMode === "ar" ? item.labelAr : item.labelEn}
                       </Text>
                     </TouchableOpacity>
@@ -2832,10 +2880,10 @@ export default function App() {
                   ] as Array<{ key: "all" | "api" | "scraper" | "demo"; labelEn: string; labelAr: string }>).map((item) => (
                     <TouchableOpacity
                       key={`wego-source-${item.key}`}
-                      style={[styles.chip, resultsSourceFilter === item.key && styles.chipActive]}
-                      onPress={() => setResultsSourceFilter(item.key)}
+                      style={[styles.chip, draftResultsSourceFilter === item.key && styles.chipActive]}
+                      onPress={() => setDraftResultsSourceFilter(item.key)}
                     >
-                      <Text style={[styles.chipText, resultsSourceFilter === item.key && styles.chipTextActive]}>
+                      <Text style={[styles.chipText, draftResultsSourceFilter === item.key && styles.chipTextActive]}>
                         {languageMode === "ar" ? item.labelAr : item.labelEn}
                       </Text>
                     </TouchableOpacity>
@@ -2846,20 +2894,20 @@ export default function App() {
                     <Text style={styles.fieldHint}>{languageMode === "ar" ? "الفترة" : "Shift"}</Text>
                     <View style={styles.rowWrap}>
                       <TouchableOpacity
-                        style={[styles.chip, !resultsShiftFilter && styles.chipActive]}
-                        onPress={() => setResultsShiftFilter(null)}
+                        style={[styles.chip, !draftResultsShiftFilter && styles.chipActive]}
+                        onPress={() => setDraftResultsShiftFilter(null)}
                       >
-                        <Text style={[styles.chipText, !resultsShiftFilter && styles.chipTextActive]}>
+                        <Text style={[styles.chipText, !draftResultsShiftFilter && styles.chipTextActive]}>
                           {languageMode === "ar" ? "الكل" : "All"}
                         </Text>
                       </TouchableOpacity>
                       {effectiveShiftOptions.map((item) => (
                         <TouchableOpacity
                           key={`wego-shift-${item}`}
-                          style={[styles.chip, resultsShiftFilter === item && styles.chipActive]}
-                          onPress={() => setResultsShiftFilter(item)}
+                          style={[styles.chip, draftResultsShiftFilter === item && styles.chipActive]}
+                          onPress={() => setDraftResultsShiftFilter(item)}
                         >
-                          <Text style={[styles.chipText, resultsShiftFilter === item && styles.chipTextActive]}>
+                          <Text style={[styles.chipText, draftResultsShiftFilter === item && styles.chipTextActive]}>
                             {item}
                           </Text>
                         </TouchableOpacity>
@@ -2872,20 +2920,20 @@ export default function App() {
                     <Text style={styles.fieldHint}>{languageMode === "ar" ? "الجنسية" : "Nationality"}</Text>
                     <View style={styles.rowWrap}>
                       <TouchableOpacity
-                        style={[styles.chip, !resultsNationalityFilter && styles.chipActive]}
-                        onPress={() => setResultsNationalityFilter(null)}
+                        style={[styles.chip, !draftResultsNationalityFilter && styles.chipActive]}
+                        onPress={() => setDraftResultsNationalityFilter(null)}
                       >
-                        <Text style={[styles.chipText, !resultsNationalityFilter && styles.chipTextActive]}>
+                        <Text style={[styles.chipText, !draftResultsNationalityFilter && styles.chipTextActive]}>
                           {languageMode === "ar" ? "الكل" : "All"}
                         </Text>
                       </TouchableOpacity>
                       {nationalityOptions.map((item) => (
                         <TouchableOpacity
                           key={`wego-nationality-${item}`}
-                          style={[styles.chip, resultsNationalityFilter === item && styles.chipActive]}
-                          onPress={() => setResultsNationalityFilter(item)}
+                          style={[styles.chip, draftResultsNationalityFilter === item && styles.chipActive]}
+                          onPress={() => setDraftResultsNationalityFilter(item)}
                         >
-                          <Text style={[styles.chipText, resultsNationalityFilter === item && styles.chipTextActive]}>
+                          <Text style={[styles.chipText, draftResultsNationalityFilter === item && styles.chipTextActive]}>
                             {item}
                           </Text>
                         </TouchableOpacity>
@@ -2898,20 +2946,20 @@ export default function App() {
                     <Text style={styles.fieldHint}>{languageMode === "ar" ? "عدد الساعات لكل زيارة" : "Hours per Visit"}</Text>
                     <View style={styles.rowWrap}>
                       <TouchableOpacity
-                        style={[styles.chip, resultsHoursFilter == null && styles.chipActive]}
-                        onPress={() => setResultsHoursFilter(null)}
+                        style={[styles.chip, draftResultsHoursFilter == null && styles.chipActive]}
+                        onPress={() => setDraftResultsHoursFilter(null)}
                       >
-                        <Text style={[styles.chipText, resultsHoursFilter == null && styles.chipTextActive]}>
+                        <Text style={[styles.chipText, draftResultsHoursFilter == null && styles.chipTextActive]}>
                           {languageMode === "ar" ? "الكل" : "All"}
                         </Text>
                       </TouchableOpacity>
                       {hoursPerVisitOptions.map((item) => (
                         <TouchableOpacity
                           key={`wego-hours-${item}`}
-                          style={[styles.chip, resultsHoursFilter === item && styles.chipActive]}
-                          onPress={() => setResultsHoursFilter(item)}
+                          style={[styles.chip, draftResultsHoursFilter === item && styles.chipActive]}
+                          onPress={() => setDraftResultsHoursFilter(item)}
                         >
-                          <Text style={[styles.chipText, resultsHoursFilter === item && styles.chipTextActive]}>
+                          <Text style={[styles.chipText, draftResultsHoursFilter === item && styles.chipTextActive]}>
                             {item}
                           </Text>
                         </TouchableOpacity>
@@ -2924,20 +2972,20 @@ export default function App() {
                     <Text style={styles.fieldHint}>{languageMode === "ar" ? "عدد الزيارات الأسبوعية" : "Weekly Visits"}</Text>
                     <View style={styles.rowWrap}>
                       <TouchableOpacity
-                        style={[styles.chip, resultsWeeklyVisitsFilter == null && styles.chipActive]}
-                        onPress={() => setResultsWeeklyVisitsFilter(null)}
+                        style={[styles.chip, draftResultsWeeklyVisitsFilter == null && styles.chipActive]}
+                        onPress={() => setDraftResultsWeeklyVisitsFilter(null)}
                       >
-                        <Text style={[styles.chipText, resultsWeeklyVisitsFilter == null && styles.chipTextActive]}>
+                        <Text style={[styles.chipText, draftResultsWeeklyVisitsFilter == null && styles.chipTextActive]}>
                           {languageMode === "ar" ? "الكل" : "All"}
                         </Text>
                       </TouchableOpacity>
                       {weeklyVisitOptions.map((item) => (
                         <TouchableOpacity
                           key={`wego-visits-${item}`}
-                          style={[styles.chip, resultsWeeklyVisitsFilter === item && styles.chipActive]}
-                          onPress={() => setResultsWeeklyVisitsFilter(item)}
+                          style={[styles.chip, draftResultsWeeklyVisitsFilter === item && styles.chipActive]}
+                          onPress={() => setDraftResultsWeeklyVisitsFilter(item)}
                         >
-                          <Text style={[styles.chipText, resultsWeeklyVisitsFilter === item && styles.chipTextActive]}>
+                          <Text style={[styles.chipText, draftResultsWeeklyVisitsFilter === item && styles.chipTextActive]}>
                             {item}
                           </Text>
                         </TouchableOpacity>
@@ -2950,20 +2998,20 @@ export default function App() {
                     <Text style={styles.fieldHint}>{languageMode === "ar" ? "مدة التعاقد" : "Contract Duration"}</Text>
                     <View style={styles.rowWrap}>
                       <TouchableOpacity
-                        style={[styles.chip, !resultsContractDurationFilter && styles.chipActive]}
-                        onPress={() => setResultsContractDurationFilter(null)}
+                        style={[styles.chip, !draftResultsContractDurationFilter && styles.chipActive]}
+                        onPress={() => setDraftResultsContractDurationFilter(null)}
                       >
-                        <Text style={[styles.chipText, !resultsContractDurationFilter && styles.chipTextActive]}>
+                        <Text style={[styles.chipText, !draftResultsContractDurationFilter && styles.chipTextActive]}>
                           {languageMode === "ar" ? "الكل" : "All"}
                         </Text>
                       </TouchableOpacity>
                       {contractDurationNameOptions.map((item) => (
                         <TouchableOpacity
                           key={`wego-duration-${item}`}
-                          style={[styles.chip, resultsContractDurationFilter === item && styles.chipActive]}
-                          onPress={() => setResultsContractDurationFilter(item)}
+                          style={[styles.chip, draftResultsContractDurationFilter === item && styles.chipActive]}
+                          onPress={() => setDraftResultsContractDurationFilter(item)}
                         >
-                          <Text style={[styles.chipText, resultsContractDurationFilter === item && styles.chipTextActive]}>
+                          <Text style={[styles.chipText, draftResultsContractDurationFilter === item && styles.chipTextActive]}>
                             {item}
                           </Text>
                         </TouchableOpacity>
@@ -2971,6 +3019,11 @@ export default function App() {
                     </View>
                   </>
                 ) : null}
+                <View style={styles.filterActionsRow}>
+                  <TouchableOpacity style={styles.filterApplyButton} onPress={applyDraftResultsFilters}>
+                    <Text style={styles.filterApplyText}>{languageMode === "ar" ? "تطبيق الفلتر" : "Apply Filter"}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : null}
 
@@ -3524,6 +3577,23 @@ const styles = StyleSheet.create({
   filterToggleText: {
     color: Brand.colors.primaryDark,
     fontWeight: "700",
+    fontSize: 12,
+  },
+  filterActionsRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 6,
+  },
+  filterApplyButton: {
+    backgroundColor: Brand.colors.primaryDark,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  filterApplyText: {
+    color: "#fff",
+    fontWeight: "800",
     fontSize: 12,
   },
   rowWrap: {
