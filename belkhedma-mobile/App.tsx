@@ -1561,6 +1561,25 @@ export default function App() {
     }
     setWizardStep(0);
   };
+  const renderBottomMenu = () => (
+    <View style={[styles.bottomMenuBar, isDesktopWeb ? styles.bottomMenuBarDesktop : null]}>
+      {BOTTOM_MENU_ITEMS.map((menuItem) => {
+        const isActive = activePrimaryMenu === menuItem.key;
+        return (
+          <TouchableOpacity
+            key={menuItem.key}
+            style={[styles.bottomMenuButton, isActive && styles.bottomMenuButtonActive]}
+            onPress={() => handleBottomMenuPress(menuItem.key)}
+          >
+            <Text style={[styles.bottomMenuIcon, isActive && styles.bottomMenuIconActive]}>{menuItem.icon}</Text>
+            <Text style={[styles.bottomMenuLabel, isActive && styles.bottomMenuLabelActive]}>
+              {languageMode === "ar" ? menuItem.labelAr : menuItem.labelEn}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
   const goToHomeFromProfile = () => {
     handleBottomMenuPress("main");
     setWizardStep(0);
