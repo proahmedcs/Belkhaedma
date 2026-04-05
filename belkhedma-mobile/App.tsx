@@ -152,6 +152,18 @@ const PRIMARY_MENUS: Array<{
   },
 ];
 
+const BOTTOM_MENU_ITEMS: Array<{
+  key: PrimaryMenuKey;
+  labelEn: string;
+  labelAr: string;
+  icon: string;
+}> = [
+  { key: "main", labelEn: "Home", labelAr: "الرئيسية", icon: "🏠" },
+  { key: "search", labelEn: "Offers", labelAr: "العروض", icon: "🏷️" },
+  { key: "orders", labelEn: "Contracts", labelAr: "العقود", icon: "📄" },
+  { key: "account", labelEn: "Profile", labelAr: "الملف الشخصي", icon: "👤" },
+];
+
 const SAMPLE_CALL_CENTER_NUMBER = "+966920000000";
 const SAMPLE_NOTIFICATIONS: SampleNotification[] = [
   {
@@ -1591,6 +1603,25 @@ export default function App() {
     setShowAddLocationForm(false);
     void loadSavedLocations();
   };
+  const handleBottomMenuPress = (key: PrimaryMenuKey) => {
+    setActivePrimaryMenu(key);
+    const selectedMenu = PRIMARY_MENUS.find((menu) => menu.key === key);
+    setActiveSecondaryMenu(selectedMenu?.secondary[0]?.key ?? "overview");
+
+    if (key === "main") {
+      setWizardStep(0);
+      return;
+    }
+    if (key === "search") {
+      setWizardStep(2);
+      return;
+    }
+    if (key === "orders") {
+      setWizardStep(3);
+      return;
+    }
+    setWizardStep(0);
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -1708,7 +1739,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView contentContainerStyle={[styles.page, styles.pageWithBottomMenu]}>
         <View style={styles.header}>
           <View style={styles.topUtilityRow}>
             <TouchableOpacity style={styles.locationPill} onPress={openLocationChooser}>
@@ -2665,6 +2696,23 @@ export default function App() {
           )}
         </View>
       </ScrollView>
+      <View style={styles.bottomMenuBar}>
+        {BOTTOM_MENU_ITEMS.map((menuItem) => {
+          const isActive = activePrimaryMenu === menuItem.key;
+          return (
+            <TouchableOpacity
+              key={menuItem.key}
+              style={[styles.bottomMenuButton, isActive && styles.bottomMenuButtonActive]}
+              onPress={() => handleBottomMenuPress(menuItem.key)}
+            >
+              <Text style={[styles.bottomMenuIcon, isActive && styles.bottomMenuIconActive]}>{menuItem.icon}</Text>
+              <Text style={[styles.bottomMenuLabel, isActive && styles.bottomMenuLabelActive]}>
+                {languageMode === "ar" ? menuItem.labelAr : menuItem.labelEn}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </SafeAreaView>
   );
 }
@@ -2672,6 +2720,45 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Brand.colors.primaryDark },
   page: { paddingBottom: Brand.spacing.lg, backgroundColor: Brand.colors.background },
+  pageWithBottomMenu: {
+    paddingBottom: 112,
+  },
+  bottomMenuBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    backgroundColor: "#fff",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  bottomMenuButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    paddingVertical: 8,
+    marginHorizontal: 3,
+  },
+  bottomMenuButtonActive: {
+    backgroundColor: "#FDF2F8",
+  },
+  bottomMenuIcon: {
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  bottomMenuIconActive: {
+    transform: [{ scale: 1.05 }],
+  },
+  bottomMenuLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Brand.colors.textSecondary,
+  },
+  bottomMenuLabelActive: {
+    color: Brand.colors.primaryDark,
+  },
   header: {
     paddingHorizontal: Brand.spacing.md,
     paddingVertical: Brand.spacing.lg,
