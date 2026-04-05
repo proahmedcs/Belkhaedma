@@ -156,6 +156,75 @@ public sealed record CustomerSavedLocationDto(
     string? GooglePlaceId,
     DateTime UpdatedAtUtc);
 
+public sealed record CustomerRequestAttributeValueDto(
+    string AttributeKey,
+    string AttributeNameAr,
+    string AttributeNameEn,
+    string Value,
+    string ValueAr,
+    string ValueEn);
+
+public sealed record CreateCustomerServiceRequestPayload(
+    Guid ServiceOfferId,
+    Guid ProviderId,
+    Guid? PriceSnapshotId,
+    Guid? LocationId,
+    string? LocationLabel,
+    string? LocationCity,
+    string? LocationDistrict,
+    decimal? LocationLatitude,
+    decimal? LocationLongitude,
+    string? LocationGoogleMapsUrl,
+    string? LocationGooglePlaceId,
+    string? ServiceDate,
+    string? Shift,
+    string? Nationality,
+    string? ContractDuration,
+    int? WorkersCount,
+    int? HoursPerVisit,
+    int? WeeklyVisits,
+    string? DeliveryWindow,
+    string? ProviderSource,
+    string? Notes,
+    IReadOnlyList<CustomerRequestAttributeValueDto>? PackageAttributes);
+
+public sealed record CustomerServiceRequestDto(
+    Guid Id,
+    Guid CustomerId,
+    string CustomerReference,
+    Guid? CustomerSavedLocationId,
+    string LocationLabel,
+    string LocationCity,
+    string LocationDistrict,
+    decimal? LocationLatitude,
+    decimal? LocationLongitude,
+    string? LocationGoogleMapsUrl,
+    string? LocationGooglePlaceId,
+    Guid ProviderId,
+    Guid ServiceOfferId,
+    Guid? PriceSnapshotId,
+    ServiceMode ServiceMode,
+    string PackageNameAr,
+    string PackageNameEn,
+    decimal FinalPriceSar,
+    decimal? OriginalPriceSar,
+    decimal? VatAmountSar,
+    string Currency,
+    string? ServiceDate,
+    string? SelectedShift,
+    string? SelectedNationality,
+    string? SelectedContractDuration,
+    int? SelectedWorkersCount,
+    int? SelectedHoursPerVisit,
+    int? SelectedWeeklyVisits,
+    string? SelectedDeliveryWindow,
+    string? SelectedProviderSource,
+    string Notes,
+    IReadOnlyList<CustomerRequestAttributeValueDto> PackageAttributes,
+    string Status,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);
+
 public sealed record CustomerAuthRequest(
     string? Email,
     string? MobileNumber,
@@ -270,6 +339,10 @@ public interface IMarketplaceQueryService
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<HomePromotionDto>> GetHomePromotionsAsync(
         bool includeInactive = false,
+        CancellationToken cancellationToken = default);
+    Task<CustomerServiceRequestDto> CreateCustomerServiceRequestAsync(
+        Guid customerId,
+        CreateCustomerServiceRequestPayload request,
         CancellationToken cancellationToken = default);
 }
 

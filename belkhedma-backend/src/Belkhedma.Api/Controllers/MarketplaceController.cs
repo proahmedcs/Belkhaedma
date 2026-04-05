@@ -300,6 +300,37 @@ public sealed class MarketplaceController(
             profile.MobileNumber));
     }
 
+    [Authorize(AuthenticationSchemes = AuthConstants.CustomerJwtScheme)]
+    [HttpPost("customers/requests")]
+    public async Task<IActionResult> CreateCustomerServiceRequest(
+        [FromBody] CreateCustomerServiceRequestPayload payload,
+        CancellationToken cancellationToken = default)
+    {
+        if (payload is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
+        var customerIdClaim = User.FindFirstValue(AuthConstants.CustomerIdClaim);
+        if (!Guid.TryParse(customerIdClaim, out var customerId))
+        {
+            return Unauthorized(new { message = "Invalid customer token." });
+        }
+
+        try
+        {
+            var created = await marketplaceQueryService.CreateCustomerServiceRequestAsync(
+                customerId,
+                payload,
+                cancellationToken);
+            return Ok(created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPut("json-documents/{documentId:guid}/expiration")]
     [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
     public async Task<IActionResult> SetJsonDocumentExpiration([FromRoute] Guid documentId, [FromBody] UpdateExpirationRequest request, CancellationToken cancellationToken)

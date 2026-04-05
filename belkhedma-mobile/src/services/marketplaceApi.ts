@@ -1,5 +1,7 @@
 import { API_BASE_URL } from "../config/api";
 import {
+  CreateCustomerServiceRequestPayload,
+  CustomerServiceRequest,
   CustomerSavedLocation,
   CustomerAuthResponse,
   CustomerProfile,
@@ -76,6 +78,32 @@ async function postJson<TRequest, TResponse>(path: string, body: TRequest): Prom
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = `API request failed for ${path}`;
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      if (errorPayload?.message) {
+        message = errorPayload.message;
+      }
+    } catch {
+      // ignore parse errors and keep default message
+    }
+    throw new ApiHttpError(path, response.status, message);
+  }
+
+  return (await response.json()) as TResponse;
+}
+
+async function postJsonWithAuth<TRequest, TResponse>(path: string, body: TRequest, token: string): Promise<TResponse> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
   });
@@ -255,6 +283,17 @@ export async function revokeCustomerRefreshToken(payload: {
 
 export async function getCurrentCustomer(authToken: string): Promise<CustomerProfile> {
   return fetchJson<CustomerProfile>("/api/auth/customers/me", authToken);
+}
+
+export async function createCustomerServiceRequest(
+  payload: CreateCustomerServiceRequestPayload,
+  authToken: string
+): Promise<CustomerServiceRequest> {
+  return postJsonWithAuth<CreateCustomerServiceRequestPayload, CustomerServiceRequest>(
+    "/api/marketplace/customers/requests",
+    payload,
+    authToken
+  );
 }
 
 export async function getHomePromotions(includeInactive = false): Promise<HomePromotion[]> {

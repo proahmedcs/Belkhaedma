@@ -247,6 +247,45 @@ public sealed class CustomerAccount
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public sealed class CustomerServiceRequest
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid CustomerAccountId { get; set; }
+    public string CustomerReference { get; set; } = string.Empty;
+    public Guid? CustomerSavedLocationId { get; set; }
+    public string LocationLabel { get; set; } = string.Empty;
+    public string LocationCity { get; set; } = string.Empty;
+    public string LocationDistrict { get; set; } = string.Empty;
+    public decimal? LocationLatitude { get; set; }
+    public decimal? LocationLongitude { get; set; }
+    public string? LocationGoogleMapsUrl { get; set; }
+    public string? LocationGooglePlaceId { get; set; }
+    public Guid ProviderId { get; set; }
+    public Guid ServiceOfferId { get; set; }
+    public Guid? PriceSnapshotId { get; set; }
+    public ServiceMode ServiceMode { get; set; } = ServiceMode.Hourly;
+    public string PackageNameAr { get; set; } = string.Empty;
+    public string PackageNameEn { get; set; } = string.Empty;
+    public decimal FinalPriceSar { get; set; }
+    public decimal? OriginalPriceSar { get; set; }
+    public decimal? VatAmountSar { get; set; }
+    public string Currency { get; set; } = "SAR";
+    public string? ServiceDate { get; set; }
+    public string? SelectedShift { get; set; }
+    public string? SelectedNationality { get; set; }
+    public string? SelectedContractDuration { get; set; }
+    public int? SelectedWorkersCount { get; set; }
+    public int? SelectedHoursPerVisit { get; set; }
+    public int? SelectedWeeklyVisits { get; set; }
+    public string? SelectedDeliveryWindow { get; set; }
+    public string? SelectedProviderSource { get; set; }
+    public string Notes { get; set; } = string.Empty;
+    public string PackageAttributesJson { get; set; } = "[]";
+    public string Status { get; set; } = "submitted";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class CustomerAuthSession
 {
     public Guid Id { get; set; } = Guid.NewGuid();

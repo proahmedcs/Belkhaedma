@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import {
+  createCustomerServiceRequest,
   getCurrentCustomer,
   getCustomerSavedLocations,
   getAllPrices,
@@ -32,6 +33,9 @@ import {
 } from "./src/services/marketplaceApi";
 import { Brand } from "./src/theme/brand";
 import {
+  CreateCustomerServiceRequestPayload,
+  CustomerRequestAttributeValue,
+  CustomerServiceRequest,
   CustomerAuthResponse,
   CustomerProfile,
   CustomerSavedLocation,
@@ -69,6 +73,7 @@ type ServiceDateOption = {
 type MandatoryFieldKey = "serviceDate" | "shift" | "contractDurationName";
 type ResultsSortMode = "recommended" | "cheapest" | "highest";
 type ResultsSourceFilter = "all" | "api" | "scraper" | "demo";
+type ResultsRow = { price: PriceSnapshot; provider?: Provider; offer?: ServiceOffer };
 type PrimaryMenuKey = "main" | "search" | "promotions" | "orders" | "account";
 type SecondaryMenuItem = { key: string; labelEn: string; labelAr: string };
 type SampleNotification = { id: string; titleEn: string; titleAr: string; metaEn: string; metaAr: string };
@@ -435,6 +440,14 @@ function normalizeAttributeKey(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function toGuidOrNull(value: string | null | undefined): string | null {
+  const normalized = (value ?? "").trim();
+  if (!normalized) return null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)
+    ? normalized
+    : null;
+}
+
 function filterScopeMatchesServiceMode(filterScope: number, serviceMode: number | null): boolean {
   if (!serviceMode) return true;
 
@@ -757,6 +770,12 @@ export default function App() {
   const [draftResultsHoursFilter, setDraftResultsHoursFilter] = useState<number | null>(null);
   const [draftResultsNationalityFilter, setDraftResultsNationalityFilter] = useState<string | null>(null);
   const [draftResultsWeeklyVisitsFilter, setDraftResultsWeeklyVisitsFilter] = useState<number | null>(null);
+  const [selectedRequestRow, setSelectedRequestRow] = useState<ResultsRow | null>(null);
+  const [pendingRequestAfterAuth, setPendingRequestAfterAuth] = useState<boolean>(false);
+  const [requestSubmitLoading, setRequestSubmitLoading] = useState<boolean>(false);
+  const [latestCreatedRequest, setLatestCreatedRequest] = useState<CustomerServiceRequest | null>(null);
+  const [requestSubmitError, setRequestSubmitError] = useState<string | null>(null);
+  const [requestSuccessMessage, setRequestSuccessMessage] = useState<string | null>(null);
   const [activePrimaryMenu, setActivePrimaryMenu] = useState<PrimaryMenuKey>("main");
   const [activeSecondaryMenu, setActiveSecondaryMenu] = useState<string>("overview");
   const [notificationCount] = useState<number>(3);
@@ -1193,6 +1212,95 @@ export default function App() {
     }
     return locationDetailsByLocationId[selectedLocationId] ?? createDefaultLocationExtraDetails();
   }, [locationDetailsByLocationId, selectedLocationId]);
+  const requestAttributeSummary = useMemo((): CustomerRequestAttributeValue[] => {
+    if (!selectedRequestRow?.offer) return [];
+
+    const attributes: CustomerRequestAttributeValue[] = [];
+    const byKey = new Set<string>();
+    const addItem = (
+      attributeKey: string,
+      attributeNameAr: string,
+      attributeNameEn: string,
+      value: string | number | null | undefined
+    ) => {
+      const normalizedValue = `${value ?? ""}`.trim();
+      if (!normalizedValue) return;
+      const normalizedKey = normalizeAttributeKey(attributeKey);
+      const dedupeKey = `${normalizedKey}::${normalizedValue.toLowerCase()}`;
+      if (byKey.has(dedupeKey)) return;
+      byKey.add(dedupeKey);
+      attributes.push({
+        attributeKey: normalizedKey,
+        attributeNameAr,
+        attributeNameEn,
+        value: normalizedValue,
+        valueAr: normalizedValue,
+        valueEn: normalizedValue,
+      });
+    };
+
+    addItem("serviceDate", "تاريخ الخدمة", "Service Date", serviceDate);
+    addItem("shift", "الفترة", "Shift", selectedShift);
+    addItem("nationality", "الجنسية", "Nationality", selectedNationalityGroup);
+    addItem("contractDuration", "مدة التعاقد", "Contract Duration", selectedContractDurationName);
+    addItem("workersCount", "عدد العمال", "Workers Count", selectedWorkersCount);
+    addItem("hoursPerVisit", "عدد الساعات لكل زيارة", "Hours Per Visit", selectedHoursPerVisit ?? hourlyHours);
+    addItem("weeklyVisits", "عدد الزيارات الأسبوعية", "Weekly Visits", selectedWeeklyVisits);
+    addItem("deliveryWindow", "نافذة التسليم", "Delivery Window", selectedDeliveryWindow);
+    addItem("providerSource", "مزود الخدمة", "Provider Source", selectedProviderSource);
+    if (selectedNotes.trim()) {
+      addItem("notes", "ملاحظات", "Notes", selectedNotes.trim());
+    }
+
+    const optionSetByKey = new Map<string, LocalizedOption[]>();
+    for (const attribute of selectedRequestRow.offer.serviceAttributes ?? []) {
+      optionSetByKey.set(normalizeAttributeKey(attribute.attributeKey), parseAttributeOptionSetJson(attribute));
+    }
+    const getLocalizedValue = (attributeKey: string, fallback: string): { en: string; ar: string } => {
+      const key = normalizeAttributeKey(attributeKey);
+      const options = optionSetByKey.get(key) ?? [];
+      const matching = options.find((opt) => normalizeText(opt.value) === normalizeText(fallback));
+      return {
+        en: matching?.labelEn ?? fallback,
+        ar: matching?.labelAr ?? fallback,
+      };
+    };
+
+    const enrich = (attributeKey: string, fallback: string | null | undefined) => {
+      const value = (fallback ?? "").trim();
+      if (!value) return;
+      const matchIndex = attributes.findIndex((item) => normalizeAttributeKey(item.attributeKey) === normalizeAttributeKey(attributeKey));
+      if (matchIndex < 0) return;
+      const localized = getLocalizedValue(attributeKey, value);
+      attributes[matchIndex] = {
+        ...attributes[matchIndex],
+        valueAr: localized.ar,
+        valueEn: localized.en,
+      };
+    };
+
+    enrich("shift", selectedShift);
+    enrich("nationality", selectedNationalityGroup);
+    enrich("contractDuration", selectedContractDurationName);
+    enrich("deliveryWindow", selectedDeliveryWindow);
+    enrich("providerSource", selectedProviderSource);
+
+    return attributes;
+  }, [
+    hourlyHours,
+    selectedContractDurationName,
+    selectedDeliveryWindow,
+    selectedNationalityGroup,
+    selectedNotes,
+    selectedProviderSource,
+    selectedRequestRow,
+    selectedShift,
+    selectedWeeklyVisits,
+    selectedWorkersCount,
+    selectedHoursPerVisit,
+    serviceDate,
+  ]);
+  const requiresLoginForRequest = useMemo(() => !authToken || !currentCustomer, [authToken, currentCustomer]);
   const updateSelectedLocationDetail = <K extends keyof LocationExtraDetails>(
     key: K,
     value: LocationExtraDetails[K]
@@ -1578,6 +1686,10 @@ export default function App() {
         customerReference: profile.customerReference,
       });
       await loadData(response.authToken, profile.customerReference);
+      if (pendingRequestAfterAuth) {
+        setPendingRequestAfterAuth(false);
+        await submitCustomerRequest();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed.");
     } finally {
@@ -1877,6 +1989,92 @@ export default function App() {
     }
     setWizardStep(0);
   };
+  const openPackageReview = (row: ResultsRow) => {
+    setLatestCreatedRequest(null);
+    setRequestSubmitError(null);
+    setRequestSuccessMessage(null);
+    setPendingRequestAfterAuth(false);
+    setSelectedRequestRow(row);
+    setWizardStep(3);
+    setActivePrimaryMenu("main");
+  };
+  const closePackageReview = () => {
+    setPendingRequestAfterAuth(false);
+    setRequestSubmitError(null);
+    setRequestSuccessMessage(null);
+    setSelectedRequestRow(null);
+    setLatestCreatedRequest(null);
+  };
+  const submitCustomerRequest = async () => {
+    if (!selectedRequestRow?.offer || !selectedRequestRow.price || !selectedRequestRow.provider) {
+      setRequestSubmitError(languageMode === "ar" ? "يرجى اختيار باقة أولاً." : "Please select a package first.");
+      setRequestSuccessMessage(null);
+      return;
+    }
+    if (!selectedLocationId) {
+      setRequestSubmitError(languageMode === "ar" ? "يرجى اختيار موقع الخدمة أولاً." : "Please select service location first.");
+      setRequestSuccessMessage(null);
+      return;
+    }
+    if (!authToken || !currentCustomer) {
+      setPendingRequestAfterAuth(true);
+      setRequestSubmitError(
+        languageMode === "ar"
+          ? "الرجاء تسجيل الدخول أو إنشاء حساب قبل إنشاء الطلب."
+          : "Please login or register before creating request."
+      );
+      setRequestSuccessMessage(null);
+      return;
+    }
+
+    try {
+      setRequestSubmitLoading(true);
+      setRequestSubmitError(null);
+      setRequestSuccessMessage(null);
+
+      const selectedLocationRecord = savedLocations.find((location) => location.id === selectedLocationId) ?? null;
+      const payload: CreateCustomerServiceRequestPayload = {
+        serviceOfferId: selectedRequestRow.offer.id,
+        providerId: selectedRequestRow.provider.id,
+        priceSnapshotId: selectedRequestRow.price.id,
+        locationId: selectedLocationId?.startsWith("local-") ? null : selectedLocationId,
+        locationLabel: selectedLocationRecord?.label ?? null,
+        locationCity: selectedLocationRecord?.city ?? null,
+        locationDistrict: selectedLocationRecord?.district ?? null,
+        locationLatitude: selectedLocationRecord?.latitude ?? null,
+        locationLongitude: selectedLocationRecord?.longitude ?? null,
+        locationGoogleMapsUrl: selectedLocationRecord?.googleMapsUrl ?? null,
+        locationGooglePlaceId: selectedLocationRecord?.googlePlaceId ?? null,
+        serviceDate: serviceDate || null,
+        shift: selectedShift ?? null,
+        nationality: selectedNationalityGroup ?? null,
+        contractDuration: selectedContractDurationName ?? null,
+        workersCount: selectedWorkersCount ?? null,
+        hoursPerVisit: selectedHoursPerVisit ?? hourlyHours,
+        weeklyVisits: selectedWeeklyVisits ?? null,
+        deliveryWindow: selectedDeliveryWindow ?? null,
+        providerSource: selectedProviderSource ?? selectedRequestRow.provider.code,
+        notes: selectedNotes.trim() || null,
+        packageAttributes: requestAttributeSummary,
+      };
+
+      const created = await createCustomerServiceRequest(payload, authToken);
+      setLatestCreatedRequest(created);
+      setSelectedRequestRow(null);
+      setPendingRequestAfterAuth(false);
+      setRequestSubmitError(null);
+      setRequestSuccessMessage(
+        languageMode === "ar"
+          ? `تم إنشاء الطلب بنجاح. رقم الطلب: ${created.id}`
+          : `Request created successfully. Request ID: ${created.id}`
+      );
+    } catch (err) {
+      setRequestSubmitError(err instanceof Error ? err.message : languageMode === "ar" ? "تعذر إنشاء الطلب." : "Failed to create request.");
+      setRequestSuccessMessage(null);
+    } finally {
+      setRequestSubmitLoading(false);
+    }
+  };
   const renderBottomMenu = () => (
     <View style={[styles.bottomMenuBar, isDesktopWeb ? styles.bottomMenuBarDesktop : null]}>
       {BOTTOM_MENU_ITEMS.map((menuItem) => {
@@ -1969,6 +2167,15 @@ export default function App() {
       isCancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!pendingRequestAfterAuth || !authToken || !currentCustomer) {
+      return;
+    }
+
+    setPendingRequestAfterAuth(false);
+    void submitCustomerRequest();
+  }, [authToken, currentCustomer, pendingRequestAfterAuth]);
 
   if (authBootstrapping) {
     return (
@@ -3054,7 +3261,7 @@ export default function App() {
               const logoIndex = provider?.id ? logoFallbackIndex[provider.id] ?? 0 : 0;
               const logoUri = logoCandidates[logoIndex];
               return (
-                <View style={styles.priceCard} key={price.id}>
+                <TouchableOpacity style={styles.priceCard} key={price.id} onPress={() => openPackageReview({ price, provider, offer })}>
                   <View style={styles.packageProviderRow}>
                     <Text style={styles.packageName}>
                       {offer ? (languageMode === "ar" ? offer.nameAr : offer.nameEn) : "Package"}
@@ -3126,10 +3333,177 @@ export default function App() {
                   ) : null}
                   <Text style={styles.meta}>Updated: {new Date(price.collectedAtUtc).toLocaleString()}</Text>
                   <Text style={styles.meta}>Expires: {new Date(price.expiresAtUtc).toLocaleString()}</Text>
-                </View>
+                  <Text style={styles.packageTapHint}>
+                    {languageMode === "ar"
+                      ? "اضغط لمراجعة الباقة وإنشاء طلب"
+                      : "Tap to review package and create request"}
+                  </Text>
+                </TouchableOpacity>
               );
               })
             )}
+            {selectedRequestRow?.offer && selectedRequestRow.provider && selectedRequestRow.price ? (
+              <View style={styles.requestReviewCard}>
+                <Text style={styles.sectionTitle}>{languageMode === "ar" ? "مراجعة الطلب" : "Request Review"}</Text>
+                {requestSuccessMessage ? <Text style={styles.requestSuccessText}>{requestSuccessMessage}</Text> : null}
+                {requestSubmitError ? <Text style={styles.errorText}>{requestSubmitError}</Text> : null}
+                <Text style={styles.summaryText}>
+                  {languageMode === "ar" ? selectedRequestRow.offer.nameAr : selectedRequestRow.offer.nameEn}
+                </Text>
+                <Text style={styles.summaryText}>
+                  {languageMode === "ar" ? "المزود" : "Provider"}:{" "}
+                  {languageMode === "ar" ? selectedRequestRow.provider.nameAr : selectedRequestRow.provider.nameEn}
+                </Text>
+                <Text style={styles.summaryText}>
+                  {languageMode === "ar" ? "السعر النهائي" : "Final Price"}: {selectedRequestRow.price.finalPriceSar} SAR
+                </Text>
+                <Text style={styles.summaryText}>
+                  {languageMode === "ar" ? "ضريبة القيمة المضافة" : "VAT"}: {selectedRequestRow.price.vatAmountSar ?? 0} SAR
+                </Text>
+                <Text style={styles.summaryText}>
+                  {languageMode === "ar" ? "الموقع" : "Location"}:{" "}
+                  {selectedLocation
+                    ? `${selectedLocation.label} - ${selectedLocation.city} / ${selectedLocation.district}`
+                    : languageMode === "ar"
+                      ? "غير محدد"
+                      : "Not selected"}
+                </Text>
+                <Text style={styles.summaryText}>
+                  {languageMode === "ar" ? "العميل" : "Customer"}:{" "}
+                  {currentCustomer?.fullName ||
+                    (languageMode === "ar" ? "زائر (يلزم تسجيل الدخول للإنشاء)" : "Guest (login required to create)")}
+                </Text>
+                <View style={styles.requestAttributesBlock}>
+                  <Text style={styles.fieldHint}>{languageMode === "ar" ? "خصائص الطلب" : "Request Attributes"}</Text>
+                  {requestAttributeSummary.length === 0 ? (
+                    <Text style={styles.meta}>{languageMode === "ar" ? "لا توجد خصائص إضافية." : "No extra attributes."}</Text>
+                  ) : (
+                    requestAttributeSummary.map((item) => (
+                      <Text style={styles.meta} key={`req-attr-${item.attributeKey}-${item.value}`}>
+                        {(languageMode === "ar" ? item.attributeNameAr : item.attributeNameEn) || item.attributeKey}:{" "}
+                        {languageMode === "ar" ? item.valueAr : item.valueEn}
+                      </Text>
+                    ))
+                  )}
+                </View>
+                {requiresLoginForRequest ? (
+                  <View style={styles.requestAuthBlock}>
+                    <Text style={styles.errorText}>
+                      {languageMode === "ar"
+                        ? "يجب تسجيل الدخول أو إنشاء حساب قبل إنشاء الطلب."
+                        : "Login or register is required before creating request."}
+                    </Text>
+                    <View style={styles.rowControls}>
+                      <TextInput
+                        placeholder={languageMode === "ar" ? "البريد الإلكتروني" : "Email"}
+                        value={customerEmail}
+                        onChangeText={setCustomerEmail}
+                        style={[styles.searchInput, styles.customerInput]}
+                        placeholderTextColor={Brand.colors.textSecondary}
+                        autoCapitalize="none"
+                      />
+                    </View>
+                    {isAuthRegisterMode ? (
+                      <View style={styles.rowControls}>
+                        <TextInput
+                          placeholder={languageMode === "ar" ? "الاسم الكامل" : "Full Name"}
+                          value={customerFullName}
+                          onChangeText={setCustomerFullName}
+                          style={[styles.searchInput, styles.customerInput]}
+                          placeholderTextColor={Brand.colors.textSecondary}
+                        />
+                      </View>
+                    ) : null}
+                    {isAuthRegisterMode ? (
+                      <View style={styles.rowControls}>
+                        <TextInput
+                          placeholder={languageMode === "ar" ? "رقم الجوال" : "Mobile Number"}
+                          value={customerMobileNumber}
+                          onChangeText={setCustomerMobileNumber}
+                          style={[styles.searchInput, styles.customerInput]}
+                          placeholderTextColor={Brand.colors.textSecondary}
+                        />
+                      </View>
+                    ) : null}
+                    <View style={styles.rowControls}>
+                      <TextInput
+                        placeholder={languageMode === "ar" ? "كلمة المرور" : "Password"}
+                        value={customerPassword}
+                        onChangeText={setCustomerPassword}
+                        style={[styles.searchInput, styles.customerInput]}
+                        placeholderTextColor={Brand.colors.textSecondary}
+                        secureTextEntry
+                      />
+                    </View>
+                    <View style={styles.requestReviewActions}>
+                      <TouchableOpacity
+                        style={styles.filterToggleButton}
+                        onPress={() => setIsAuthRegisterMode((prev) => !prev)}
+                      >
+                        <Text style={styles.filterToggleText}>
+                          {isAuthRegisterMode
+                            ? languageMode === "ar"
+                              ? "لديك حساب؟ تسجيل الدخول"
+                              : "Have account? Login"
+                            : languageMode === "ar"
+                              ? "مستخدم جديد؟ سجل الآن"
+                              : "New user? Register"}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.searchButton} onPress={handleRegisterOrLogin} disabled={authLoading}>
+                        <Text style={styles.searchButtonText}>
+                          {authLoading
+                            ? languageMode === "ar"
+                              ? "جاري التحقق..."
+                              : "Authenticating..."
+                            : isAuthRegisterMode
+                              ? languageMode === "ar"
+                                ? "تسجيل وإنشاء حساب"
+                                : "Register"
+                              : languageMode === "ar"
+                                ? "تسجيل الدخول"
+                                : "Login"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
+                <View style={styles.requestReviewActions}>
+                  <TouchableOpacity style={styles.filterToggleButton} onPress={closePackageReview}>
+                    <Text style={styles.filterToggleText}>{languageMode === "ar" ? "إغلاق" : "Close"}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.filterApplyButton}
+                    onPress={submitCustomerRequest}
+                    disabled={requestSubmitLoading}
+                  >
+                    <Text style={styles.filterApplyText}>
+                      {requestSubmitLoading
+                        ? languageMode === "ar"
+                          ? "جاري الإنشاء..."
+                          : "Creating..."
+                        : languageMode === "ar"
+                          ? "إنشاء الطلب"
+                          : "Create Request"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+            {latestCreatedRequest ? (
+              <View style={styles.requestSuccessCard}>
+                <Text style={styles.requestSuccessText}>
+                  {languageMode === "ar"
+                    ? `تم حفظ الطلب بنجاح. رقم الطلب: ${latestCreatedRequest.id}`
+                    : `Request saved successfully. Request ID: ${latestCreatedRequest.id}`}
+                </Text>
+                <Text style={styles.meta}>
+                  {languageMode === "ar" ? "الحالة" : "Status"}: {latestCreatedRequest.status}
+                </Text>
+              </View>
+            ) : null}
+            {requestSubmitError ? <Text style={styles.errorText}>{requestSubmitError}</Text> : null}
+            {requestSuccessMessage ? <Text style={styles.requestSuccessText}>{requestSuccessMessage}</Text> : null}
           </View>
         ) : null}
 
@@ -4050,4 +4424,56 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   meta: { color: Brand.colors.textSecondary, fontSize: 12 },
+  packageTapHint: {
+    color: Brand.colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  requestReviewCard: {
+    borderWidth: 1,
+    borderColor: Brand.colors.primary,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    backgroundColor: "#fff",
+  },
+  requestAttributesBlock: {
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: "#fff",
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  requestAuthBlock: {
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 10,
+    backgroundColor: "#FFFBEB",
+    padding: 10,
+    marginBottom: 10,
+  },
+  requestReviewActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 8,
+  },
+  requestSuccessCard: {
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+    borderRadius: 12,
+    backgroundColor: "#F0FDF4",
+    padding: 12,
+    marginTop: 12,
+  },
+  requestSuccessText: {
+    color: "#166534",
+    fontWeight: "800",
+    marginBottom: 4,
+  },
 });

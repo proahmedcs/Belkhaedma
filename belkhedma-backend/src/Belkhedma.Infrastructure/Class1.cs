@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -511,6 +512,109 @@ internal sealed class MarketplaceQueryService(
         return rows.Select(MapHomePromotion).ToList();
     }
 
+    public async Task<CustomerServiceRequestDto> CreateCustomerServiceRequestAsync(
+        Guid customerId,
+        CreateCustomerServiceRequestPayload request,
+        CancellationToken cancellationToken = default)
+    {
+        if (customerId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Customer is required.");
+        }
+
+        if (request.ServiceOfferId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Service offer is required.");
+        }
+
+        if (request.ProviderId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Provider is required.");
+        }
+
+        var customer = await dbContext.CustomerAccounts
+            .FirstOrDefaultAsync(x => x.Id == customerId && x.IsActive, cancellationToken);
+        if (customer is null)
+        {
+            throw new InvalidOperationException("Customer not found or inactive.");
+        }
+
+        var offer = await dbContext.ServiceOffers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == request.ServiceOfferId && x.ProviderId == request.ProviderId, cancellationToken);
+        if (offer is null)
+        {
+            throw new InvalidOperationException("Selected package was not found for this provider.");
+        }
+
+        PriceSnapshot? priceSnapshot = null;
+        if (request.PriceSnapshotId.HasValue)
+        {
+            priceSnapshot = await dbContext.PriceSnapshots
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.Id == request.PriceSnapshotId.Value &&
+                    x.ProviderId == request.ProviderId &&
+                    x.ServiceOfferId == request.ServiceOfferId, cancellationToken);
+        }
+
+        if (priceSnapshot is null)
+        {
+            priceSnapshot = await dbContext.PriceSnapshots
+                .AsNoTracking()
+                .Where(x => x.ProviderId == request.ProviderId && x.ServiceOfferId == request.ServiceOfferId)
+                .OrderByDescending(x => x.CollectedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        var location = await ResolveLocationAsync(customer, request, cancellationToken);
+        var normalizedAttributes = NormalizeRequestAttributes(request.PackageAttributes);
+
+        var now = DateTime.UtcNow;
+        var entity = new CustomerServiceRequest
+        {
+            CustomerAccountId = customer.Id,
+            CustomerReference = customer.CustomerReference,
+            CustomerSavedLocationId = location.Id == Guid.Empty ? null : location.Id,
+            LocationLabel = location.Label,
+            LocationCity = location.City,
+            LocationDistrict = location.District,
+            LocationLatitude = location.Latitude,
+            LocationLongitude = location.Longitude,
+            LocationGoogleMapsUrl = location.GoogleMapsUrl,
+            LocationGooglePlaceId = location.GooglePlaceId,
+            ProviderId = request.ProviderId,
+            ServiceOfferId = request.ServiceOfferId,
+            PriceSnapshotId = priceSnapshot?.Id,
+            ServiceMode = offer.ServiceMode,
+            PackageNameAr = offer.NameAr,
+            PackageNameEn = offer.NameEn,
+            FinalPriceSar = priceSnapshot?.FinalPriceSar ?? 0m,
+            OriginalPriceSar = priceSnapshot?.OriginalPriceSar,
+            VatAmountSar = priceSnapshot?.VatAmountSar,
+            Currency = priceSnapshot?.Currency ?? "SAR",
+            ServiceDate = NormalizeNullable(request.ServiceDate),
+            SelectedShift = NormalizeNullable(request.Shift),
+            SelectedNationality = NormalizeNullable(request.Nationality),
+            SelectedContractDuration = NormalizeNullable(request.ContractDuration),
+            SelectedWorkersCount = request.WorkersCount,
+            SelectedHoursPerVisit = request.HoursPerVisit,
+            SelectedWeeklyVisits = request.WeeklyVisits,
+            SelectedDeliveryWindow = NormalizeNullable(request.DeliveryWindow),
+            SelectedProviderSource = NormalizeNullable(request.ProviderSource),
+            Notes = NormalizeNullable(request.Notes) ?? string.Empty,
+            PackageAttributesJson = JsonSerializer.Serialize(normalizedAttributes),
+            Status = "submitted",
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await dbContext.CustomerServiceRequests.AddAsync(entity, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return MapCustomerServiceRequest(entity);
+    }
+
     public async Task<IReadOnlyList<PriceSnapshotDto>> GetAllPricesAsync(string? providerCode, bool includeExpired, CancellationToken cancellationToken = default)
     {
         var providers = dbContext.Providers.AsNoTracking();
@@ -725,6 +829,164 @@ internal sealed class MarketplaceQueryService(
             entity.IsActive,
             entity.CreatedAtUtc,
             entity.UpdatedAtUtc);
+    }
+
+    private static CustomerServiceRequestDto MapCustomerServiceRequest(CustomerServiceRequest entity)
+    {
+        IReadOnlyList<CustomerRequestAttributeValueDto> packageAttributes;
+        try
+        {
+            packageAttributes = JsonSerializer.Deserialize<List<CustomerRequestAttributeValueDto>>(entity.PackageAttributesJson) ?? [];
+        }
+        catch
+        {
+            packageAttributes = [];
+        }
+
+        return new CustomerServiceRequestDto(
+            entity.Id,
+            entity.CustomerAccountId,
+            entity.CustomerReference,
+            entity.CustomerSavedLocationId,
+            entity.LocationLabel,
+            entity.LocationCity,
+            entity.LocationDistrict,
+            entity.LocationLatitude,
+            entity.LocationLongitude,
+            entity.LocationGoogleMapsUrl,
+            entity.LocationGooglePlaceId,
+            entity.ProviderId,
+            entity.ServiceOfferId,
+            entity.PriceSnapshotId,
+            entity.ServiceMode,
+            entity.PackageNameAr,
+            entity.PackageNameEn,
+            entity.FinalPriceSar,
+            entity.OriginalPriceSar,
+            entity.VatAmountSar,
+            entity.Currency,
+            entity.ServiceDate,
+            entity.SelectedShift,
+            entity.SelectedNationality,
+            entity.SelectedContractDuration,
+            entity.SelectedWorkersCount,
+            entity.SelectedHoursPerVisit,
+            entity.SelectedWeeklyVisits,
+            entity.SelectedDeliveryWindow,
+            entity.SelectedProviderSource,
+            entity.Notes,
+            packageAttributes,
+            entity.Status,
+            entity.CreatedAtUtc,
+            entity.UpdatedAtUtc);
+    }
+
+    private static IReadOnlyList<CustomerRequestAttributeValueDto> NormalizeRequestAttributes(
+        IReadOnlyList<CustomerRequestAttributeValueDto>? source)
+    {
+        return (source ?? [])
+            .Where(x => !string.IsNullOrWhiteSpace(x.AttributeKey) && !string.IsNullOrWhiteSpace(x.Value))
+            .Select(x => new CustomerRequestAttributeValueDto(
+                x.AttributeKey.Trim(),
+                (x.AttributeNameAr ?? string.Empty).Trim(),
+                (x.AttributeNameEn ?? string.Empty).Trim(),
+                x.Value.Trim(),
+                (x.ValueAr ?? x.Value).Trim(),
+                (x.ValueEn ?? x.Value).Trim()))
+            .GroupBy(x => $"{x.AttributeKey}::{x.Value}", StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.First())
+            .Take(100)
+            .ToList();
+    }
+
+    private async Task<CustomerSavedLocation> ResolveLocationAsync(
+        CustomerAccount customer,
+        CreateCustomerServiceRequestPayload request,
+        CancellationToken cancellationToken)
+    {
+        if (request.LocationId.HasValue)
+        {
+            var byId = await dbContext.CustomerSavedLocations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.Id == request.LocationId.Value &&
+                    x.CustomerReference == customer.CustomerReference, cancellationToken);
+            if (byId is not null)
+            {
+                return byId;
+            }
+        }
+
+        var payloadLabel = NormalizeNullable(request.LocationLabel);
+        var payloadCity = NormalizeNullable(request.LocationCity);
+        var payloadDistrict = NormalizeNullable(request.LocationDistrict);
+        if (!string.IsNullOrWhiteSpace(payloadLabel) &&
+            !string.IsNullOrWhiteSpace(payloadCity) &&
+            !string.IsNullOrWhiteSpace(payloadDistrict))
+        {
+            var safeLatitude = request.LocationLatitude is > -90m and < 90m ? request.LocationLatitude : null;
+            var safeLongitude = request.LocationLongitude is > -180m and < 180m ? request.LocationLongitude : null;
+            return new CustomerSavedLocation
+            {
+                Id = request.LocationId ?? Guid.Empty,
+                CustomerReference = customer.CustomerReference,
+                Label = payloadLabel,
+                City = payloadCity,
+                District = payloadDistrict,
+                Latitude = safeLatitude ?? 24.7136m,
+                Longitude = safeLongitude ?? 46.6753m,
+                GoogleMapsUrl = NormalizeNullable(request.LocationGoogleMapsUrl),
+                GooglePlaceId = NormalizeNullable(request.LocationGooglePlaceId),
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            };
+        }
+
+        var latest = await dbContext.CustomerSavedLocations
+            .AsNoTracking()
+            .Where(x => x.CustomerReference == customer.CustomerReference)
+            .OrderByDescending(x => x.UpdatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (latest is not null)
+        {
+            return latest;
+        }
+
+        var normalizedMobile = customer.NormalizedMobileNumber.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedMobile))
+        {
+            var suffixChars = normalizedMobile.Where(char.IsDigit).TakeLast(4).ToArray();
+            var suffix = suffixChars.Length > 0 ? new string(suffixChars) : "0000";
+            return new CustomerSavedLocation
+            {
+                Id = Guid.Empty,
+                CustomerReference = customer.CustomerReference,
+                Label = $"Auto Address {suffix}",
+                City = "Riyadh",
+                District = "Not Specified",
+                Latitude = 24.7136m,
+                Longitude = 46.6753m,
+                GoogleMapsUrl = null,
+                GooglePlaceId = null,
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            };
+        }
+
+        return new CustomerSavedLocation
+        {
+            Id = Guid.Empty,
+            CustomerReference = customer.CustomerReference,
+            Label = "Auto Address",
+            City = "Riyadh",
+            District = "Not Specified",
+            Latitude = 24.7136m,
+            Longitude = 46.6753m,
+            GoogleMapsUrl = null,
+            GooglePlaceId = null,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
     }
 
     private static ServiceAttributeDto MapServiceAttribute(ServiceAttribute entity)

@@ -17,6 +17,7 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
     public DbSet<CollectionJobRun> CollectionJobRuns => Set<CollectionJobRun>();
     public DbSet<CustomerSavedLocation> CustomerSavedLocations => Set<CustomerSavedLocation>();
     public DbSet<CustomerAccount> CustomerAccounts => Set<CustomerAccount>();
+    public DbSet<CustomerServiceRequest> CustomerServiceRequests => Set<CustomerServiceRequest>();
     public DbSet<CustomerAuthSession> CustomerAuthSessions => Set<CustomerAuthSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -161,6 +162,36 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
             entity.Property(x => x.NormalizedMobileNumber).HasMaxLength(30).IsRequired();
             entity.HasIndex(x => x.CustomerReference).IsUnique();
             entity.HasIndex(x => x.NormalizedMobileNumber).IsUnique();
+        });
+
+        modelBuilder.Entity<CustomerServiceRequest>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CustomerReference).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.LocationLabel).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.LocationCity).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.LocationDistrict).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.LocationLatitude).HasPrecision(9, 6);
+            entity.Property(x => x.LocationLongitude).HasPrecision(9, 6);
+            entity.Property(x => x.LocationGoogleMapsUrl).HasMaxLength(500);
+            entity.Property(x => x.LocationGooglePlaceId).HasMaxLength(120);
+            entity.Property(x => x.PackageNameAr).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.PackageNameEn).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.FinalPriceSar).HasPrecision(18, 2);
+            entity.Property(x => x.OriginalPriceSar).HasPrecision(18, 2);
+            entity.Property(x => x.VatAmountSar).HasPrecision(18, 2);
+            entity.Property(x => x.Currency).HasMaxLength(8).IsRequired();
+            entity.Property(x => x.ServiceDate).HasMaxLength(40);
+            entity.Property(x => x.SelectedShift).HasMaxLength(120);
+            entity.Property(x => x.SelectedNationality).HasMaxLength(120);
+            entity.Property(x => x.SelectedContractDuration).HasMaxLength(120);
+            entity.Property(x => x.SelectedDeliveryWindow).HasMaxLength(120);
+            entity.Property(x => x.SelectedProviderSource).HasMaxLength(120);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.PackageAttributesJson).HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(50).IsRequired();
+            entity.HasIndex(x => new { x.CustomerAccountId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.CustomerReference, x.CreatedAtUtc });
         });
 
         modelBuilder.Entity<CustomerAuthSession>(entity =>

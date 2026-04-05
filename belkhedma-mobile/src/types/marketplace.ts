@@ -83,6 +83,78 @@ export type CustomerSavedLocation = {
   updatedAtUtc: string;
 };
 
+export type CustomerRequestAttributeValue = {
+  attributeKey: string;
+  attributeNameAr: string;
+  attributeNameEn: string;
+  value: string;
+  valueAr: string;
+  valueEn: string;
+};
+
+export type CreateCustomerServiceRequestPayload = {
+  serviceOfferId: string;
+  providerId: string;
+  priceSnapshotId?: string | null;
+  locationId?: string | null;
+  locationLabel?: string | null;
+  locationCity?: string | null;
+  locationDistrict?: string | null;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationGoogleMapsUrl?: string | null;
+  locationGooglePlaceId?: string | null;
+  serviceDate?: string | null;
+  shift?: string | null;
+  nationality?: string | null;
+  contractDuration?: string | null;
+  workersCount?: number | null;
+  hoursPerVisit?: number | null;
+  weeklyVisits?: number | null;
+  deliveryWindow?: string | null;
+  providerSource?: string | null;
+  notes?: string | null;
+  packageAttributes?: CustomerRequestAttributeValue[];
+};
+
+export type CustomerServiceRequest = {
+  id: string;
+  customerId: string;
+  customerReference: string;
+  customerSavedLocationId?: string | null;
+  locationLabel: string;
+  locationCity: string;
+  locationDistrict: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationGoogleMapsUrl?: string | null;
+  locationGooglePlaceId?: string | null;
+  providerId: string;
+  serviceOfferId: string;
+  priceSnapshotId?: string | null;
+  serviceMode: number;
+  packageNameAr: string;
+  packageNameEn: string;
+  finalPriceSar: number;
+  originalPriceSar?: number | null;
+  vatAmountSar?: number | null;
+  currency: string;
+  serviceDate?: string | null;
+  selectedShift?: string | null;
+  selectedNationality?: string | null;
+  selectedContractDuration?: string | null;
+  selectedWorkersCount?: number | null;
+  selectedHoursPerVisit?: number | null;
+  selectedWeeklyVisits?: number | null;
+  selectedDeliveryWindow?: string | null;
+  selectedProviderSource?: string | null;
+  notes: string;
+  packageAttributes: CustomerRequestAttributeValue[];
+  status: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
 export type CustomerAuthResponse = {
   customerId: string;
   customerReference: string;
