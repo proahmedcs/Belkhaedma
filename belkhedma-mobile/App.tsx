@@ -15,8 +15,6 @@ import {
   View,
 } from "react-native";
 import {
-  createHomePromotion,
-  deleteHomePromotion,
   getCurrentCustomer,
   getCustomerSavedLocations,
   getAllPrices,
@@ -82,21 +80,6 @@ type NewLocationDraft = {
   longitude: string;
   mapSearchText: string;
 } & LocationExtraDetails;
-type PromotionDraft = {
-  companyNameAr: string;
-  companyNameEn: string;
-  titleAr: string;
-  titleEn: string;
-  subtitleAr: string;
-  subtitleEn: string;
-  imageUrl: string;
-  targetUrl: string;
-  deepLink: string;
-  itemsCsv: string;
-  providerCode: string;
-  displayOrder: number;
-  isActive: boolean;
-};
 
 const PRIMARY_MENUS: Array<{
   key: PrimaryMenuKey;
@@ -638,24 +621,6 @@ function getServiceGroupIcon(group: ServiceGroup): string {
   return "🤝";
 }
 
-function createDefaultPromotionDraft(): PromotionDraft {
-  return {
-    companyNameAr: "بالخدمة",
-    companyNameEn: "Belkhedma",
-    titleAr: "",
-    titleEn: "",
-    subtitleAr: "",
-    subtitleEn: "",
-    imageUrl: "",
-    targetUrl: "",
-    deepLink: "",
-    itemsCsv: "",
-    providerCode: "",
-    displayOrder: 1,
-    isActive: true,
-  };
-}
-
 export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentCustomer, setCurrentCustomer] = useState<CustomerProfile | null>(null);
@@ -694,8 +659,6 @@ export default function App() {
   const [selectedDeliveryWindow, setSelectedDeliveryWindow] = useState<string | null>(null);
   const [promotions, setPromotions] = useState<HomePromotion[]>([]);
   const [promotionActiveIndex, setPromotionActiveIndex] = useState<number>(0);
-  const [showPromotionEditor, setShowPromotionEditor] = useState<boolean>(false);
-  const [newPromotionDraft, setNewPromotionDraft] = useState<PromotionDraft>(createDefaultPromotionDraft());
   const [showResultsFilters, setShowResultsFilters] = useState<boolean>(false);
   const [resultsSortMode, setResultsSortMode] = useState<ResultsSortMode>("recommended");
   const [resultsSourceFilter, setResultsSourceFilter] = useState<"all" | "api" | "scraper" | "demo">("all");
@@ -1352,81 +1315,6 @@ export default function App() {
     return promotionSlides[normalizedIndex] ?? promotionSlides[0] ?? null;
   }, [promotionActiveIndex, promotionSlides]);
 
-  const activePromotionId = activePromotion?.id ?? null;
-
-  const handleAddPromotion = async (): Promise<void> => {
-    const titleAr = newPromotionDraft.titleAr.trim();
-    const titleEn = newPromotionDraft.titleEn.trim();
-    const imageUrl = ensureHttpsUrl(newPromotionDraft.imageUrl);
-    const targetUrl = ensureHttpsUrl(newPromotionDraft.targetUrl);
-    const deepLink = newPromotionDraft.deepLink.trim() || null;
-    const providerCode = newPromotionDraft.providerCode.trim() || null;
-    const displayOrder = Number.isFinite(newPromotionDraft.displayOrder)
-      ? Math.max(0, newPromotionDraft.displayOrder)
-      : promotions.length + 1;
-    const companyNameAr = newPromotionDraft.companyNameAr.trim();
-    const companyNameEn = newPromotionDraft.companyNameEn.trim();
-    const subtitleAr = newPromotionDraft.subtitleAr.trim();
-    const subtitleEn = newPromotionDraft.subtitleEn.trim();
-    const items = newPromotionDraft.itemsCsv
-      .split(/[\n,]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-
-    if (!titleAr || !titleEn || !imageUrl) {
-      setError(
-        languageMode === "ar"
-          ? "أدخل عنوان العرض بالعربي والإنجليزي مع رابط صورة صحيح."
-          : "Please enter Arabic/English title and a valid image URL."
-      );
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await createHomePromotion({
-        companyNameAr: companyNameAr || (languageMode === "ar" ? "شركة جديدة" : "New Company"),
-        companyNameEn: companyNameEn || "New Company",
-        titleAr,
-        titleEn,
-        subtitleAr,
-        subtitleEn,
-        imageUrl,
-        targetUrl: targetUrl || null,
-        deepLink,
-        items,
-        providerCode,
-        displayOrder,
-        isActive: newPromotionDraft.isActive,
-      });
-      const refreshed = await getHomePromotions(false);
-      setPromotions(refreshed);
-      setPromotionActiveIndex(0);
-      setNewPromotionDraft(createDefaultPromotionDraft());
-      setShowPromotionEditor(false);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save promotion.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveActivePromotion = async (): Promise<void> => {
-    if (!activePromotionId) return;
-    try {
-      setLoading(true);
-      await deleteHomePromotion(activePromotionId);
-      const refreshed = await getHomePromotions(false);
-      setPromotions(refreshed);
-      setPromotionActiveIndex(0);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete promotion.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const openPromotionLink = (promotion: HomePromotion): void => {
     const deepLink = promotion.deepLink?.trim();
     if (deepLink) {
@@ -1827,20 +1715,6 @@ export default function App() {
                   <Text style={styles.subSectionTitle}>
                     {languageMode === "ar" ? "عروض الشركات" : "Companies Promotions"}
                   </Text>
-                  <TouchableOpacity
-                    style={styles.filterToggleButton}
-                    onPress={() => setShowPromotionEditor((prev) => !prev)}
-                  >
-                    <Text style={styles.filterToggleText}>
-                      {showPromotionEditor
-                        ? languageMode === "ar"
-                          ? "إغلاق"
-                          : "Close"
-                        : languageMode === "ar"
-                          ? "إضافة عرض"
-                          : "Add Promotion"}
-                    </Text>
-                  </TouchableOpacity>
                 </View>
                 <FlatList
                   horizontal
@@ -1874,127 +1748,11 @@ export default function App() {
                       key={`dot-${slide.id}`}
                       style={[
                         styles.promotionDot,
-                        activePromotionId === slide.id && styles.promotionDotActive,
+                        activePromotion?.id === slide.id && styles.promotionDotActive,
                       ]}
                     />
                   ))}
                 </View>
-                {showPromotionEditor ? (
-                  <View style={styles.promotionEditor}>
-                    <Text style={styles.fieldHint}>
-                      {languageMode === "ar"
-                        ? "أضف عدد غير محدود من العروض، وكل عرض قابل للنقر."
-                        : "Add unlimited promotions; each one is clickable on home."}
-                    </Text>
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "عنوان العرض (عربي)" : "Promotion title (Arabic)"}
-                      value={newPromotionDraft.titleAr}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, titleAr: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "عنوان العرض (English)" : "Promotion title (English)"}
-                      value={newPromotionDraft.titleEn}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, titleEn: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "وصف قصير (عربي)" : "Subtitle (Arabic)"}
-                      value={newPromotionDraft.subtitleAr}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, subtitleAr: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "وصف قصير (English)" : "Subtitle (English)"}
-                      value={newPromotionDraft.subtitleEn}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, subtitleEn: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "رابط صورة العرض" : "Promotion image URL"}
-                      value={newPromotionDraft.imageUrl}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, imageUrl: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "الرابط عند النقر (اختياري)" : "Click target URL (optional)"}
-                      value={newPromotionDraft.targetUrl}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, targetUrl: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "ديب لينك (اختياري)" : "Deep link (optional)"}
-                      value={newPromotionDraft.deepLink}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, deepLink: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "العناصر (كل عنصر بسطر أو فاصلة)" : "Items (one per line or comma-separated)"}
-                      value={newPromotionDraft.itemsCsv}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, itemsCsv: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                      multiline
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "رمز المزود (اختياري)" : "Provider code (optional)"}
-                      value={newPromotionDraft.providerCode}
-                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, providerCode: value }))}
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                    <TextInput
-                      placeholder={languageMode === "ar" ? "ترتيب العرض (1، 2، ...)" : "Display order (1, 2, ...)"}
-                      value={String(newPromotionDraft.displayOrder)}
-                      onChangeText={(value) =>
-                        setNewPromotionDraft((prev) => ({
-                          ...prev,
-                          displayOrder: Number(value.replace(/[^\d]/g, "")) || 1,
-                        }))
-                      }
-                      style={styles.searchInput}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                      keyboardType="numeric"
-                    />
-                    <TouchableOpacity
-                      style={styles.filterToggleButton}
-                      onPress={() =>
-                        setNewPromotionDraft((prev) => ({
-                          ...prev,
-                          isActive: !prev.isActive,
-                        }))
-                      }
-                    >
-                      <Text style={styles.filterToggleText}>
-                        {languageMode === "ar"
-                          ? `الحالة: ${newPromotionDraft.isActive ? "نشط" : "غير نشط"}`
-                          : `Status: ${newPromotionDraft.isActive ? "Active" : "Inactive"}`}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.searchButton} onPress={handleAddPromotion}>
-                      <Text style={styles.searchButtonText}>
-                        {languageMode === "ar" ? "حفظ العرض" : "Save Promotion"}
-                      </Text>
-                    </TouchableOpacity>
-                    {promotionSlides.length > 1 ? (
-                      <TouchableOpacity
-                        style={[styles.filterToggleButton, styles.removePromotionButton]}
-                        onPress={handleRemoveActivePromotion}
-                      >
-                        <Text style={styles.removePromotionText}>
-                          {languageMode === "ar" ? "حذف العرض المحدد" : "Remove Active Promotion"}
-                        </Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                ) : null}
               </View>
 
               <Text style={styles.subSectionTitle}>
@@ -3402,21 +3160,6 @@ const styles = StyleSheet.create({
     width: 18,
     borderRadius: 5,
     backgroundColor: Brand.colors.primaryDark,
-  },
-  promotionEditor: {
-    borderTopWidth: 1,
-    borderTopColor: Brand.colors.border,
-    marginTop: 8,
-    paddingTop: 8,
-  },
-  removePromotionButton: {
-    borderColor: "#FECACA",
-    backgroundColor: "#FEF2F2",
-  },
-  removePromotionText: {
-    color: "#991B1B",
-    fontWeight: "700",
-    fontSize: 12,
   },
   homeGroupsGrid: {
     gap: 10,
