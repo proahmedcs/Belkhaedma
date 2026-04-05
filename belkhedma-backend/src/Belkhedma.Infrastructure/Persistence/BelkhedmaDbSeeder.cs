@@ -681,6 +681,78 @@ public static class BelkhedmaDbSeeder
         {
             new()
             {
+                Code = "enaya-hourly-slider",
+                CompanyNameAr = "عناية",
+                CompanyNameEn = "Enaya",
+                TitleAr = "عروض عناية بالساعة",
+                TitleEn = "Enaya Hourly Offers",
+                SubtitleAr = "خدمات منزلية فورية مع خيارات مرنة",
+                SubtitleEn = "Instant home services with flexible options.",
+                ImageUrl = "https://enaya.sa:8001/SiteImages/SliderWebImages/%7BC08A1D99-5786-F011-A912-000D3A227AB4%7Dhourlyworker.png",
+                TargetUrl = "https://enaya.sa/home",
+                DeepLink = "belkhedma://promotions/enaya-hourly",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Hourly cleaning",
+                    "Flexible shifts",
+                    "Trusted provider"
+                }),
+                ProviderCode = "enaya",
+                DisplayOrder = 1,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "enaya-resident-slider",
+                CompanyNameAr = "عناية",
+                CompanyNameEn = "Enaya",
+                TitleAr = "خدمات عناية المقيمة",
+                TitleEn = "Enaya Resident Services",
+                SubtitleAr = "باقات إقامة شهرية للعاملات المنزلية",
+                SubtitleEn = "Monthly resident worker packages.",
+                ImageUrl = "https://enaya.sa:8001/SiteImages/SliderWebImages/%7BDB45E476-5786-F011-A912-000D3A227AB4%7Dresidentworker.png",
+                TargetUrl = "https://enaya.sa/home",
+                DeepLink = "belkhedma://promotions/enaya-resident",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Resident packages",
+                    "Monthly contracts",
+                    "Home support"
+                }),
+                ProviderCode = "enaya",
+                DisplayOrder = 2,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "enaya-mediation-slider",
+                CompanyNameAr = "عناية",
+                CompanyNameEn = "Enaya",
+                TitleAr = "عروض التوسط من عناية",
+                TitleEn = "Enaya Mediation Offers",
+                SubtitleAr = "خدمات توسط واستقدام بأفضل الخيارات",
+                SubtitleEn = "Mediation and recruitment with top options.",
+                ImageUrl = "https://enaya.sa:8001/SiteImages/SliderWebImages/%7B5CAEE1B1-5786-F011-A912-000D3A227AB4%7Dmediation.png",
+                TargetUrl = "https://enaya.sa/home",
+                DeepLink = "belkhedma://promotions/enaya-mediation",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Mediation support",
+                    "Recruitment options",
+                    "Fast response"
+                }),
+                ProviderCode = "enaya",
+                DisplayOrder = 3,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
                 Code = "tamkeen-hourly-slider",
                 CompanyNameAr = "تمكين",
                 CompanyNameEn = "Tamkeen",
@@ -698,7 +770,7 @@ public static class BelkhedmaDbSeeder
                     "Licensed provider"
                 }),
                 ProviderCode = "tamkeen",
-                DisplayOrder = 1,
+                DisplayOrder = 4,
                 IsActive = true,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
@@ -722,7 +794,31 @@ public static class BelkhedmaDbSeeder
                     "Flexible service"
                 }),
                 ProviderCode = "tamkeen",
-                DisplayOrder = 2,
+                DisplayOrder = 5,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "tamkeen-b2c-slider",
+                CompanyNameAr = "تمكين",
+                CompanyNameEn = "Tamkeen",
+                TitleAr = "عروض تمكين للأفراد",
+                TitleEn = "Tamkeen B2C Offers",
+                SubtitleAr = "خيارات مميزة لخدمات الأفراد",
+                SubtitleEn = "Specialized packages for individuals.",
+                ImageUrl = "https://backend.tamkeenhr.sa/uploads/medium_B2_C_4_703f2239f9.jpg",
+                TargetUrl = "https://www.tamkeenhr.sa/",
+                DeepLink = "belkhedma://promotions/tamkeen-b2c",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "B2C campaigns",
+                    "Trusted staffing",
+                    "Professional support"
+                }),
+                ProviderCode = "tamkeen",
+                DisplayOrder = 6,
                 IsActive = true,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
@@ -746,7 +842,7 @@ public static class BelkhedmaDbSeeder
                     "Nationwide branches"
                 }),
                 ProviderCode = "mueen",
-                DisplayOrder = 3,
+                DisplayOrder = 7,
                 IsActive = true,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
@@ -770,7 +866,7 @@ public static class BelkhedmaDbSeeder
                     "Service flexibility"
                 }),
                 ProviderCode = "mueen",
-                DisplayOrder = 4,
+                DisplayOrder = 8,
                 IsActive = true,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
@@ -794,31 +890,103 @@ public static class BelkhedmaDbSeeder
                     "Digital booking journey"
                 }),
                 ProviderCode = "emdad-hr",
-                DisplayOrder = 5,
+                DisplayOrder = 9,
                 IsActive = true,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             },
             new()
             {
-                Code = "almutahidah-main-card",
+                Code = "almutahidah-slider-main",
                 CompanyNameAr = "الشركة المتحدة",
                 CompanyNameEn = "Almutahidah",
-                TitleAr = "بطاقة الخدمة الرئيسية",
-                TitleEn = "Almutahidah Main Service Card",
-                SubtitleAr = "استعرض خدمات الشركة المتحدة بسهولة",
-                SubtitleEn = "Explore Almutahidah services easily.",
-                ImageUrl = "https://almutahidah.com/assets/images/dynamic/main-card-bg-image.svg",
+                TitleAr = "عروض الشركة المتحدة",
+                TitleEn = "Almutahidah Promotions",
+                SubtitleAr = "باقات منزلية متنوعة ومرنة",
+                SubtitleEn = "Flexible domestic service campaigns.",
+                ImageUrl = "https://crm.almutahidah.com:8000/SliderWebImages/%7BB033829A-9E78-EE11-8159-BCC9007DA0C2%7D4%20(4)%20(2).jpg",
                 TargetUrl = "https://almutahidah.com/home",
                 DeepLink = "belkhedma://promotions/almutahidah-main",
                 ItemsJson = JsonSerializer.Serialize(new[]
                 {
-                    "Main dashboard offer",
-                    "Domestic services",
-                    "Easy navigation"
+                    "Main slider campaign",
+                    "Domestic workforce",
+                    "Easy booking"
                 }),
                 ProviderCode = "almutahidah",
-                DisplayOrder = 6,
+                DisplayOrder = 10,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "almutahidah-slider-alt",
+                CompanyNameAr = "الشركة المتحدة",
+                CompanyNameEn = "Almutahidah",
+                TitleAr = "حملة موسمية من المتحدة",
+                TitleEn = "Almutahidah Seasonal Campaign",
+                SubtitleAr = "عروض موسمية لخدمات المنازل",
+                SubtitleEn = "Seasonal offers for household services.",
+                ImageUrl = "https://crm.almutahidah.com:8000/SliderWebImages/%7B43122DC4-5476-EE11-8159-BCC9007DA0C2%7Dafc1%20-%20Copy.jpeg",
+                TargetUrl = "https://almutahidah.com/home",
+                DeepLink = "belkhedma://promotions/almutahidah-seasonal",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Seasonal discount",
+                    "Qualified workers",
+                    "Reliable service"
+                }),
+                ProviderCode = "almutahidah",
+                DisplayOrder = 11,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "esad-home-main",
+                CompanyNameAr = "إسناد",
+                CompanyNameEn = "Esad Talents",
+                TitleAr = "عروض إسناد للمواهب",
+                TitleEn = "Esad Talents Offers",
+                SubtitleAr = "حلول استقدام وخدمات موارد بشرية",
+                SubtitleEn = "Recruitment and HR service solutions.",
+                ImageUrl = "https://esadtalents.com/Content/imgs/home-img-1.jpg",
+                TargetUrl = "https://esadtalents.com/",
+                DeepLink = "belkhedma://promotions/esad-home",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "HR outsourcing",
+                    "Recruitment services",
+                    "Business support"
+                }),
+                ProviderCode = "esad-talents",
+                DisplayOrder = 12,
+                IsActive = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            },
+            new()
+            {
+                Code = "esad-home-alt",
+                CompanyNameAr = "إسناد",
+                CompanyNameEn = "Esad Talents",
+                TitleAr = "حملة مميزة من إسناد",
+                TitleEn = "Esad Featured Campaign",
+                SubtitleAr = "كوادر مؤهلة بخيارات متعددة",
+                SubtitleEn = "Qualified talents with multiple options.",
+                ImageUrl = "https://esadtalents.com/Content/imgs/home-img-2.jpg",
+                TargetUrl = "https://esadtalents.com/",
+                DeepLink = "belkhedma://promotions/esad-featured",
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    "Qualified talents",
+                    "Flexible contracts",
+                    "Fast onboarding"
+                }),
+                ProviderCode = "esad-talents",
+                DisplayOrder = 13,
                 IsActive = true,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
