@@ -15,9 +15,12 @@ import {
   View,
 } from "react-native";
 import {
+  createHomePromotion,
+  deleteHomePromotion,
   getCurrentCustomer,
   getCustomerSavedLocations,
   getAllPrices,
+  getHomePromotions,
   getLatestPrices,
   getProviderJsonDocuments,
   getProviders,
@@ -29,6 +32,7 @@ import {
   CustomerAuthResponse,
   CustomerProfile,
   CustomerSavedLocation,
+  HomePromotion,
   PriceSnapshot,
   Provider,
   ProviderJsonDocument,
@@ -78,20 +82,6 @@ type NewLocationDraft = {
   longitude: string;
   mapSearchText: string;
 } & LocationExtraDetails;
-type HomePromotion = {
-  id: string;
-  companyNameAr: string;
-  companyNameEn: string;
-  titleAr: string;
-  titleEn: string;
-  subtitleAr: string;
-  subtitleEn: string;
-  imageUrl: string;
-  targetUrl: string;
-  providerCode?: string | null;
-  isActive: boolean;
-  createdAtUtc: string;
-};
 type PromotionDraft = {
   companyNameAr: string;
   companyNameEn: string;
@@ -101,7 +91,11 @@ type PromotionDraft = {
   subtitleEn: string;
   imageUrl: string;
   targetUrl: string;
+  deepLink: string;
+  itemsCsv: string;
   providerCode: string;
+  displayOrder: number;
+  isActive: boolean;
 };
 
 const PRIMARY_MENUS: Array<{
@@ -179,7 +173,6 @@ const SAMPLE_NOTIFICATIONS: SampleNotification[] = [
 const AUTH_SESSION_STORAGE_KEY = "belkhedma.auth.session.v1";
 const LOCATION_DETAILS_STORAGE_PREFIX = "belkhedma.location.details.v1";
 const LOCAL_LOCATIONS_STORAGE_PREFIX = "belkhedma.local.locations.v1";
-const HOME_PROMOTIONS_STORAGE_PREFIX = "belkhedma.home.promotions.v1";
 
 function getWebStorage():
   | {
@@ -642,107 +635,20 @@ function getServiceGroupIcon(group: ServiceGroup): string {
 
 function createDefaultPromotionDraft(): PromotionDraft {
   return {
-    companyNameAr: "",
-    companyNameEn: "",
+    companyNameAr: "بالخدمة",
+    companyNameEn: "Belkhedma",
     titleAr: "",
     titleEn: "",
     subtitleAr: "",
     subtitleEn: "",
     imageUrl: "",
     targetUrl: "",
+    deepLink: "",
+    itemsCsv: "",
     providerCode: "",
+    displayOrder: 1,
+    isActive: true,
   };
-}
-
-function buildHomePromotionsStorageKey(customerReference: string): string {
-  return `${HOME_PROMOTIONS_STORAGE_PREFIX}.${normalizeStorageSuffix(customerReference)}`;
-}
-
-function readPersistedHomePromotions(customerReference: string): HomePromotion[] {
-  const storage = getWebStorage();
-  if (!storage || !customerReference.trim()) return [];
-
-  try {
-    const raw = storage.getItem(buildHomePromotionsStorageKey(customerReference));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Array<Partial<HomePromotion>>;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((promotion) => !!promotion?.id && !!promotion?.titleAr && !!promotion?.titleEn && !!promotion?.imageUrl)
-      .map((promotion) => ({
-        id: String(promotion.id),
-        companyNameAr: String(promotion.companyNameAr ?? ""),
-        companyNameEn: String(promotion.companyNameEn ?? ""),
-        titleAr: String(promotion.titleAr ?? ""),
-        titleEn: String(promotion.titleEn ?? ""),
-        subtitleAr: String(promotion.subtitleAr ?? ""),
-        subtitleEn: String(promotion.subtitleEn ?? ""),
-        imageUrl: String(promotion.imageUrl ?? ""),
-        targetUrl: String(promotion.targetUrl ?? ""),
-        providerCode: promotion.providerCode ? String(promotion.providerCode) : null,
-        isActive: promotion.isActive !== false,
-        createdAtUtc: String(promotion.createdAtUtc ?? new Date().toISOString()),
-      }));
-  } catch {
-    return [];
-  }
-}
-
-function persistHomePromotions(customerReference: string, promotions: HomePromotion[]): void {
-  const storage = getWebStorage();
-  if (!storage || !customerReference.trim()) return;
-  try {
-    storage.setItem(buildHomePromotionsStorageKey(customerReference), JSON.stringify(promotions));
-  } catch {
-    // Ignore storage write errors and continue app flow.
-  }
-}
-
-function getDefaultPromotions(): HomePromotion[] {
-  return [
-    {
-      id: "promo-1",
-      companyNameAr: "بالخدمة",
-      companyNameEn: "Belkhedma",
-      titleEn: "Mediation Service",
-      titleAr: "خدمة التوسط",
-      subtitleEn: "Bridge trust and connect with top professionals.",
-      subtitleAr: "جسر ثقة.. يوصلك بالكفاءات",
-      imageUrl: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1280&q=80",
-      targetUrl: "https://belkhedma.example.com/promotions/mediation",
-      providerCode: "wasata",
-      isActive: true,
-      createdAtUtc: new Date().toISOString(),
-    },
-    {
-      id: "promo-2",
-      companyNameAr: "عناية",
-      companyNameEn: "Enaya",
-      titleEn: "Medical Home Visit Discount",
-      titleAr: "خصم الزيارة الطبية المنزلية",
-      subtitleEn: "Get seasonal offers on home nursing packages.",
-      subtitleAr: "عروض موسمية على باقات التمريض المنزلي",
-      imageUrl: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1280&q=80",
-      targetUrl: "https://belkhedma.example.com/promotions/medical",
-      providerCode: "enaya",
-      isActive: true,
-      createdAtUtc: new Date().toISOString(),
-    },
-    {
-      id: "promo-3",
-      companyNameAr: "تمكين",
-      companyNameEn: "Tamkeen",
-      titleEn: "Monthly Package Campaign",
-      titleAr: "حملة الباقات الشهرية",
-      subtitleEn: "Best monthly plans from multiple providers.",
-      subtitleAr: "أفضل الخطط الشهرية من عدة مزودين",
-      imageUrl: "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1280&q=80",
-      targetUrl: "https://belkhedma.example.com/promotions/monthly",
-      providerCode: "tamkeen",
-      isActive: true,
-      createdAtUtc: new Date().toISOString(),
-    },
-  ];
 }
 
 export default function App() {
@@ -1300,12 +1206,13 @@ export default function App() {
       setLoading(true);
       setError(null);
 
-      const [providersData, offersData, pricesData, docsData, locationsData] = await Promise.all([
+      const [providersData, offersData, pricesData, docsData, locationsData, promotionsData] = await Promise.all([
         getProviders(),
         getServiceOffers(),
         getLatestPrices(),
         getProviderJsonDocuments(undefined, false),
         getCustomerSavedLocations(activeCustomerReference, activeToken),
+        getHomePromotions(false),
       ]);
 
       setProviders(providersData);
@@ -1313,6 +1220,7 @@ export default function App() {
       setPrices(pricesData);
       setJsonDocuments(docsData);
       setSavedLocations(locationsData);
+      setPromotions(promotionsData);
       setSelectedLocationId((current) => current ?? locationsData[0]?.id ?? null);
       if (customerReference !== activeCustomerReference) {
         setCustomerReference(activeCustomerReference);
@@ -1402,16 +1310,24 @@ export default function App() {
 
   const activePromotionId = activePromotion?.id ?? null;
 
-  const handleAddPromotion = (): void => {
+  const handleAddPromotion = async (): Promise<void> => {
     const titleAr = newPromotionDraft.titleAr.trim();
     const titleEn = newPromotionDraft.titleEn.trim();
     const imageUrl = ensureHttpsUrl(newPromotionDraft.imageUrl);
     const targetUrl = ensureHttpsUrl(newPromotionDraft.targetUrl);
+    const deepLink = newPromotionDraft.deepLink.trim() || null;
     const providerCode = newPromotionDraft.providerCode.trim() || null;
+    const displayOrder = Number.isFinite(newPromotionDraft.displayOrder)
+      ? Math.max(0, newPromotionDraft.displayOrder)
+      : promotions.length + 1;
     const companyNameAr = newPromotionDraft.companyNameAr.trim();
     const companyNameEn = newPromotionDraft.companyNameEn.trim();
     const subtitleAr = newPromotionDraft.subtitleAr.trim();
     const subtitleEn = newPromotionDraft.subtitleEn.trim();
+    const items = newPromotionDraft.itemsCsv
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
 
     if (!titleAr || !titleEn || !imageUrl) {
       setError(
@@ -1422,46 +1338,64 @@ export default function App() {
       return;
     }
 
-    const customerRef = customerReference.trim() || currentCustomer?.customerReference || "anonymous";
-    const nextPromotion: HomePromotion = {
-      id: `promo-local-${Date.now()}`,
-      companyNameAr: companyNameAr || (languageMode === "ar" ? "شركة جديدة" : "New Company"),
-      companyNameEn: companyNameEn || "New Company",
-      titleAr,
-      titleEn,
-      subtitleAr,
-      subtitleEn,
-      imageUrl,
-      targetUrl,
-      providerCode,
-      isActive: true,
-      createdAtUtc: new Date().toISOString(),
-    };
-
-    setPromotions((previous) => {
-      const next = [nextPromotion, ...previous];
-      persistHomePromotions(customerRef, next);
-      return next;
-    });
-    setPromotionActiveIndex(0);
-    setNewPromotionDraft(createDefaultPromotionDraft());
-    setShowPromotionEditor(false);
-    setError(null);
+    try {
+      setLoading(true);
+      await createHomePromotion({
+        companyNameAr: companyNameAr || (languageMode === "ar" ? "شركة جديدة" : "New Company"),
+        companyNameEn: companyNameEn || "New Company",
+        titleAr,
+        titleEn,
+        subtitleAr,
+        subtitleEn,
+        imageUrl,
+        targetUrl: targetUrl || null,
+        deepLink,
+        items,
+        providerCode,
+        displayOrder,
+        isActive: newPromotionDraft.isActive,
+      });
+      const refreshed = await getHomePromotions(false);
+      setPromotions(refreshed);
+      setPromotionActiveIndex(0);
+      setNewPromotionDraft(createDefaultPromotionDraft());
+      setShowPromotionEditor(false);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save promotion.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRemoveActivePromotion = (): void => {
+  const handleRemoveActivePromotion = async (): Promise<void> => {
     if (!activePromotionId) return;
-    const customerRef = customerReference.trim() || currentCustomer?.customerReference || "anonymous";
-    setPromotions((previous) => {
-      const next = previous.filter((promotion) => promotion.id !== activePromotionId);
-      persistHomePromotions(customerRef, next);
-      return next;
-    });
-    setPromotionActiveIndex(0);
+    try {
+      setLoading(true);
+      await deleteHomePromotion(activePromotionId);
+      const refreshed = await getHomePromotions(false);
+      setPromotions(refreshed);
+      setPromotionActiveIndex(0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete promotion.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openPromotionLink = (promotion: HomePromotion): void => {
-    const link = ensureHttpsUrl(promotion.targetUrl);
+    const deepLink = promotion.deepLink?.trim();
+    if (deepLink) {
+      void Linking.openURL(deepLink).catch(() => {
+        const fallback = ensureHttpsUrl(promotion.targetUrl ?? "");
+        if (fallback) {
+          void Linking.openURL(fallback);
+        }
+      });
+      return;
+    }
+
+    const link = ensureHttpsUrl(promotion.targetUrl ?? "");
     if (!link) return;
     void Linking.openURL(link);
   };
@@ -1922,6 +1856,56 @@ export default function App() {
                       style={styles.searchInput}
                       placeholderTextColor={Brand.colors.textSecondary}
                     />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "ديب لينك (اختياري)" : "Deep link (optional)"}
+                      value={newPromotionDraft.deepLink}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, deepLink: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "العناصر (كل عنصر بسطر أو فاصلة)" : "Items (one per line or comma-separated)"}
+                      value={newPromotionDraft.itemsCsv}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, itemsCsv: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                      multiline
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "رمز المزود (اختياري)" : "Provider code (optional)"}
+                      value={newPromotionDraft.providerCode}
+                      onChangeText={(value) => setNewPromotionDraft((prev) => ({ ...prev, providerCode: value }))}
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                    <TextInput
+                      placeholder={languageMode === "ar" ? "ترتيب العرض (1، 2، ...)" : "Display order (1, 2, ...)"}
+                      value={String(newPromotionDraft.displayOrder)}
+                      onChangeText={(value) =>
+                        setNewPromotionDraft((prev) => ({
+                          ...prev,
+                          displayOrder: Number(value.replace(/[^\d]/g, "")) || 1,
+                        }))
+                      }
+                      style={styles.searchInput}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <TouchableOpacity
+                      style={styles.filterToggleButton}
+                      onPress={() =>
+                        setNewPromotionDraft((prev) => ({
+                          ...prev,
+                          isActive: !prev.isActive,
+                        }))
+                      }
+                    >
+                      <Text style={styles.filterToggleText}>
+                        {languageMode === "ar"
+                          ? `الحالة: ${newPromotionDraft.isActive ? "نشط" : "غير نشط"}`
+                          : `Status: ${newPromotionDraft.isActive ? "Active" : "Inactive"}`}
+                      </Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.searchButton} onPress={handleAddPromotion}>
                       <Text style={styles.searchButtonText}>
                         {languageMode === "ar" ? "حفظ العرض" : "Save Promotion"}

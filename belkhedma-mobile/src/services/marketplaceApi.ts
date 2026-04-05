@@ -3,6 +3,7 @@ import {
   CustomerSavedLocation,
   CustomerAuthResponse,
   CustomerProfile,
+  HomePromotion,
   PriceSnapshot,
   Provider,
   ServiceOffer,
@@ -109,4 +110,38 @@ export async function registerOrLoginCustomer(payload: {
 
 export async function getCurrentCustomer(authToken: string): Promise<CustomerProfile> {
   return fetchJson<CustomerProfile>("/api/auth/customers/me", authToken);
+}
+
+export async function getHomePromotions(includeInactive = false): Promise<HomePromotion[]> {
+  const query = new URLSearchParams();
+  query.set("includeInactive", includeInactive ? "true" : "false");
+  return fetchJson<HomePromotion[]>(`/api/marketplace/home-promotions?${query.toString()}`);
+}
+
+export async function createHomePromotion(payload: {
+  code?: string | null;
+  companyNameAr: string;
+  companyNameEn: string;
+  titleAr: string;
+  titleEn: string;
+  subtitleAr: string;
+  subtitleEn: string;
+  imageUrl: string;
+  targetUrl?: string | null;
+  deepLink?: string | null;
+  items?: string[];
+  providerCode?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+}): Promise<HomePromotion> {
+  return postJson<typeof payload, HomePromotion>("/api/marketplace/home-promotions", payload);
+}
+
+export async function deleteHomePromotion(promotionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/marketplace/home-promotions/${encodeURIComponent(promotionId)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`API request failed (${response.status}) for deleting promotion.`);
+  }
 }

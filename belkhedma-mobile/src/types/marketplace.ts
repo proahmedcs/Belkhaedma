@@ -81,3 +81,23 @@ export type CustomerProfile = {
   fullName: string;
   mobileNumber: string;
 };
+
+export type HomePromotion = {
+  id: string;
+  code: string;
+  companyNameAr: string;
+  companyNameEn: string;
+  titleAr: string;
+  titleEn: string;
+  subtitleAr: string;
+  subtitleEn: string;
+  imageUrl: string;
+  targetUrl?: string | null;
+  deepLink?: string | null;
+  items: string[];
+  providerCode?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
