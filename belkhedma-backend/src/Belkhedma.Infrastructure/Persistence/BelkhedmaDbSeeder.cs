@@ -1661,8 +1661,8 @@ public static class BelkhedmaDbSeeder
                 Code = "tamkeen-hourly-slider",
                 CompanyNameAr = "تمكين",
                 CompanyNameEn = "Tamkeen",
-                TitleAr = "تنظيف بالساعة من تمكين",
-                TitleEn = "Tamkeen Hourly Cleaning",
+                TitleAr = "خدمات بالساعة من تمكين",
+                TitleEn = "Tamkeen Hourly Services",
                 SubtitleAr = "كوادر منزلية مدربة وحجز سريع",
                 SubtitleEn = "Trained domestic staff with fast booking.",
                 ImageUrl = "https://www.tamkeenhr.sa/_astro/medium_Banner_hourly_7492672ab9_ZdSyNi.webp",
@@ -1670,7 +1670,7 @@ public static class BelkhedmaDbSeeder
                 DeepLink = "belkhedma://promotions/tamkeen-hourly",
                 ItemsJson = JsonSerializer.Serialize(new[]
                 {
-                    "Hourly cleaning",
+                    "Hourly services",
                     "Fast booking",
                     "Licensed provider"
                 }),

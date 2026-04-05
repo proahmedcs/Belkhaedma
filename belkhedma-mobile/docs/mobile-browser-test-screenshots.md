@@ -7,8 +7,8 @@ These screenshots were captured in a browser using an iPhone viewport profile.
 - Test date: 2026-04-04
 - Main-screen UX alignment: Service Group first (rich cards), then Service list
 - Current cycle: Service Group -> Service -> Location -> Featured Packages -> Results
-- Group: Hourly Cleaning
-- Service: Hourly Cleaning 4 Hours
+- Group: Hourly Services
+- Service: Hourly Services 4 Hours
 - Date: 2026-04-06
 - Location: demo-customer saved location
 - API base URL used by Expo web: `http://127.0.0.1:5276`
