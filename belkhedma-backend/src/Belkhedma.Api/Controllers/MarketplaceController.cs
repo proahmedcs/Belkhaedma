@@ -1,4 +1,6 @@
 using Belkhedma.Application;
+using Belkhedma.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Belkhedma.Api.Controllers;
@@ -79,6 +81,7 @@ public sealed class MarketplaceController(
     }
 
     [HttpPut("prices/{priceSnapshotId:guid}/expiration")]
+    [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
     public async Task<IActionResult> SetPriceExpiration([FromRoute] Guid priceSnapshotId, [FromBody] UpdateExpirationRequest request, CancellationToken cancellationToken)
     {
         var affected = await marketplaceAdminService.SetPriceExpirationAsync(priceSnapshotId, request.ExpiresAtUtc, cancellationToken);
@@ -97,6 +100,7 @@ public sealed class MarketplaceController(
     }
 
     [HttpPut("prices/expiration")]
+    [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
     public async Task<IActionResult> SetPricesExpirationBulk([FromQuery] string? providerCode, [FromBody] UpdateExpirationRequest request, CancellationToken cancellationToken)
     {
         var affected = await marketplaceAdminService.SetPricesExpirationBulkAsync(providerCode, request.ExpiresAtUtc, cancellationToken);
@@ -124,6 +128,7 @@ public sealed class MarketplaceController(
     }
 
     [HttpPost("home-promotions")]
+    [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
     public async Task<IActionResult> CreateHomePromotion([FromBody] HomePromotionPayload payload, CancellationToken cancellationToken = default)
     {
         if (payload is null)
@@ -159,6 +164,7 @@ public sealed class MarketplaceController(
     }
 
     [HttpPut("home-promotions/{promotionId:guid}")]
+    [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
     public async Task<IActionResult> UpdateHomePromotion(
         [FromRoute] Guid promotionId,
         [FromBody] HomePromotionPayload payload,
@@ -203,6 +209,7 @@ public sealed class MarketplaceController(
     }
 
     [HttpDelete("home-promotions/{promotionId:guid}")]
+    [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
     public async Task<IActionResult> DeleteHomePromotion([FromRoute] Guid promotionId, CancellationToken cancellationToken = default)
     {
         var deleted = await marketplaceAdminService.DeleteHomePromotionAsync(promotionId, cancellationToken);
@@ -264,6 +271,7 @@ public sealed class MarketplaceController(
     }
 
     [HttpPut("json-documents/{documentId:guid}/expiration")]
+    [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
     public async Task<IActionResult> SetJsonDocumentExpiration([FromRoute] Guid documentId, [FromBody] UpdateExpirationRequest request, CancellationToken cancellationToken)
     {
         var affected = await marketplaceAdminService.SetJsonDocumentExpirationAsync(documentId, request.ExpiresAtUtc, cancellationToken);
@@ -282,6 +290,7 @@ public sealed class MarketplaceController(
     }
 
     [HttpPut("json-documents/expiration")]
+    [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
     public async Task<IActionResult> SetJsonDocumentExpirationBulk([FromQuery] string? providerCode, [FromBody] UpdateExpirationRequest request, CancellationToken cancellationToken)
     {
         var affected = await marketplaceAdminService.SetJsonDocumentsExpirationBulkAsync(providerCode, request.ExpiresAtUtc, cancellationToken);

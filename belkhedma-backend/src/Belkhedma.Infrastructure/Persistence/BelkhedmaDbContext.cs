@@ -1,9 +1,11 @@
 using Belkhedma.Domain;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Belkhedma.Infrastructure.Persistence;
 
-public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> options) : DbContext(options)
+public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> options) : IdentityDbContext<IdentityUser, IdentityRole, string>(options)
 {
     public DbSet<Provider> Providers => Set<Provider>();
     public DbSet<ServiceOffer> ServiceOffers => Set<ServiceOffer>();
@@ -17,6 +19,8 @@ public sealed class BelkhedmaDbContext(DbContextOptions<BelkhedmaDbContext> opti
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<Provider>(entity =>
         {
             entity.HasKey(x => x.Id);

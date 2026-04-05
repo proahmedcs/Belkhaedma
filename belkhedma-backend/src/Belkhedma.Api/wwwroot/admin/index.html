@@ -26,10 +26,75 @@
       color: var(--text);
     }
 
-    .container {
-      max-width: 1120px;
-      margin: 0 auto;
+    .layout {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #ffffff;
+      border-right: 1px solid var(--border);
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .brand {
+      border-radius: 12px;
+      padding: 12px;
+      background: linear-gradient(135deg, #0f766e, #115e59);
+      color: #fff;
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: #dcfce7;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .nav-link {
+      display: block;
+      text-decoration: none;
+      color: var(--text);
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .nav-link.active {
+      border-color: #0f766e;
+      background: #ecfdf5;
+      color: #065f46;
+    }
+
+    .main {
       padding: 24px 16px 32px;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
     }
 
     .hero {
@@ -115,46 +180,113 @@
       font-size: 13px;
       line-height: 1.6;
     }
+
+    .logout-btn {
+      margin-top: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--text);
+      padding: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <section class="hero">
-      <h1>Belkhedma Admin Dashboard</h1>
-      <p>Main admin menu for control panel pages, operations, and API tools.</p>
-    </section>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Belkhedma Admin</h1>
+        <p>Control panel</p>
+      </div>
+      <nav class="nav">
+        <a class="nav-link active" href="/admin/">Dashboard</a>
+        <a class="nav-link" href="/admin/home-promotions.html">Home Promotions</a>
+        <a class="nav-link" href="/hangfire">Background Jobs</a>
+        <a class="nav-link" href="/swagger">API Explorer</a>
+        <a class="nav-link" href="/api/marketplace/providers">Providers API</a>
+        <a class="nav-link" href="/api/marketplace/home-promotions?includeInactive=true">Promotions API</a>
+      </nav>
+      <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
+    </aside>
 
-    <section class="menu-grid">
-      <article class="menu-card">
-        <h2>Home Promotions</h2>
-        <p>Manage slider photos and links shown in the mobile app home screen.</p>
-        <a class="menu-link" href="/admin/home-promotions.html">Open Panel</a>
-      </article>
+    <main class="main">
+      <div class="container">
+        <section class="hero">
+          <h1>Dashboard</h1>
+          <p>Main admin menu for control panel pages, operations, and API tools.</p>
+        </section>
 
-      <article class="menu-card">
-        <h2>Background Jobs</h2>
-        <p>Monitor and inspect provider collection runs from the Hangfire dashboard.</p>
-        <a class="menu-link" href="/hangfire">Open Hangfire</a>
-      </article>
+        <section class="menu-grid">
+          <article class="menu-card">
+            <h2>Home Promotions</h2>
+            <p>Manage slider photos and links shown in the mobile app home screen.</p>
+            <a class="menu-link" href="/admin/home-promotions.html">Open Panel</a>
+          </article>
 
-      <article class="menu-card">
-        <h2>API Explorer</h2>
-        <p>Browse and test all backend endpoints from Swagger UI.</p>
-        <a class="menu-link" href="/swagger">Open Swagger</a>
-      </article>
-    </section>
+          <article class="menu-card">
+            <h2>Background Jobs</h2>
+            <p>Monitor and inspect provider collection runs from the Hangfire dashboard.</p>
+            <a class="menu-link" href="/hangfire">Open Hangfire</a>
+          </article>
 
-    <section class="panel">
-      <h3>Quick API links</h3>
-      <a class="menu-link" href="/api/marketplace/providers">Providers</a>
-      <a class="menu-link" href="/api/marketplace/offers">Service Offers</a>
-      <a class="menu-link" href="/api/marketplace/prices/latest">Latest Prices</a>
-      <a class="menu-link" href="/api/marketplace/home-promotions?includeInactive=true">Promotions JSON</a>
-      <ul>
-        <li>Open <code>/admin/</code> to access this dashboard menu.</li>
-        <li>Use the panel links to jump directly to admin tools.</li>
-      </ul>
-    </section>
+          <article class="menu-card">
+            <h2>API Explorer</h2>
+            <p>Browse and test all backend endpoints from Swagger UI.</p>
+            <a class="menu-link" href="/swagger">Open Swagger</a>
+          </article>
+        </section>
+
+        <section class="panel">
+          <h3>Quick API links</h3>
+          <a class="menu-link" href="/api/marketplace/providers">Providers</a>
+          <a class="menu-link" href="/api/marketplace/offers">Service Offers</a>
+          <a class="menu-link" href="/api/marketplace/prices/latest">Latest Prices</a>
+          <a class="menu-link" href="/api/marketplace/home-promotions?includeInactive=true">Promotions JSON</a>
+          <a class="menu-link" href="/api/admin-auth/me">Admin Me</a>
+          <ul>
+            <li>Open <code>/admin/</code> to access this dashboard menu.</li>
+            <li>Use the panel links to jump directly to admin tools.</li>
+            <li>Admin pages require login: <code>/admin/auth/login.html</code></li>
+          </ul>
+        </section>
+      </div>
+    </main>
   </div>
+  <script>
+    async function ensureAuthenticated() {
+      try {
+        const response = await fetch("/api/admin-auth/me", { credentials: "include" });
+        if (!response.ok) {
+          throw new Error("Unauthorized");
+        }
+      } catch {
+        window.location.replace("/admin/auth/login.html?returnUrl=" + encodeURIComponent(window.location.pathname + window.location.search));
+      }
+    }
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      try {
+        await fetch("/api/admin-auth/logout", { method: "POST", credentials: "include" });
+      } finally {
+        window.location.replace("/admin/auth/login.html");
+      }
+    });
+
+    ensureAuthenticated();
+  </script>
 </body>
 </html>

@@ -1,11 +1,14 @@
+using Belkhedma.Api.Security;
 using Belkhedma.Application;
 using Hangfire;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Belkhedma.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
 public sealed class JobsController(IDataCollectionService dataCollectionService) : ControllerBase
 {
     [HttpPost("collect/{providerCode}")]
