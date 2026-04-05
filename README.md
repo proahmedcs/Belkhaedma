@@ -40,6 +40,19 @@ npm install
 npm run start
 ```
 
+## Desktop quick links (mobile web + backend admin)
+
+If services are already running on the standard desktop ports used in this workspace:
+
+- Mobile web app: `http://127.0.0.1:8090`
+- Backend admin (home promotions): `http://127.0.0.1:5278/admin/home-promotions.html`
+
+You can print both URLs quickly with:
+
+```bash
+./open_desktop_urls.sh
+```
+
 Set the backend URL in:
 
 - `src/config/api.ts` via `EXPO_PUBLIC_API_BASE_URL`
