@@ -1,5 +1,5 @@
 export const Brand = {
-  name: "Belkhedma",
+  name: "Belkhidmah",
   colors: {
     // Extracted from XD option #1 dominant accent range
     primary: "#D950A0",

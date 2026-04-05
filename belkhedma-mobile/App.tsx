@@ -1661,6 +1661,10 @@ export default function App() {
     }
     setWizardStep(0);
   };
+  const goToHomeFromProfile = () => {
+    handleBottomMenuPress("main");
+    setWizardStep(0);
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -1723,7 +1727,7 @@ export default function App() {
         <StatusBar style="light" />
         <ScrollView contentContainerStyle={styles.page}>
           <View style={styles.header}>
-            <Text style={styles.logo}>Belkhedma</Text>
+            <Text style={styles.logo}>{Brand.name}</Text>
             <Text style={styles.subtitle}>
               {languageMode === "ar"
                 ? "تسجيل العميل عبر رقم الجوال والاسم"
@@ -1792,13 +1796,7 @@ export default function App() {
               <Text style={styles.locationPillChevron}>›</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.logo}>Belkhedma</Text>
-          <Text style={styles.subtitle}>Dynamic wizard with service group and sub service</Text>
-          <Text style={styles.metaHeaderText}>
-            {languageMode === "ar"
-              ? `العميل: ${currentCustomer.fullName} (${currentCustomer.mobileNumber})`
-              : `Customer: ${currentCustomer.fullName} (${currentCustomer.mobileNumber})`}
-          </Text>
+          <Text style={styles.logo}>{Brand.name}</Text>
         </View>
 
         <View style={styles.filterCard}>
@@ -2560,6 +2558,13 @@ export default function App() {
             <Text style={styles.sectionTitle}>{languageMode === "ar" ? "الإعدادات" : "Settings"}</Text>
             <View style={styles.settingsSection}>
               <Text style={styles.settingsSectionTitle}>{languageMode === "ar" ? "حسابي" : "Account"}</Text>
+              <TouchableOpacity style={styles.settingsRow} onPress={goToHomeFromProfile}>
+                <View style={styles.settingsRowRight}>
+                  <Text style={styles.settingsRowIcon}>🏠</Text>
+                  <Text style={styles.settingsRowLabel}>{languageMode === "ar" ? "الرئيسية" : "Home"}</Text>
+                </View>
+                <Text style={styles.settingsRowChevron}>›</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.settingsRow}>
                 <View style={styles.settingsRowRight}>
                   <Text style={styles.settingsRowIcon}>👤</Text>
