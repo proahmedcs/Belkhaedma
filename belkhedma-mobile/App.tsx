@@ -329,6 +329,17 @@ function mergeLocationsById(apiLocations: CustomerSavedLocation[], localLocation
   });
 }
 
+function parseFallbackLocationFromSearch(query: string): { latitude: number; longitude: number } | null {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { latitude, longitude };
+}
+
 function normalizeText(value: string): string {
   return value.toLowerCase().trim();
 }
@@ -1424,6 +1435,11 @@ export default function App() {
   const goBack = () => {
     setWizardStep((prev) => Math.max(0, prev - 1) as WizardStep);
   };
+  const openLocationChooser = () => {
+    setWizardStep(1);
+    setShowAddLocationForm(false);
+    void loadSavedLocations();
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -1544,7 +1560,7 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.header}>
           <View style={styles.topUtilityRow}>
-            <TouchableOpacity style={styles.locationPill} onPress={() => setWizardStep(1)}>
+            <TouchableOpacity style={styles.locationPill} onPress={openLocationChooser}>
               <Text style={styles.locationPillIcon}>📍</Text>
               <View style={styles.locationPillTextWrap}>
                 <Text style={styles.locationPillTitle}>{topLocationTitle}</Text>
