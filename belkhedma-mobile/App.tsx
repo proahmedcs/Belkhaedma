@@ -1679,7 +1679,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={[styles.page, styles.pageWithBottomMenu]}>
+      <ScrollView style={styles.pageScroll} contentContainerStyle={[styles.page, styles.pageWithBottomMenu]}>
         <View style={styles.header}>
           <View style={styles.topUtilityRow}>
             <TouchableOpacity style={styles.locationPill} onPress={openLocationChooser}>
@@ -2641,19 +2641,36 @@ export default function App() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Brand.colors.primaryDark },
+  pageScroll: {
+    flex: 1,
+    backgroundColor: Brand.colors.background,
+  },
   page: { paddingBottom: Brand.spacing.lg, backgroundColor: Brand.colors.background },
   pageWithBottomMenu: {
-    paddingBottom: 112,
+    paddingBottom: 146,
   },
   bottomMenuBar: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 18,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
     backgroundColor: "#fff",
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
+    zIndex: 20,
   },
   bottomMenuButton: {
     flex: 1,
