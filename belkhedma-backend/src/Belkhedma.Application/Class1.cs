@@ -371,6 +371,13 @@ public interface IDataCollectionService
     Task CollectAllProvidersDataAsync(CancellationToken cancellationToken = default);
 }
 
+public interface IProviderCrawlerJobService
+{
+    Task RunDailyProviderPriceRefreshAsync(CancellationToken cancellationToken = default);
+    Task RunProviderCrawlerAsync(string providerCode, CancellationToken cancellationToken = default);
+    Task RunAllProvidersCrawlerAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IMarketplaceAdminService
 {
     Task<int> SetPricesExpirationBulkAsync(string? providerCode, DateTime? expiresAtUtc, CancellationToken cancellationToken = default);

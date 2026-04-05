@@ -152,6 +152,17 @@ RecurringJob.AddOrUpdate<IDataCollectionService>(
     service => service.CollectAllProvidersDataAsync(CancellationToken.None),
     "*/30 * * * *");
 
+var dailyCrawlerCron = builder.Configuration["CrawlerJobs:DailyProviderRefreshCron"];
+if (string.IsNullOrWhiteSpace(dailyCrawlerCron))
+{
+    dailyCrawlerCron = "0 2 * * *";
+}
+
+RecurringJob.AddOrUpdate<IProviderCrawlerJobService>(
+    "daily-provider-price-refresh-crawler",
+    service => service.RunDailyProviderPriceRefreshAsync(CancellationToken.None),
+    dailyCrawlerCron);
+
 app.UseHttpsRedirection();
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions

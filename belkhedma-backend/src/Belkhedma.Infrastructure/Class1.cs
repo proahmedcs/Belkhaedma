@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IMarketplaceAdminService, MarketplaceQueryService>();
         services.AddScoped<ICustomerAuthService, CustomerAuthService>();
         services.AddScoped<IDataCollectionService, DataCollectionService>();
+        services.AddScoped<IProviderCrawlerJobService, ProviderCrawlerJobService>();
 
         return services;
     }

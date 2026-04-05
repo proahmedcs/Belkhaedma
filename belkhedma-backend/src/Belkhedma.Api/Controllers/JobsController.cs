@@ -9,8 +9,31 @@ namespace Belkhedma.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(Policy = AuthConstants.AdminOnlyPolicy)]
-public sealed class JobsController(IDataCollectionService dataCollectionService) : ControllerBase
+public sealed class JobsController(
+    IDataCollectionService dataCollectionService,
+    IProviderCrawlerJobService providerCrawlerJobService) : ControllerBase
 {
+    [HttpPost("crawler/{providerCode}")]
+    public IActionResult StartCrawlerProvider([FromRoute] string providerCode)
+    {
+        BackgroundJob.Enqueue(() => providerCrawlerJobService.RunProviderCrawlerAsync(providerCode, CancellationToken.None));
+        return Accepted(new { message = $"Crawler job queued for provider '{providerCode}'." });
+    }
+
+    [HttpPost("crawler/all")]
+    public IActionResult StartCrawlerAll()
+    {
+        BackgroundJob.Enqueue(() => providerCrawlerJobService.RunAllProvidersCrawlerAsync(CancellationToken.None));
+        return Accepted(new { message = "Crawler jobs queued for all providers." });
+    }
+
+    [HttpPost("crawler/daily")]
+    public IActionResult StartDailyCrawlerJob()
+    {
+        BackgroundJob.Enqueue(() => providerCrawlerJobService.RunDailyProviderPriceRefreshAsync(CancellationToken.None));
+        return Accepted(new { message = "Daily crawler job queued." });
+    }
+
     [HttpPost("collect/{providerCode}")]
     public IActionResult CollectProvider([FromRoute] string providerCode)
     {
