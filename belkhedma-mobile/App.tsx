@@ -382,6 +382,21 @@ function normalizeText(value: string): string {
   return value.toLowerCase().trim();
 }
 
+function toHourlyServicesDisplayName(name: string, languageMode: LanguageMode): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return languageMode === "ar" ? "خدمة بالساعة" : "Hourly Service";
+  }
+
+  if (languageMode === "ar") {
+    return trimmed
+      .replace(/تنظيف بالساعة/g, "خدمات بالساعة")
+      .replace(/خدمة تنظيف/g, "خدمة");
+  }
+
+  return trimmed.replace(/hourly cleaning/gi, "Hourly Services");
+}
+
 function inferServiceGroup(offer: ServiceOffer, provider?: Provider): ServiceGroup {
   const source = normalizeText(`${offer.nameEn} ${offer.nameAr} ${provider?.providerType ?? ""}`);
 
@@ -1962,7 +1977,7 @@ export default function App() {
     setWizardStep((prev) => Math.max(0, prev - 1) as WizardStep);
   };
   const openLocationChooser = () => {
-    setWizardStep(1);
+    setWizardStep(2);
     setShowAddLocationForm(false);
     void loadSavedLocations();
   };
@@ -2242,7 +2257,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 1 ? (
+          {wizardStep === 0 ? (
             <>
               <View style={styles.promotionsCard}>
                 <View style={styles.rowBetween}>
@@ -2342,7 +2357,7 @@ export default function App() {
                       }}
                     >
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                        {languageMode === "ar" ? item.nameAr : item.nameEn}
+                        {toHourlyServicesDisplayName(languageMode === "ar" ? item.nameAr : item.nameEn, languageMode)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -2866,7 +2881,13 @@ export default function App() {
               ) : null}
               <View style={styles.summaryBar}>
                 <Text style={styles.summaryText}>
-                  {selectedGroup ? groupLabel(selectedGroup) : "No group"} | {selectedSubService ? (languageMode === "ar" ? selectedSubService.nameAr : selectedSubService.nameEn) : "No sub service"}
+                  {selectedGroup ? groupLabel(selectedGroup) : "No group"} |{" "}
+                  {selectedSubService
+                    ? toHourlyServicesDisplayName(
+                        languageMode === "ar" ? selectedSubService.nameAr : selectedSubService.nameEn,
+                        languageMode
+                      )
+                    : "No sub service"}
                 </Text>
                 <Text style={styles.summaryText}>{serviceDate || "No date selected"}</Text>
                 <Text style={styles.summaryText}>
@@ -3276,7 +3297,9 @@ export default function App() {
                 <TouchableOpacity style={styles.priceCard} key={price.id} onPress={() => openPackageReview({ price, provider, offer })}>
                   <View style={styles.packageProviderRow}>
                     <Text style={styles.packageName}>
-                      {offer ? (languageMode === "ar" ? offer.nameAr : offer.nameEn) : "Package"}
+                      {offer
+                        ? toHourlyServicesDisplayName(languageMode === "ar" ? offer.nameAr : offer.nameEn, languageMode)
+                        : "Package"}
                     </Text>
                     <Text style={styles.providerSideLabel}>
                       {provider ? (languageMode === "ar" ? provider.nameAr : provider.nameEn) : "Provider"}
@@ -3360,7 +3383,10 @@ export default function App() {
                 {requestSuccessMessage ? <Text style={styles.requestSuccessText}>{requestSuccessMessage}</Text> : null}
                 {requestSubmitError ? <Text style={styles.errorText}>{requestSubmitError}</Text> : null}
                 <Text style={styles.summaryText}>
-                  {languageMode === "ar" ? selectedRequestRow.offer.nameAr : selectedRequestRow.offer.nameEn}
+                  {toHourlyServicesDisplayName(
+                    languageMode === "ar" ? selectedRequestRow.offer.nameAr : selectedRequestRow.offer.nameEn,
+                    languageMode
+                  )}
                 </Text>
                 <Text style={styles.summaryText}>
                   {languageMode === "ar" ? "المزود" : "Provider"}:{" "}
