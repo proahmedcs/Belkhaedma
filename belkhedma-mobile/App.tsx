@@ -49,7 +49,7 @@ import {
 
 type LanguageMode = "ar" | "en";
 type ServiceGroup = "hourly-cleaning" | "monthly" | "medical-services" | "mediation-services";
-type WizardStep = 0 | 1 | 2 | 3;
+type WizardStep = 0 | 1 | 2 | 3 | 4;
 type PersistedAuthSession = {
   authToken: string;
   refreshToken: string;
@@ -689,13 +689,13 @@ function buildLogoCandidates(provider?: Provider): string[] {
 
 function getServiceGroupDescription(group: ServiceGroup, languageMode: LanguageMode): string {
   if (languageMode === "ar") {
-    if (group === "hourly-cleaning") return "خدمة عاملة منزلية محترفة بنظام الساعة";
+    if (group === "hourly-cleaning") return "خدمات بالساعة تشمل التنظيف والخدمات المنزلية";
     if (group === "monthly") return "باقات شهرية للإقامة الكاملة أو الزيارات المنتظمة";
     if (group === "medical-services") return "خدمات طبية وتمريض منزلي باحترافية";
     return "خدمات الوساطة والاستقدام حسب متطلباتك";
   }
 
-  if (group === "hourly-cleaning") return "Professional hourly home cleaning services.";
+  if (group === "hourly-cleaning") return "Hourly services including cleaning and related home services.";
   if (group === "monthly") return "Monthly packages for full stay or recurring visits.";
   if (group === "medical-services") return "Home medical and nursing services.";
   return "Mediation and recruitment services for your needs.";
@@ -1864,12 +1864,12 @@ export default function App() {
 
   const groupLabel = (group: ServiceGroup) => {
     if (languageMode === "ar") {
-      if (group === "hourly-cleaning") return "خدمات تنظيف بالساعة";
+      if (group === "hourly-cleaning") return "الخدمات بالساعة";
       if (group === "monthly") return "خدمات شهرية";
       if (group === "medical-services") return "خدمات طبية";
       return "خدمات وساطة";
     }
-    if (group === "hourly-cleaning") return "Hourly Cleaning";
+    if (group === "hourly-cleaning") return "Hourly Services";
     if (group === "monthly") return "Monthly";
     if (group === "medical-services") return "Medical Services";
     return "Mediation Services";
@@ -1893,16 +1893,18 @@ export default function App() {
   }, [languageMode, mandatoryFieldLabels]);
 
   const wizardSteps = [
-    languageMode === "ar" ? "الخدمة" : "Service",
+    languageMode === "ar" ? "الرئيسية" : "Home",
+    languageMode === "ar" ? "الخدمات" : "Services",
     languageMode === "ar" ? "الموقع" : "Location",
     languageMode === "ar" ? "الباقات" : "Packages",
     languageMode === "ar" ? "النتائج" : "Results",
   ];
   const currentStepTitle = useMemo(() => {
-    if (wizardStep === 1) return languageMode === "ar" ? "شاشة الموقع" : "Location Screen";
-    if (wizardStep === 2) return languageMode === "ar" ? "شاشة الباقات" : "Packages Screen";
-    if (wizardStep === 3) return languageMode === "ar" ? "شاشة النتائج" : "Results Screen";
-    return languageMode === "ar" ? "شاشة الخدمة" : "Service Screen";
+    if (wizardStep === 1) return languageMode === "ar" ? "شاشة الخدمات" : "Services Screen";
+    if (wizardStep === 2) return languageMode === "ar" ? "شاشة الموقع" : "Location Screen";
+    if (wizardStep === 3) return languageMode === "ar" ? "شاشة الباقات" : "Packages Screen";
+    if (wizardStep === 4) return languageMode === "ar" ? "شاشة النتائج" : "Results Screen";
+    return languageMode === "ar" ? "الشاشة الرئيسية" : "Home Screen";
   }, [languageMode, wizardStep]);
   const isPromotionsMenu = activePrimaryMenu === "promotions";
   const isProfileMenu = activePrimaryMenu === "account";
@@ -1913,11 +1915,10 @@ export default function App() {
     languageMode === "ar" ? "لا توجد عروض فعالة حالياً." : "No active promotions available right now.";
 
   const canGoNext = useMemo(() => {
-    if (wizardStep === 0) return !!selectedGroup && !!selectedSubServiceId;
-    if (wizardStep === 1) return savedLocations.length === 0 || !!selectedLocationId;
-    if (wizardStep === 2) {
-      return mandatoryFiltersSatisfied;
-    }
+    if (wizardStep === 0) return !!selectedGroup;
+    if (wizardStep === 1) return !!selectedSubServiceId;
+    if (wizardStep === 2) return savedLocations.length === 0 || !!selectedLocationId;
+    if (wizardStep === 3) return mandatoryFiltersSatisfied;
     return true;
   }, [
     mandatoryFiltersSatisfied,
@@ -1954,7 +1955,7 @@ export default function App() {
 
   const goNext = () => {
     if (!canGoNext) return;
-    setWizardStep((prev) => Math.min(3, prev + 1) as WizardStep);
+    setWizardStep((prev) => Math.min(4, prev + 1) as WizardStep);
   };
 
   const goBack = () => {
@@ -1980,11 +1981,11 @@ export default function App() {
       return;
     }
     if (key === "search") {
-      setWizardStep(2);
+      setWizardStep(1);
       return;
     }
     if (key === "orders") {
-      setWizardStep(3);
+      setWizardStep(4);
       return;
     }
     setWizardStep(0);
@@ -2241,7 +2242,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 0 ? (
+          {wizardStep === 1 ? (
             <>
               <View style={styles.promotionsCard}>
                 <View style={styles.rowBetween}>
@@ -2322,7 +2323,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 0 ? (
+          {wizardStep === 1 ? (
             <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "اختر الخدمة" : "Choose Service"}</Text>
               <FlatList
@@ -2348,10 +2349,21 @@ export default function App() {
                 }}
                 ListEmptyComponent={<Text style={styles.meta}>No services found for this group.</Text>}
               />
+              <TouchableOpacity
+                style={[styles.searchButton, !selectedSubServiceId && styles.navButtonDisabled]}
+                onPress={() => {
+                  if (!selectedSubServiceId) return;
+                  setHasChosenServiceAndSubservice(true);
+                  setWizardStep(2);
+                }}
+                disabled={!selectedSubServiceId}
+              >
+                <Text style={styles.searchButtonText}>{languageMode === "ar" ? "استعرض الخدمات" : "Browse services"}</Text>
+              </TouchableOpacity>
             </>
           ) : null}
 
-          {wizardStep === 1 ? (
+          {wizardStep === 2 ? (
             <>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "مرجع العميل" : "Customer Reference"}</Text>
               <View style={styles.rowControls}>
@@ -2567,7 +2579,7 @@ export default function App() {
                 </View>
               ) : null}
 
-              {wizardStep === 1 && selectedLocation ? (
+              {wizardStep === 2 && selectedLocation ? (
                 <View style={styles.locationCard}>
                   <Text style={styles.meta}>
                     {selectedLocation.city}, {selectedLocation.district}
@@ -2594,7 +2606,7 @@ export default function App() {
                 </View>
               ) : null}
 
-              {wizardStep === 1 && selectedLocation ? (
+              {wizardStep === 2 && selectedLocation ? (
                 <View style={styles.locationCard}>
                   <Text style={styles.subSectionTitle}>
                     {languageMode === "ar" ? "تفاصيل التواصل والإرشاد" : "Contact & Reaching Details"}
@@ -2675,7 +2687,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 2 ? (
+          {wizardStep === 3 ? (
             <>
               <Text style={styles.fieldHint}>{dynamicMandatoryText}</Text>
               <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "تاريخ الخدمة (إلزامي)" : "Service Date (mandatory)"}</Text>
@@ -2782,7 +2794,7 @@ export default function App() {
             </>
           ) : null}
 
-          {wizardStep === 3 ? (
+          {wizardStep === 4 ? (
             <>
               <View style={styles.rowBetween}>
                 <Text style={styles.subSectionTitle}>{languageMode === "ar" ? "النتائج" : "Results"}</Text>
@@ -2898,7 +2910,7 @@ export default function App() {
             <TouchableOpacity style={[styles.navButton, wizardStep === 0 && styles.navButtonDisabled]} onPress={goBack}>
               <Text style={styles.navText}>{languageMode === "ar" ? "السابق" : "Back"}</Text>
             </TouchableOpacity>
-            {wizardStep < 3 ? (
+            {wizardStep < 4 ? (
               <TouchableOpacity style={[styles.navButton, !canGoNext && styles.navButtonDisabled]} onPress={goNext}>
                 <Text style={styles.navText}>{languageMode === "ar" ? "التالي" : "Next"}</Text>
               </TouchableOpacity>
