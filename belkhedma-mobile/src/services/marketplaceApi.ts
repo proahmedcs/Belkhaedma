@@ -11,6 +11,43 @@ import {
   ProviderJsonDocument,
 } from "../types/marketplace";
 
+class ApiHttpError extends Error {
+  status: number;
+  path: string;
+
+  constructor(path: string, status: number, message: string) {
+    super(`${message} (HTTP ${status})`);
+    this.name = "ApiHttpError";
+    this.status = status;
+    this.path = path;
+  }
+}
+
+function normalizeCustomerAuthResponse(
+  value: Partial<CustomerAuthResponse>,
+  fallback?: { email?: string; refreshToken?: string }
+): CustomerAuthResponse {
+  if (!value.authToken) {
+    throw new Error("Authentication response is missing auth token.");
+  }
+
+  return {
+    customerId: value.customerId ?? "",
+    customerReference: value.customerReference ?? "",
+    fullName: value.fullName ?? "",
+    mobileNumber: value.mobileNumber ?? "",
+    authToken: value.authToken,
+    refreshToken: value.refreshToken ?? fallback?.refreshToken ?? value.authToken,
+    email: value.email ?? fallback?.email ?? "",
+    expiresAtUtc: value.expiresAtUtc ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    isNewAccount: Boolean(value.isNewAccount),
+  };
+}
+
+function isMissingAuthEndpoint(error: unknown): boolean {
+  return error instanceof ApiHttpError && (error.status === 404 || error.status === 405);
+}
+
 async function fetchJson<T>(path: string, token?: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: token
@@ -20,7 +57,16 @@ async function fetchJson<T>(path: string, token?: string): Promise<T> {
       : undefined,
   });
   if (!response.ok) {
-    throw new Error(`API request failed (${response.status}) for ${path}`);
+    let message = `API request failed for ${path}`;
+    try {
+      const payload = (await response.json()) as { message?: string };
+      if (payload?.message) {
+        message = payload.message;
+      }
+    } catch {
+      // Keep default message if response body is not JSON.
+    }
+    throw new ApiHttpError(path, response.status, message);
   }
   return (await response.json()) as T;
 }
@@ -35,7 +81,7 @@ async function postJson<TRequest, TResponse>(path: string, body: TRequest): Prom
   });
 
   if (!response.ok) {
-    let message = `API request failed (${response.status}) for ${path}`;
+    let message = `API request failed for ${path}`;
     try {
       const errorPayload = (await response.json()) as { message?: string };
       if (errorPayload?.message) {
@@ -44,7 +90,7 @@ async function postJson<TRequest, TResponse>(path: string, body: TRequest): Prom
     } catch {
       // ignore parse errors and keep default message
     }
-    throw new Error(message);
+    throw new ApiHttpError(path, response.status, message);
   }
 
   return (await response.json()) as TResponse;
@@ -128,7 +174,14 @@ export async function registerOrLoginCustomer(payload: {
   password: string;
   userNameOrEmail?: string;
 }): Promise<CustomerAuthResponse> {
-  return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/register-or-login", payload);
+  const response = await postJson<typeof payload, Partial<CustomerAuthResponse>>(
+    "/api/auth/customers/register-or-login",
+    payload
+  );
+  return normalizeCustomerAuthResponse(response, {
+    email: payload.email ?? payload.userNameOrEmail,
+    refreshToken: response.authToken,
+  });
 }
 
 export async function registerCustomer(payload: {
@@ -137,14 +190,46 @@ export async function registerCustomer(payload: {
   fullName: string;
   password: string;
 }): Promise<CustomerAuthResponse> {
-  return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/register", payload);
+  try {
+    const response = await postJson<typeof payload, Partial<CustomerAuthResponse>>("/api/auth/customers/register", payload);
+    return normalizeCustomerAuthResponse(response, {
+      email: payload.email,
+      refreshToken: response.authToken,
+    });
+  } catch (error) {
+    if (!isMissingAuthEndpoint(error)) {
+      throw error;
+    }
+    return registerOrLoginCustomer({
+      email: payload.email,
+      mobileNumber: payload.mobileNumber,
+      fullName: payload.fullName,
+      password: payload.password,
+      userNameOrEmail: payload.email,
+    });
+  }
 }
 
 export async function loginCustomer(payload: {
   userNameOrEmail: string;
   password: string;
 }): Promise<CustomerAuthResponse> {
-  return postJson<typeof payload, CustomerAuthResponse>("/api/auth/customers/login", payload);
+  try {
+    const response = await postJson<typeof payload, Partial<CustomerAuthResponse>>("/api/auth/customers/login", payload);
+    return normalizeCustomerAuthResponse(response, {
+      email: payload.userNameOrEmail,
+      refreshToken: response.authToken,
+    });
+  } catch (error) {
+    if (!isMissingAuthEndpoint(error)) {
+      throw error;
+    }
+    return registerOrLoginCustomer({
+      email: payload.userNameOrEmail.includes("@") ? payload.userNameOrEmail : undefined,
+      password: payload.password,
+      userNameOrEmail: payload.userNameOrEmail,
+    });
+  }
 }
 
 export async function refreshCustomerToken(payload: {
