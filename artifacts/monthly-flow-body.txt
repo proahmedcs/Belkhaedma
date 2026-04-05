@@ -1,0 +1,50 @@
+Belkhedma
+Dynamic wizard with service group and sub service
+EN
+AR
+Customer: Monthly Test Customer (+966500000000)
+Service Wizard
+1
+Service
+2
+Location
+3
+Packages
+4
+Results
+Provider Filter (optional)
+Mediation Services | Tamkeen - Monthly Package (1 Month)
+2026-04-10
+Shift: Morning | Nationality/Group: Africa
+Duration: 1 Week | Workers: 2
+Hours/Visit: 4 | Weekly Visits: 1
+Delivery Window: 07:00-09:00
+Search All Prices
+Back
+Search
+All Prices
+Tamkeen - Monthly Package (1 Month)
+Tamkeen Human Resources
+Tamkeen Human Resources
+https://tinyurl.com/belkhedma-tamkeen
+2790 SAR
+Source: Scraper
+Was 3150 SAR
+Updated: 4/4/2026, 12:05:00 PM
+Expires: 4/4/2026, 10:05:00 PM
+Provider JSON Documents
+fawran_monthly_real_json_bundle.json
+Key: tamkeen_monthly-package
+Provider: tamkeen
+Created: 4/4/2026, 12:00:00 PM
+Expires: 10/4/2026, 12:00:00 PM
+fawran_monthly_real_json_bundle.json
+Key: almutahidah_monthly-package
+Provider: almutahidah
+Created: 4/4/2026, 12:00:00 PM
+Expires: 10/4/2026, 12:00:00 PM
+fawran_monthly_real_json_bundle.json
+Key: esad-talents_monthly-package
+Provider: esad-talents
+Created: 4/4/2026, 12:00:00 PM
+Expires: 10/4/2026, 12:00:00 PM
