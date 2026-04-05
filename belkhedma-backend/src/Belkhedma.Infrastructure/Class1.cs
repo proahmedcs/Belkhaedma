@@ -4,6 +4,7 @@ using Belkhedma.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Belkhedma.Infrastructure;
 
@@ -27,6 +28,10 @@ public static class DependencyInjection
 internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IMarketplaceQueryService, IMarketplaceAdminService
 {
     private const int MaxPromotionCodeLength = 80;
+    private static readonly JsonSerializerOptions ProviderSettingsJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     public async Task<CustomerProfileDto?> GetCustomerProfileByTokenAsync(
         string authToken,
@@ -100,6 +105,8 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
                 x.SessionExpirationHours,
                 x.ContractDraftExpirationHours,
                 x.SettingsJson,
+                ExtractProviderCredentials(x.SettingsJson).Username,
+                ExtractProviderCredentials(x.SettingsJson).Password,
                 x.IsActive))
             .ToListAsync(cancellationToken);
     }
@@ -516,6 +523,11 @@ internal sealed class MarketplaceQueryService(BelkhedmaDbContext dbContext) : IM
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
 
+    private static ProviderCollectionCredentials ExtractProviderCredentials(string? settingsJson)
+    {
+        return ProviderSettingsHelper.ExtractProviderCredentials(settingsJson);
+    }
+
     private static IReadOnlyList<int> ParseHourOptions(string? source)
     {
         if (string.IsNullOrWhiteSpace(source))
@@ -748,6 +760,12 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
             return;
         }
 
+        // Provider credentials are loaded from settings and can be used by
+        // real provider adapters when fetching fresh JSON/prices.
+        var providerCredentials = ProviderSettingsHelper.ExtractProviderCredentials(provider.SettingsJson);
+        var providerUsername = providerCredentials.Username;
+        var providerPassword = providerCredentials.Password;
+
         var runStart = DateTime.UtcNow;
         var sourceType = provider.HasApiAccess ? DataSourceType.Api : DataSourceType.Scraper;
 
@@ -804,6 +822,7 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
                 {
                   "providerCode": "{{provider.Code}}",
                   "integrationMode": "{{(provider.HasApiAccess ? "api" : "scraper")}}",
+                  "hasCollectionCredentials": {{(string.IsNullOrWhiteSpace(providerUsername) || string.IsNullOrWhiteSpace(providerPassword) ? "false" : "true")}},
                   "note": "Seeded collection sample - replace with real provider adapter payload."
                 }
                 """
@@ -870,3 +889,57 @@ internal sealed class DataCollectionService(BelkhedmaDbContext dbContext) : IDat
         return JsonSerializer.Serialize(normalized);
     }
 }
+
+internal static class ProviderSettingsHelper
+{
+    private static readonly JsonSerializerOptions ProviderSettingsJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    public static ProviderCollectionCredentials ExtractProviderCredentials(string? settingsJson)
+    {
+        if (string.IsNullOrWhiteSpace(settingsJson))
+        {
+            return new ProviderCollectionCredentials(null, null);
+        }
+
+        try
+        {
+            var envelope = JsonSerializer.Deserialize<ProviderSettingsEnvelope>(settingsJson, ProviderSettingsJsonOptions);
+            if (envelope?.CollectionCredentials is not null)
+            {
+                return new ProviderCollectionCredentials(
+                    Normalize(envelope.CollectionCredentials.Username),
+                    Normalize(envelope.CollectionCredentials.Password));
+            }
+
+            var direct = JsonSerializer.Deserialize<ProviderCollectionCredentials>(settingsJson, ProviderSettingsJsonOptions);
+            if (direct is null)
+            {
+                return new ProviderCollectionCredentials(null, null);
+            }
+
+            return new ProviderCollectionCredentials(
+                Normalize(direct.Username),
+                Normalize(direct.Password));
+        }
+        catch
+        {
+            return new ProviderCollectionCredentials(null, null);
+        }
+    }
+
+    private static string? Normalize(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+}
+
+internal sealed record ProviderCollectionCredentials(
+    [property: JsonPropertyName("username")] string? Username,
+    [property: JsonPropertyName("password")] string? Password);
+
+internal sealed record ProviderSettingsEnvelope(
+    [property: JsonPropertyName("collectionCredentials")] ProviderCollectionCredentials? CollectionCredentials = null);

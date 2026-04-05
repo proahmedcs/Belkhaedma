@@ -1,11 +1,32 @@
 using Belkhedma.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Belkhedma.Infrastructure.Persistence;
 
 public static class BelkhedmaDbSeeder
 {
+    private sealed record CollectionCredentialsSeed(
+        [property: JsonPropertyName("username")] string? Username,
+        [property: JsonPropertyName("password")] string? Password);
+
+    private sealed record ProviderSettingsSeed(
+        [property: JsonPropertyName("collectionCredentials")] CollectionCredentialsSeed CollectionCredentials);
+
+    private static readonly JsonSerializerOptions ProviderSettingsJsonOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private static string BuildProviderSettingsJson(string providerCode)
+    {
+        var settings = new ProviderSettingsSeed(new CollectionCredentialsSeed(
+            Username: $"{providerCode}_user",
+            Password: $"change-me-{providerCode}"));
+        return JsonSerializer.Serialize(settings, ProviderSettingsJsonOptions);
+    }
+
     private sealed record DemoOfferSeed(
         string ProviderCode,
         string ProviderServiceId,
@@ -234,7 +255,8 @@ public static class BelkhedmaDbSeeder
                 Notes = "Strong hourly services (cleaning, nanny)",
                 PricingExpirationHours = 4,
                 SessionExpirationHours = 2,
-                ContractDraftExpirationHours = 12
+                ContractDraftExpirationHours = 12,
+                SettingsJson = BuildProviderSettingsJson("mueen")
             },
             new()
             {
@@ -260,7 +282,8 @@ public static class BelkhedmaDbSeeder
                 Notes = "Covers B2C + B2B + recruitment",
                 PricingExpirationHours = 4,
                 SessionExpirationHours = 2,
-                ContractDraftExpirationHours = 12
+                ContractDraftExpirationHours = 12,
+                SettingsJson = BuildProviderSettingsJson("tamkeen")
             },
             new()
             {
@@ -286,7 +309,8 @@ public static class BelkhedmaDbSeeder
                 Notes = "Cleaning + hospitality + residential",
                 PricingExpirationHours = 6,
                 SessionExpirationHours = 2,
-                ContractDraftExpirationHours = 24
+                ContractDraftExpirationHours = 24,
+                SettingsJson = BuildProviderSettingsJson("almutahidah")
             },
             new()
             {
@@ -312,7 +336,8 @@ public static class BelkhedmaDbSeeder
                 Notes = "Strong recruitment & manpower",
                 PricingExpirationHours = 8,
                 SessionExpirationHours = 2,
-                ContractDraftExpirationHours = 24
+                ContractDraftExpirationHours = 24,
+                SettingsJson = BuildProviderSettingsJson("irc-saudi")
             },
             new()
             {
@@ -339,7 +364,8 @@ public static class BelkhedmaDbSeeder
                 Notes = "Domestic + business + recruitment",
                 PricingExpirationHours = 6,
                 SessionExpirationHours = 2,
-                ContractDraftExpirationHours = 24
+                ContractDraftExpirationHours = 24,
+                SettingsJson = BuildProviderSettingsJson("enaya")
             },
             new()
             {
@@ -365,7 +391,8 @@ public static class BelkhedmaDbSeeder
                 Notes = "Hader visits + long-term contracts",
                 PricingExpirationHours = 6,
                 SessionExpirationHours = 2,
-                ContractDraftExpirationHours = 24
+                ContractDraftExpirationHours = 24,
+                SettingsJson = BuildProviderSettingsJson("esad-talents")
             },
             new()
             {
@@ -392,7 +419,8 @@ public static class BelkhedmaDbSeeder
                 Notes = "Fawran instant services + business",
                 PricingExpirationHours = 6,
                 SessionExpirationHours = 2,
-                ContractDraftExpirationHours = 24
+                ContractDraftExpirationHours = 24,
+                SettingsJson = BuildProviderSettingsJson("emdad-hr")
             },
             new()
             {
@@ -418,7 +446,8 @@ public static class BelkhedmaDbSeeder
                 Notes = "Recruitment mediation + monthly services",
                 PricingExpirationHours = 8,
                 SessionExpirationHours = 2,
-                ContractDraftExpirationHours = 24
+                ContractDraftExpirationHours = 24,
+                SettingsJson = BuildProviderSettingsJson("eitinaa")
             }
         };
 
@@ -457,6 +486,7 @@ public static class BelkhedmaDbSeeder
             existing.PricingExpirationHours = provider.PricingExpirationHours;
             existing.SessionExpirationHours = provider.SessionExpirationHours;
             existing.ContractDraftExpirationHours = provider.ContractDraftExpirationHours;
+            existing.SettingsJson = provider.SettingsJson;
             existing.UpdatedAtUtc = DateTime.UtcNow;
         }
 

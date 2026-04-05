@@ -31,6 +31,8 @@ public sealed record ProviderDto(
     int SessionExpirationHours,
     int ContractDraftExpirationHours,
     string SettingsJson,
+    string? SettingsUsername,
+    string? SettingsPassword,
     bool IsActive);
 
 public sealed record ServiceOfferDto(
