@@ -75,11 +75,13 @@ function App() {
   const [draftNationality, setDraftNationality] = useState("all");
   const [draftWeeklyVisits, setDraftWeeklyVisits] = useState("all");
   const [draftHours, setDraftHours] = useState("all");
+  const [draftProvider, setDraftProvider] = useState("all");
   const [draftSort, setDraftSort] = useState<"recommended" | "cheapest" | "highest">("recommended");
   const [applied, setApplied] = useState({
     nationality: "all",
     weeklyVisits: "all",
     hours: "all",
+    provider: "all",
     sort: "recommended" as "recommended" | "cheapest" | "highest",
   });
 
@@ -91,6 +93,7 @@ function App() {
       if (p.group !== group) return false;
       if (service !== "all" && p.service !== service) return false;
       if (!date) return true;
+      if (applied.provider !== "all" && p.provider !== applied.provider) return false;
       if (applied.nationality !== "all" && p.nationality !== applied.nationality) return false;
       if (applied.weeklyVisits !== "all" && String(p.weeklyVisits) !== applied.weeklyVisits) return false;
       if (applied.hours !== "all" && String(p.hours) !== applied.hours) return false;
@@ -104,13 +107,14 @@ function App() {
       return rows.slice().sort((a, b) => b.finalPrice - a.finalPrice);
     }
     return rows;
-  }, [applied.hours, applied.nationality, applied.sort, applied.weeklyVisits, date, group, service]);
+  }, [applied.hours, applied.nationality, applied.provider, applied.sort, applied.weeklyVisits, date, group, service]);
 
   const applyFilter = () => {
     setApplied({
       nationality: draftNationality,
       weeklyVisits: draftWeeklyVisits,
       hours: draftHours,
+      provider: draftProvider,
       sort: draftSort,
     });
     setShowFilter(false);
@@ -120,11 +124,13 @@ function App() {
     setDraftNationality("all");
     setDraftWeeklyVisits("all");
     setDraftHours("all");
+    setDraftProvider("all");
     setDraftSort("recommended");
     setApplied({
       nationality: "all",
       weeklyVisits: "all",
       hours: "all",
+      provider: "all",
       sort: "recommended",
     });
   };
@@ -133,6 +139,7 @@ function App() {
     applied.nationality !== "all",
     applied.weeklyVisits !== "all",
     applied.hours !== "all",
+    applied.provider !== "all",
     applied.sort !== "recommended",
   ].filter(Boolean).length;
 
@@ -241,6 +248,15 @@ function App() {
                     <option value="recommended">{isArabic ? "موصى به" : "Recommended"}</option>
                     <option value="cheapest">{isArabic ? "الأرخص" : "Cheapest"}</option>
                     <option value="highest">{isArabic ? "الأعلى سعراً" : "Highest Price"}</option>
+                  </select>
+                </div>
+                <div className="row">
+                  <label>{isArabic ? "مزود الخدمة" : "Service Provider"}</label>
+                  <select value={draftProvider} onChange={(e) => setDraftProvider(e.target.value)}>
+                    <option value="all">{isArabic ? "الكل" : "All"}</option>
+                    <option value="Enaya">Enaya</option>
+                    <option value="Fawran">Fawran</option>
+                    <option value="Tamkeen">Tamkeen</option>
                   </select>
                 </div>
                 <div className="row">
