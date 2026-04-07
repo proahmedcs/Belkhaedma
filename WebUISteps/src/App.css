@@ -1,0 +1,187 @@
+.ws-shell {
+  min-height: 100vh;
+  background: #f6f0fb;
+  color: #29163a;
+}
+
+.ws-header {
+  background: linear-gradient(180deg, #9b2e9f, #8b258f);
+  color: #fff;
+  padding: 14px 18px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.ws-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ws-brand {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.ws-toggle {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.ws-step {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.ws-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 16px 92px;
+}
+
+.ws-card {
+  background: #fff;
+  border: 1px solid #e9dff2;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(57, 24, 79, 0.06);
+}
+
+.ws-title {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.ws-subtitle {
+  margin: 0 0 10px;
+  color: #61447a;
+  font-size: 13px;
+}
+
+.ws-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ws-group-btn {
+  border: 1px solid #dfc8ef;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ws-group-btn.active {
+  background: #f2e3fb;
+  border-color: #9b2e9f;
+}
+
+.ws-service-chip {
+  border: 1px solid #ddc7ec;
+  background: #fff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  margin-inline-end: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.ws-service-chip.active {
+  background: #f2e3fb;
+  border-color: #9b2e9f;
+}
+
+.ws-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ws-input {
+  border: 1px solid #dbc3eb;
+  border-radius: 9px;
+  padding: 9px 10px;
+  min-width: 180px;
+}
+
+.ws-filter-btn {
+  border: 1px solid #9b2e9f;
+  color: #9b2e9f;
+  background: #fff;
+  border-radius: 9px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.ws-filter-btn.primary {
+  background: #9b2e9f;
+  color: #fff;
+}
+
+.ws-package-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ws-package {
+  border: 1px solid #dfc8ef;
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: start;
+  background: #fff;
+}
+
+.ws-package:hover {
+  border-color: #9b2e9f;
+}
+
+.ws-price {
+  color: #8b258f;
+  font-weight: 700;
+}
+
+.ws-muted {
+  color: #7b618f;
+  font-size: 13px;
+}
+
+.ws-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1px solid #e5d7f0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 8px;
+  z-index: 25;
+}
+
+.ws-bottom button {
+  border: 0;
+  background: transparent;
+  color: #694b80;
+  padding: 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.ws-bottom button.active {
+  background: #f2e3fb;
+  color: #8b258f;
+  font-weight: 700;
+}
