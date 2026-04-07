@@ -19,6 +19,8 @@ type PackageItem = {
   listPrice: number;
 };
 
+type ProfileTab = "preferences" | "notifications" | "support";
+
 const PACKAGES: PackageItem[] = [
   {
     id: "p1",
@@ -64,49 +66,116 @@ const PACKAGES: PackageItem[] = [
 function App() {
   const [language, setLanguage] = useState<Language>("en");
   const [menu, setMenu] = useState<Menu>("home");
-  const [group, setGroup] = useState<Group | null>(null);
+  const [group, setGroup] = useState<Group>("cleaning");
   const [service, setService] = useState<string>("Cleaning Service");
   const [date, setDate] = useState("");
-  const [nationality, setNationality] = useState<string>("all");
-  const [weeklyVisits, setWeeklyVisits] = useState<string>("all");
-  const [hours, setHours] = useState<string>("all");
+
+  // Wego-style filter: draft values + Apply
   const [showFilter, setShowFilter] = useState(false);
+  const [draftNationality, setDraftNationality] = useState("all");
+  const [draftWeeklyVisits, setDraftWeeklyVisits] = useState("all");
+  const [draftHours, setDraftHours] = useState("all");
+  const [draftSort, setDraftSort] = useState<"recommended" | "cheapest" | "highest">("recommended");
   const [applied, setApplied] = useState({
     nationality: "all",
     weeklyVisits: "all",
     hours: "all",
+    sort: "recommended" as "recommended" | "cheapest" | "highest",
   });
 
+  const [profileTab, setProfileTab] = useState<ProfileTab>("preferences");
   const isArabic = language === "ar";
 
   const list = useMemo(() => {
-    return PACKAGES.filter((p) => {
-      if (group && p.group !== group) return false;
+    const rows = PACKAGES.filter((p) => {
+      if (p.group !== group) return false;
       if (service !== "all" && p.service !== service) return false;
       if (!date) return true;
       if (applied.nationality !== "all" && p.nationality !== applied.nationality) return false;
       if (applied.weeklyVisits !== "all" && String(p.weeklyVisits) !== applied.weeklyVisits) return false;
       if (applied.hours !== "all" && String(p.hours) !== applied.hours) return false;
       return true;
-    }).sort((a, b) => a.finalPrice - b.finalPrice);
-  }, [applied.hours, applied.nationality, applied.weeklyVisits, date, group, service]);
+    });
+
+    if (applied.sort === "cheapest") {
+      return rows.slice().sort((a, b) => a.finalPrice - b.finalPrice);
+    }
+    if (applied.sort === "highest") {
+      return rows.slice().sort((a, b) => b.finalPrice - a.finalPrice);
+    }
+    return rows;
+  }, [applied.hours, applied.nationality, applied.sort, applied.weeklyVisits, date, group, service]);
 
   const applyFilter = () => {
-    setApplied({ nationality, weeklyVisits, hours });
+    setApplied({
+      nationality: draftNationality,
+      weeklyVisits: draftWeeklyVisits,
+      hours: draftHours,
+      sort: draftSort,
+    });
     setShowFilter(false);
   };
 
   const resetFilter = () => {
-    setNationality("all");
-    setWeeklyVisits("all");
-    setHours("all");
-    setApplied({ nationality: "all", weeklyVisits: "all", hours: "all" });
+    setDraftNationality("all");
+    setDraftWeeklyVisits("all");
+    setDraftHours("all");
+    setDraftSort("recommended");
+    setApplied({
+      nationality: "all",
+      weeklyVisits: "all",
+      hours: "all",
+      sort: "recommended",
+    });
+  };
+
+  const activeFilterCount = [
+    applied.nationality !== "all",
+    applied.weeklyVisits !== "all",
+    applied.hours !== "all",
+    applied.sort !== "recommended",
+  ].filter(Boolean).length;
+
+  const renderProfileContent = () => {
+    if (profileTab === "preferences") {
+      return (
+        <div className="profile-block">
+          <h3>{isArabic ? "التفضيلات" : "Preferences"}</h3>
+          <p className="hint">{isArabic ? "اللغة واتجاه الشاشة والإشعارات." : "Language, direction, and notification preferences."}</p>
+          <div className="row">
+            <label>{isArabic ? "اللغة" : "Language"}</label>
+            <div className="lang">
+              <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")}>
+                EN
+              </button>
+              <button className={language === "ar" ? "active" : ""} onClick={() => setLanguage("ar")}>
+                AR
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    if (profileTab === "notifications") {
+      return (
+        <div className="profile-block">
+          <h3>{isArabic ? "الإشعارات" : "Notifications"}</h3>
+          <p className="hint">{isArabic ? "تنبيهات العروض والطلبات والمواعيد." : "Alerts for offers, requests, and schedules."}</p>
+        </div>
+      );
+    }
+    return (
+      <div className="profile-block">
+        <h3>{isArabic ? "الدعم" : "Support"}</h3>
+        <p className="hint">{isArabic ? "مركز المساعدة والتواصل." : "Help center and contact options."}</p>
+      </div>
+    );
   };
 
   return (
     <div className={`app ${isArabic ? "rtl" : "ltr"}`}>
       <header className="top">
-        <h1>Belkhidmah - Web UI Steps</h1>
+        <h1>Belkhidmah - WebUISteps</h1>
         <div className="lang">
           <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")}>
             EN
@@ -151,24 +220,32 @@ function App() {
             </div>
             <p className="hint">
               {isArabic
-                ? "بعد اختيار التاريخ، سترى كل الباقات في نفس الصفحة ويمكنك تطبيق الفلتر."
-                : "After choosing date, all packages appear on this same page and you can apply filters."}
+                ? "بعد اختيار مجموعة الخدمة + خدمة التنظيف، سترى كل الباقات في نفس الصفحة، ثم تطبق الفلتر."
+                : "After selecting service group + Cleaning Service, all packages appear on the same page, then apply filters."}
             </p>
           </section>
 
           <section className="card">
             <div className="row between">
-              <h2>{isArabic ? "كل الباقات" : "All Packages"}</h2>
+              <h2>{isArabic ? "كل الباقات (Wego Style)" : "All Packages (Wego Style)"}</h2>
               <button className="filterBtn" onClick={() => setShowFilter((v) => !v)}>
-                {isArabic ? "فلتر" : "Filter"}
+                {isArabic ? `فلتر${activeFilterCount ? ` (${activeFilterCount})` : ""}` : `Filter${activeFilterCount ? ` (${activeFilterCount})` : ""}`}
               </button>
             </div>
 
             {showFilter ? (
               <div className="filterPanel">
                 <div className="row">
+                  <label>{isArabic ? "الترتيب" : "Sort"}</label>
+                  <select value={draftSort} onChange={(e) => setDraftSort(e.target.value as "recommended" | "cheapest" | "highest")}>
+                    <option value="recommended">{isArabic ? "موصى به" : "Recommended"}</option>
+                    <option value="cheapest">{isArabic ? "الأرخص" : "Cheapest"}</option>
+                    <option value="highest">{isArabic ? "الأعلى سعراً" : "Highest Price"}</option>
+                  </select>
+                </div>
+                <div className="row">
                   <label>{isArabic ? "الجنسية" : "Nationality"}</label>
-                  <select value={nationality} onChange={(e) => setNationality(e.target.value)}>
+                  <select value={draftNationality} onChange={(e) => setDraftNationality(e.target.value)}>
                     <option value="all">{isArabic ? "الكل" : "All"}</option>
                     <option value="Philippines">Philippines</option>
                     <option value="Indonesia">Indonesia</option>
@@ -177,7 +254,7 @@ function App() {
                 </div>
                 <div className="row">
                   <label>{isArabic ? "عدد الزيارات" : "Weekly Visits"}</label>
-                  <select value={weeklyVisits} onChange={(e) => setWeeklyVisits(e.target.value)}>
+                  <select value={draftWeeklyVisits} onChange={(e) => setDraftWeeklyVisits(e.target.value)}>
                     <option value="all">{isArabic ? "الكل" : "All"}</option>
                     <option value="1">1</option>
                     <option value="2">2</option>
@@ -185,7 +262,7 @@ function App() {
                 </div>
                 <div className="row">
                   <label>{isArabic ? "عدد الساعات" : "Hours"}</label>
-                  <select value={hours} onChange={(e) => setHours(e.target.value)}>
+                  <select value={draftHours} onChange={(e) => setDraftHours(e.target.value)}>
                     <option value="all">{isArabic ? "الكل" : "All"}</option>
                     <option value="4">4</option>
                     <option value="8">8</option>
@@ -194,7 +271,7 @@ function App() {
                 <div className="actions">
                   <button onClick={resetFilter}>{isArabic ? "إعادة ضبط" : "Reset"}</button>
                   <button className="primary" onClick={applyFilter}>
-                    {isArabic ? "تطبيق" : "Apply"}
+                    {isArabic ? "تطبيق الفلتر" : "Apply Filter"}
                   </button>
                 </div>
               </div>
@@ -224,18 +301,40 @@ function App() {
             </div>
           </section>
         </main>
-      ) : (
+      ) : null}
+
+      {menu === "profile" ? (
         <main className="content">
           <section className="card">
-            <h2>{menu === "profile" ? (isArabic ? "الملف والإعدادات" : "Profile & Settings") : menu}</h2>
+            <h2>{isArabic ? "الملف الشخصي" : "Profile"}</h2>
+            <div className="chips">
+              <button className={profileTab === "preferences" ? "active" : ""} onClick={() => setProfileTab("preferences")}>
+                {isArabic ? "التفضيلات" : "Preferences"}
+              </button>
+              <button className={profileTab === "notifications" ? "active" : ""} onClick={() => setProfileTab("notifications")}>
+                {isArabic ? "الإشعارات" : "Notifications"}
+              </button>
+              <button className={profileTab === "support" ? "active" : ""} onClick={() => setProfileTab("support")}>
+                {isArabic ? "الدعم" : "Support"}
+              </button>
+            </div>
+            {renderProfileContent()}
+          </section>
+        </main>
+      ) : null}
+
+      {menu !== "home" && menu !== "profile" ? (
+        <main className="content">
+          <section className="card">
+            <h2>{menu === "promotions" ? (isArabic ? "العروض" : "Promotions") : isArabic ? "العقود" : "Contracts"}</h2>
             <p className="hint">
               {isArabic
-                ? "هذه شاشة تدفق واجهة فقط (بدون باك إند) لتثبيت خطوات UX/UI."
-                : "This is UI flow-only prototype (no backend) to lock UX/UI steps."}
+                ? "هذه شاشة UX/UI مستقلة بدون باك إند. سنضيف تفاصيلها بعد تثبيت تدفق التنظيف."
+                : "This is a standalone UX/UI screen without backend. We will detail it after locking cleaning flow."}
             </p>
           </section>
         </main>
-      )}
+      ) : null}
 
       <nav className="bottom">
         <button className={menu === "home" ? "active" : ""} onClick={() => setMenu("home")}>
