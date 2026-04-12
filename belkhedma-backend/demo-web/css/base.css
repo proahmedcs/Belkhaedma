@@ -1,0 +1,27 @@
+:root {
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --text: #1d1d1f;
+  --muted: #6d6d72;
+  --border: #e8e8ee;
+  --primary: #d950a0;
+  --primary-dark: #a0298e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}

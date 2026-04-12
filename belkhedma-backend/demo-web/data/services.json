@@ -1,0 +1,8 @@
+{
+  "services": [
+    { "service_id": "svc_hourly_cleaning", "name_ar": "خدمات بالساعة", "name_en": "Hourly Services", "family": "hourly" },
+    { "service_id": "svc_monthly_resident", "name_ar": "خدمة مقيمة شهرية", "name_en": "Monthly Resident Service", "family": "monthly_resident" },
+    { "service_id": "svc_business_manpower", "name_ar": "قوى عاملة للأعمال", "name_en": "Business Manpower", "family": "b2b" },
+    { "service_id": "svc_recruitment", "name_ar": "استقدام", "name_en": "Recruitment", "family": "recruitment" }
+  ]
+}

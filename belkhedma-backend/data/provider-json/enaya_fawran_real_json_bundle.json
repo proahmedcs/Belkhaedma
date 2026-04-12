@@ -1,0 +1,737 @@
+{
+  "document_purpose": "Readable real-data JSON handoff for Enaya and Fawran reservation cycles, focused on steps, observed values, reconstructed requests, and reusable provider-agnostic normalization.",
+  "confidence_legend": {
+    "observed": "Directly visible in page content, route parameters, or public API response.",
+    "observed_and_routed": "Visible in the live flow and tied to a real route with real IDs.",
+    "reconstructed": "Request shape inferred from observed page fields and front-end endpoint hints.",
+    "provider_agnostic": "Normalized shape suitable for reusing the same orchestration pattern with another company."
+  },
+  "providers": {
+    "enaya": {
+      "provider_key": "enaya",
+      "summary": {
+        "service_session_id": "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4",
+        "step_id": "2dc28b77-10bd-4fd6-a5d9-98b0149e9b4c",
+        "selected_pricing_id": "0f1b7e40-165a-ee11-a8a5-000d3a227ab4",
+        "contract_id": "2453c56c-c81a-4234-9421-55dd6b88ecff",
+        "observed_payment_amount_sar": 75.0,
+        "wizard_steps": [
+          "select_address",
+          "select_package",
+          "visits_schedule",
+          "complete_data",
+          "create_contract",
+          "payment"
+        ]
+      },
+      "steps": [
+        {
+          "step_no": 1,
+          "page_key": "saved_addresses",
+          "confidence": "observed_and_routed",
+          "description": "Customer selects an existing saved address before entering package selection.",
+          "route": "/hourly/SavedAddresses?sid=a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4&stepId=2dc28b77-10bd-4fd6-a5d9-98b0149e9b4c",
+          "observed_response_like_data": {
+            "provider": "enaya",
+            "page_key": "saved_addresses",
+            "route_params": {
+              "sid": "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4",
+              "stepId": "2dc28b77-10bd-4fd6-a5d9-98b0149e9b4c"
+            },
+            "addresses": [
+              {
+                "label": "main",
+                "label_ar": "عنوان رئيسي",
+                "city": "Riyadh",
+                "district": "Al Qadisiyah",
+                "floor_no": 1,
+                "house_type": "Apartment Building",
+                "house_no": "6",
+                "apartment_no": "6"
+              },
+              {
+                "label": "secondary",
+                "label_ar": "عنوان فرعي",
+                "city": "Riyadh",
+                "district": "Ishbiliyah",
+                "floor_no": 1,
+                "house_type": "Apartment Building",
+                "house_no": "39",
+                "apartment_no": "6",
+                "selected_in_live_flow": true
+              }
+            ],
+            "next_page_key": "fixed_packages"
+          },
+          "reconstructed_request": {
+            "provider": "enaya",
+            "request_name": "select_saved_address",
+            "transport": "POST",
+            "endpoint_hint": "HourlyContract/SavedAddresses?selectedLocationId={locationId}&hourlyServiceId={sid}",
+            "body": {
+              "selectedLocationId": "saved_location_uuid_for_riyadh_ishbiliyah",
+              "hourlyServiceId": "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4"
+            }
+          }
+        },
+        {
+          "step_no": 2,
+          "page_key": "add_new_address",
+          "confidence": "reconstructed",
+          "description": "Alternative branch when the customer adds a fresh address inside the hourly flow.",
+          "reconstructed_request": {
+            "provider": "enaya",
+            "request_name": "add_new_address",
+            "transport": "POST",
+            "endpoint_hint": "HourlyContract/AddNewAddress?hourlyServiceId={sid}",
+            "body": {
+              "hourlyServiceId": "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4",
+              "cityId": "city_uuid_or_numeric_id",
+              "districtId": "district_uuid_or_numeric_id",
+              "houseType": "apartment_building",
+              "floorNo": 1,
+              "houseNo": "39",
+              "apartmentNo": "6",
+              "latitude": 24.815,
+              "longitude": 46.766,
+              "addressNotes": "Near landmark or gate instructions",
+              "addressType": "secondary",
+              "fullAddress": "Generated full address string"
+            }
+          },
+          "reconstructed_response": {
+            "saved": true,
+            "selected_for_current_booking": true,
+            "next_page_key": "fixed_packages"
+          }
+        },
+        {
+          "step_no": 3,
+          "page_key": "fixed_packages",
+          "confidence": "observed_and_routed",
+          "description": "Customer sees available packages filtered by period and nationality. Real package prices were observed on the live page and confirmed through the public pricing endpoint.",
+          "route": "/hourly/FixedPackage?sid=a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4&stepId=2dc28b77-10bd-4fd6-a5d9-98b0149e9b4c",
+          "observed_page_data": {
+            "filters": {
+              "period_tabs": [
+                "morning",
+                "evening"
+              ],
+              "nationality_dropdown": true
+            },
+            "packages_from_live_page": [
+              {
+                "package_name": "عرض زيارة صباحي افريقيا",
+                "visit_price_sar": 65.22,
+                "nationality": "Africa",
+                "visits": 1,
+                "workers": 1,
+                "hours": 4,
+                "original_price_sar": 147.2,
+                "display_price_sar": 75.0,
+                "selectedHourlyPricingId": "0f1b7e40-165a-ee11-a8a5-000d3a227ab4"
+              },
+              {
+                "package_name": "عرض زيارة صباحي الفلبين - رياض",
+                "visit_price_sar": 69.57,
+                "nationality": "Philippines",
+                "visits": 1,
+                "workers": 1,
+                "hours": 4,
+                "original_price_sar": 147.2,
+                "display_price_sar": 80.0
+              },
+              {
+                "package_name": "عرض زيارة صباحي اندونيسيا - رياض",
+                "visit_price_sar": 73.91,
+                "nationality": "Indonesia",
+                "visits": 1,
+                "workers": 1,
+                "hours": 4,
+                "original_price_sar": 147.2,
+                "display_price_sar": 85.0
+              }
+            ]
+          },
+          "observed_api_request_response": {
+            "request": {
+              "transport": "GET",
+              "url": "https://enaya.sa/api/en/SelectedHourlyPricing/SelectedHourlyPricing?serviceId=a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4"
+            },
+            "response_sample": {
+              "selectedHourlyPricingId": "0f1b7e40-165a-ee11-a8a5-000d3a227ab4",
+              "displayName": "african",
+              "serviceId": "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4",
+              "resourceGroupId": "f14b9b77-0a5a-ee11-a8a5-000d3a227ab4",
+              "resourceGroupName": "afrca",
+              "employeeNumber": 1,
+              "employeeNumberName": "1 Worker",
+              "hoursNumber": 4,
+              "weeklyVisits": 1,
+              "weeklyVisitName": "1 visit weekly",
+              "contractDuration": 1,
+              "contractDurationName": "1 Week",
+              "visitShift": 1,
+              "visitShiftName": "Morning",
+              "promotionCodeId": "c8d2352a-63e5-f011-a935-000d3a227ab4",
+              "promotionCode": "RUH_75_M",
+              "promotionCodeDescription": "Riyadh-75",
+              "oneVisitPrice": 147.2,
+              "totalVisits": 1,
+              "visitHours": 4,
+              "isAvaliable": true,
+              "packagePrice": 128.0,
+              "totalPriceWithVatBeforePromotion": 147.2,
+              "packagePercentDiscount": 0.0,
+              "packageDiscountAmount": 0.0,
+              "packagePriceAfterPackageDiscount": 128.0,
+              "promotionTotalDiscountAmount": 62.782608696,
+              "promotionTotalDiscountPercent": 49.05,
+              "totalDiscountPercent": 49.05,
+              "totalDiscountAmount": 62.782608696,
+              "priceAfterTotalDiscount": 65.217391304,
+              "freeVisitsCount": 0,
+              "promotionEndDate": "31/12/2026",
+              "promotionState": {
+                "promotionName": "Riyadh-75",
+                "promotionStatus": 2,
+                "promotionValidationDescription": null
+              },
+              "vatRate": 15.0,
+              "vatAmount": 9.7826086956,
+              "finalPrice": 75.0,
+              "promotionOfferList": [
+                {
+                  "promotionOfferType": 3,
+                  "promotionDescription": "Visit Price 65.22 SAR"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "step_no": 4,
+          "page_key": "package_configuration",
+          "confidence": "observed_and_routed",
+          "description": "Customer confirms package details such as shift, worker count, weekly visits, duration, first visit date, nationality, discount code, and delivery window.",
+          "route": "/hourly/SelectPackage?sid=a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4&pid=0f1b7e40-165a-ee11-a8a5-000d3a227ab4&stepId=2dc28b77-10bd-4fd6-a5d9-98b0149e9b4c",
+          "observed_page_data": {
+            "shift_period": "morning",
+            "worker_count_field": true,
+            "weekly_visits_field": true,
+            "contract_duration": "1 week",
+            "delivery_windows": [
+              "07:00 AM to 09:00 AM",
+              "03:00 PM to 05:00 PM"
+            ],
+            "first_visit_date_field": true,
+            "preferred_nationality_options": [
+              "Indonesia",
+              "Philippines",
+              "Africa"
+            ],
+            "discount_code_field": true,
+            "current_visit_price_sar": 65.22,
+            "terms_acceptance_required": true
+          },
+          "reconstructed_request": {
+            "provider": "enaya",
+            "request_name": "select_package_and_continue",
+            "transport": "POST",
+            "endpoint_hint": "HourlyContract/SelectPackage or step action resolved through dynamic step engine",
+            "body": {
+              "sessionId": "a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4",
+              "selectedHourlyPricingId": "0f1b7e40-165a-ee11-a8a5-000d3a227ab4",
+              "shiftPeriod": "Morning",
+              "workerCount": 1,
+              "weeklyVisits": 1,
+              "contractDurationValue": 1,
+              "contractDurationUnit": "Week",
+              "firstVisitDate": "yyyy-mm-dd",
+              "preferredNationality": "Africa",
+              "deliveryWindowCode": "07:00-09:00",
+              "discountCode": null,
+              "agreePolicy": true
+            }
+          }
+        },
+        {
+          "step_no": 5,
+          "page_key": "dynamic_step_engine_and_payment",
+          "confidence": "observed_and_routed",
+          "description": "The downstream step engine exposes later action names, while the payment page exposes the live contract and payable amount.",
+          "observed_dynamic_steps": {
+            "request": {
+              "transport": "GET",
+              "url": "https://enaya.sa/api/en/Steps/DynamicSteps?serviceType=2"
+            },
+            "response_sample": [
+              {
+                "controller": "HourlyContract",
+                "action": "AddNewAddress",
+                "nextStepAction": "FixedPackage",
+                "stepKeyword": "Address",
+                "description": "Detrmine Address on map",
+                "stepType": 2,
+                "httpMethod": "Post"
+              },
+              {
+                "controller": "HourlyContract",
+                "action": "DetermineLocationStep",
+                "nextStepAction": "FixedPackage",
+                "stepKeyword": "Address",
+                "description": "determine contact location",
+                "stepType": 4,
+                "httpMethod": "Post"
+              },
+              {
+                "controller": "HourlyContract",
+                "action": "SelectPackage",
+                "previousStepAction": "FixedPackage",
+                "nextStepAction": "ExpectedVisits",
+                "stepKeyword": "SelectPackage",
+                "description": "Choose Nationality,Proffision and package",
+                "stepType": 2,
+                "httpMethod": "Post"
+              }
+            ]
+          },
+          "observed_payment_context": {
+            "route": "/payment?contractId=2453c56c-c81a-4234-9421-55dd6b88ecff&type=1",
+            "contractId": "2453c56c-c81a-4234-9421-55dd6b88ecff",
+            "payable_amount_sar": 75.0,
+            "payment_methods_visible": [
+              "MADA",
+              "VISA",
+              "MASTER",
+              "Apple Pay visible on page"
+            ]
+          }
+        }
+      ]
+    },
+    "fawran": {
+      "provider_key": "fawran",
+      "summary": {
+        "service_type": 2,
+        "first_step_id": "7d041f71-8f88-401e-a445-6e0d92888552",
+        "step_header_id": "6eb2df19-1cba-4c94-a53f-04faf0e4ba9c",
+        "service_ids": {
+          "fawran_4_hours": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+          "fawran_8_hours": "d4771c7e-b688-ec11-a837-000d3abe20f8",
+          "maintenance_service": "02ae1f0f-7ee0-ef11-a877-000d3abe20f8"
+        }
+      },
+      "steps": [
+        {
+          "step_no": 0,
+          "page_key": "service_catalog",
+          "confidence": "observed",
+          "description": "Customer chooses the service family from the domestic services catalog.",
+          "observed_api_request_response": {
+            "request": {
+              "transport": "GET",
+              "url": "https://emdadhr.com:8005/en/api/Service/ServicesForService?serviceType=2"
+            },
+            "response": {
+              "status": 200,
+              "data": [
+                {
+                  "id": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+                  "name": "Fawran 4 Hours",
+                  "description": "Fawran Services (4 Hours)",
+                  "serviceNote": "This service is for families only",
+                  "noteHeader": "This service is provided to families",
+                  "isAlert": false,
+                  "canDesignPackage": true,
+                  "displayShift": true,
+                  "showServiceNote": false
+                },
+                {
+                  "id": "d4771c7e-b688-ec11-a837-000d3abe20f8",
+                  "name": "Fawran 8 Hours",
+                  "description": "Fawran Services (8 Hours)",
+                  "serviceNote": "This service is for families only",
+                  "isAlert": false,
+                  "canDesignPackage": true,
+                  "displayShift": true,
+                  "showServiceNote": false
+                },
+                {
+                  "id": "02ae1f0f-7ee0-ef11-a877-000d3abe20f8",
+                  "name": "Maintenance Service",
+                  "description": null,
+                  "serviceNote": "Service does not include spare parts. The technician will contact you and set an appointment.",
+                  "noteHeader": "Maintenance Service",
+                  "isAlert": true,
+                  "canDesignPackage": false,
+                  "displayShift": false,
+                  "showServiceNote": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "step_no": 1,
+          "page_key": "workflow_bootstrap",
+          "confidence": "observed",
+          "description": "The provider step engine defines the order of pages in the hourly reservation journey.",
+          "first_step_response": {
+            "status": 200,
+            "data": {
+              "stepHeaderId": "6eb2df19-1cba-4c94-a53f-04faf0e4ba9c",
+              "stepOrder": 1,
+              "dbResourceFieldName": "SavedAddresses",
+              "controller": "HourlyContract",
+              "action": "SavedAddresses",
+              "nextStepAction": "AddNewAddress",
+              "stepKeyword": "Address",
+              "description": "Saved Addreses",
+              "stepType": 2,
+              "isVisible": true,
+              "stepId": "7d041f71-8f88-401e-a445-6e0d92888552"
+            }
+          },
+          "dynamic_steps_response": {
+            "status": 200,
+            "data": [
+              {
+                "stepOrder": 1,
+                "controller": "HourlyContract",
+                "action": "SavedAddresses",
+                "nextStepAction": "AddNewAddress",
+                "stepKeyword": "Address",
+                "description": "Saved Addreses"
+              },
+              {
+                "stepOrder": 2,
+                "controller": "HourlyContract",
+                "action": "AddNewAddress",
+                "previousStepAction": "SavedAddresses",
+                "nextStepAction": "SelectPackage",
+                "stepKeyword": "Address",
+                "description": "Detrmine Address on map"
+              },
+              {
+                "stepOrder": 3,
+                "controller": "HourlyContract",
+                "action": "SelectPackage",
+                "previousStepAction": "AddNewAddress",
+                "nextStepAction": "ExpectedVisits",
+                "stepKeyword": "SelectPackage",
+                "description": "Choose Nationality,Proffision and package"
+              },
+              {
+                "stepOrder": 4,
+                "controller": "HourlyContract",
+                "action": "ExpectedVisits",
+                "previousStepAction": "SelectPackage",
+                "nextStepAction": "ValidateBeforCreate",
+                "stepKeyword": "ExpectedVisits",
+                "description": "ExpectedVisits"
+              },
+              {
+                "stepOrder": 7,
+                "controller": "HourlyContract",
+                "action": "CompleteProfile",
+                "previousStepAction": "ValidateBeforCreate",
+                "nextStepAction": "CreateContract",
+                "stepKeyword": "CompleteProfile",
+                "description": "Complete Profile"
+              },
+              {
+                "stepOrder": 6,
+                "controller": "HourlyContract",
+                "action": "CreateContract",
+                "previousStepAction": "CompleteProfile",
+                "nextStepAction": "ShopperResult",
+                "stepKeyword": "CreateContract",
+                "description": "Create Contract"
+              },
+              {
+                "stepOrder": 6,
+                "controller": "HourlyContract",
+                "action": "ShopperResult",
+                "previousStepAction": "CreateContract",
+                "nextStepAction": "ContractTemplate",
+                "stepKeyword": "CreateContract",
+                "description": "Create Contract"
+              }
+            ]
+          }
+        },
+        {
+          "step_no": 2,
+          "page_key": "package_listing_and_pricing_4h",
+          "confidence": "observed",
+          "description": "The provider exposes shifts, resource groups, and real package prices for the 4-hour Fawran service.",
+          "lookup_data": {
+            "shifts": {
+              "request": {
+                "transport": "GET",
+                "url": "https://emdadhr.com:8005/en/api/HourlyContract/Shifts?serviceId=c97fdb23-4687-ec11-a837-000d3abe20f8"
+              },
+              "response": {
+                "status": 200,
+                "data": [
+                  {
+                    "key": 1,
+                    "value": "Morning"
+                  },
+                  {
+                    "key": 2,
+                    "value": "Evening"
+                  }
+                ]
+              }
+            },
+            "resource_groups": {
+              "request": {
+                "transport": "GET",
+                "url": "https://emdadhr.com:8005/en/api/ResourceGroup/GetResourceGroupsByService?serviceId=c97fdb23-4687-ec11-a837-000d3abe20f8"
+              },
+              "response": {
+                "status": 200,
+                "data": [
+                  {
+                    "key": "10c2a6ae-b5e1-ec11-a83c-000d3abe20f8",
+                    "value": "East Asia",
+                    "hasPackage": false
+                  },
+                  {
+                    "key": "96e2b91d-e716-ed11-a83f-000d3abe20f8",
+                    "value": "African Countries",
+                    "hasPackage": false
+                  }
+                ]
+              }
+            }
+          },
+          "pricing_samples": [
+            {
+              "selectedHourlyPricingId": "f7fedf00-ebe7-ec11-a83d-000d3abe20f8",
+              "displayName": "Cleaning visit from Fawran- 4 hours",
+              "serviceId": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+              "resourceGroupId": "10c2a6ae-b5e1-ec11-a83c-000d3abe20f8",
+              "resourceGroupName": "East Asia",
+              "employeeNumber": 1,
+              "hoursNumber": 4,
+              "weeklyVisits": 1,
+              "contractDuration": 1,
+              "contractDurationName": "1 Week",
+              "visitShift": 1,
+              "visitShiftName": "Morning",
+              "promotionCode": "AS100",
+              "oneVisitPrice": 147.0,
+              "packagePrice": 128.0,
+              "priceAfterTotalDiscount": 86.95652174,
+              "vatAmount": 13.043478261,
+              "finalPrice": 100.0
+            },
+            {
+              "selectedHourlyPricingId": "00128f47-5819-ed11-a841-000d3abe20f8",
+              "displayName": "Cleaning visit from Fawran- 4 hours",
+              "serviceId": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+              "resourceGroupId": "96e2b91d-e716-ed11-a83f-000d3abe20f8",
+              "resourceGroupName": "African Countries",
+              "employeeNumber": 1,
+              "hoursNumber": 4,
+              "weeklyVisits": 1,
+              "contractDuration": 1,
+              "contractDurationName": "1 Week",
+              "visitShift": 1,
+              "visitShiftName": "Morning",
+              "promotionCode": "AF90",
+              "oneVisitPrice": 140.0,
+              "packagePrice": 128.0,
+              "priceAfterTotalDiscount": 78.260869564,
+              "vatAmount": 11.7391304346,
+              "finalPrice": 90.0
+            },
+            {
+              "selectedHourlyPricingId": "4c584f9a-22cf-ee11-a866-000d3abe20f8",
+              "displayName": "Package 1 Month Morning 1 Visit Weekly 4 Hours",
+              "serviceId": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+              "resourceGroupId": "10c2a6ae-b5e1-ec11-a83c-000d3abe20f8",
+              "resourceGroupName": "East Asia",
+              "employeeNumber": 1,
+              "hoursNumber": 4,
+              "weeklyVisits": 1,
+              "contractDuration": 4,
+              "contractDurationName": "1 Month",
+              "visitShift": 1,
+              "visitShiftName": "Morning",
+              "promotionCode": "AA90",
+              "oneVisitPrice": 121.74,
+              "totalVisits": 4,
+              "packagePrice": 512.0,
+              "totalPriceWithVatBeforePromotion": 560.0,
+              "priceAfterTotalDiscount": 313.043478256,
+              "vatAmount": 46.9565217384,
+              "finalPrice": 360.0
+            }
+          ]
+        },
+        {
+          "step_no": 3,
+          "page_key": "select_package",
+          "confidence": "reconstructed",
+          "description": "Customer confirms the chosen pricing record and moves to expected visits.",
+          "reconstructed_request": {
+            "provider": "fawran",
+            "request_name": "select_package",
+            "transport": "POST",
+            "endpoint_hint": "HourlyContract/SelectPackage or dynamic step action resolved by current step metadata",
+            "body": {
+              "serviceId": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+              "stepId": "7d041f71-8f88-401e-a445-6e0d92888552",
+              "selectedHourlyPricingId": "f7fedf00-ebe7-ec11-a83d-000d3abe20f8",
+              "resourceGroupId": "10c2a6ae-b5e1-ec11-a83c-000d3abe20f8",
+              "visitShift": 1,
+              "weeklyVisits": 1,
+              "contractDuration": 1,
+              "employeeNumber": 1,
+              "agreePolicy": true
+            }
+          },
+          "expected_response": {
+            "page_key": "select_package",
+            "selected_package": {
+              "selectedHourlyPricingId": "f7fedf00-ebe7-ec11-a83d-000d3abe20f8",
+              "displayName": "Cleaning visit from Fawran- 4 hours",
+              "resourceGroupName": "East Asia",
+              "visitShiftName": "Morning",
+              "contractDurationName": "1 Week",
+              "finalPrice": 100.0
+            },
+            "next_page_key": "expected_visits"
+          }
+        },
+        {
+          "step_no": 4,
+          "page_key": "expected_visits_to_create_contract",
+          "confidence": "reconstructed",
+          "description": "Later steps are confirmed by the real dynamic step engine, while the exact final create-contract request remains private. The contract below uses the real field families and IDs revealed by the public flow.",
+          "reconstructed_expected_visits_request": {
+            "provider": "fawran",
+            "request_name": "expected_visits",
+            "transport": "POST",
+            "endpoint_hint": "HourlyContract/ExpectedVisits or step-driven hourly endpoint",
+            "body": {
+              "serviceId": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+              "selectedHourlyPricingId": "f7fedf00-ebe7-ec11-a83d-000d3abe20f8",
+              "visitDates": [
+                "yyyy-mm-dd"
+              ],
+              "visitShift": 1,
+              "deliveryWindow": "07:30-10:00"
+            }
+          },
+          "reconstructed_create_contract_request": {
+            "provider": "fawran",
+            "request_name": "create_contract",
+            "transport": "POST",
+            "endpoint_hint": "HourlyContract/CreateContract",
+            "body": {
+              "serviceId": "c97fdb23-4687-ec11-a837-000d3abe20f8",
+              "stepId": "7d041f71-8f88-401e-a445-6e0d92888552",
+              "selectedHourlyPricingId": "f7fedf00-ebe7-ec11-a83d-000d3abe20f8",
+              "selectedLocationId": "saved_location_uuid",
+              "customerProfile": {
+                "fullName": "customer full name",
+                "mobile": "05xxxxxxxx",
+                "email": "customer@example.com"
+              },
+              "visitPlan": {
+                "weeklyVisits": 1,
+                "contractDuration": 1,
+                "visitShift": 1,
+                "visitDates": [
+                  "yyyy-mm-dd"
+                ]
+              },
+              "pricingSnapshot": {
+                "finalPrice": 100.0,
+                "vatAmount": 13.043478261,
+                "promotionCode": "AS100"
+              },
+              "agreePolicy": true
+            }
+          }
+        }
+      ]
+    }
+  },
+  "provider_agnostic_contract": {
+    "reservationSession": {
+      "providerKey": "enaya_or_fawran",
+      "serviceType": "hourly_domestic_service",
+      "providerServiceId": "provider_service_id",
+      "providerStepId": "provider_step_id_if_available",
+      "providerContractId": null,
+      "customerId": "internal_customer_id",
+      "status": "draft"
+    },
+    "selectedService": {
+      "serviceName": "Fawran 4 Hours or Enaya hourly package family",
+      "hoursNumber": 4,
+      "supportsShiftSelection": true,
+      "supportsNationalitySelection": true
+    },
+    "selectedLocation": {
+      "locationId": "internal_or_provider_location_id",
+      "city": "Riyadh",
+      "district": "Ishbiliyah",
+      "houseType": "Apartment Building",
+      "floorNo": 1,
+      "houseNo": "39",
+      "apartmentNo": "6",
+      "latitude": null,
+      "longitude": null,
+      "addressNotes": null
+    },
+    "selectedPackage": {
+      "providerPackageId": "selectedHourlyPricingId",
+      "resourceGroupId": "nationality_or_region_group_id",
+      "resourceGroupName": "Africa or East Asia",
+      "employeeNumber": 1,
+      "hoursNumber": 4,
+      "weeklyVisits": 1,
+      "contractDuration": 1,
+      "contractDurationUnit": "week",
+      "visitShift": 1,
+      "visitShiftName": "Morning",
+      "promotionCode": "promotion_code_if_any",
+      "oneVisitPrice": 147.2,
+      "finalPrice": 75.0
+    },
+    "visitPlan": {
+      "firstVisitDate": "yyyy-mm-dd",
+      "visitDates": [
+        "yyyy-mm-dd"
+      ],
+      "deliveryWindow": "07:00-09:00",
+      "visitShift": 1
+    },
+    "customerProfile": {
+      "fullName": "customer name",
+      "mobile": "05xxxxxxxx",
+      "email": "customer@example.com",
+      "nationalId": null,
+      "missingFieldsCompleted": true
+    },
+    "pricingSnapshot": {
+      "packagePrice": 128.0,
+      "promotionDiscountAmount": 62.782608696,
+      "vatAmount": 9.7826086956,
+      "finalPrice": 75.0,
+      "currency": "SAR"
+    },
+    "submission": {
+      "readyForProviderSubmission": true,
+      "providerCreateContractPayload": {},
+      "paymentRequired": true
+    }
+  }
+}

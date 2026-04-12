@@ -1,0 +1,28 @@
+{
+  "source_file": "uploaded/enaya_flow_extracted.json",
+  "import_note": "Copied from provided source for demo truth backbone.",
+  "flow": {
+    "provider_id": "enaya",
+    "entry_url": "https://enaya.sa/hourly/SavedAddresses?id=a5fbc0b6-3b59-ee11-a8a4-000d3a227ab4&stepId=e9c9673b-2f42-4307-9f90-84154ff252c9",
+    "steps": [
+      "saved_addresses",
+      "fixed_package",
+      "visits_schedule",
+      "complete_data",
+      "create_contract",
+      "payment"
+    ],
+    "address_sample": {
+      "city": "Riyadh",
+      "district": "Al Qadisiyah",
+      "house_type": "Apartment Building"
+    },
+    "package_sample": {
+      "package_id": "enaya_pkg_morning_africa_1visit_4hours",
+      "display_price_sar": 75.0,
+      "original_price_sar": 147.2,
+      "hours_per_visit": 4,
+      "visit_count": 1
+    }
+  }
+}

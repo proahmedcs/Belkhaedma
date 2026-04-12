@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Belkhedma Admin Dashboard</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #102a43;
+      --muted: #5c6f82;
+      --primary: #0f766e;
+      --border: #d8e1eb;
+      --shadow: rgba(16, 42, 67, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: Inter, "Segoe UI", Tahoma, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #ffffff;
+      border-right: 1px solid var(--border);
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .brand {
+      border-radius: 12px;
+      padding: 12px;
+      background: linear-gradient(135deg, #0f766e, #115e59);
+      color: #fff;
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: #dcfce7;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .nav-link {
+      display: block;
+      text-decoration: none;
+      color: var(--text);
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .nav-link.active {
+      border-color: #0f766e;
+      background: #ecfdf5;
+      color: #065f46;
+    }
+
+    .main {
+      padding: 24px 16px 32px;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f766e, #115e59);
+      color: #fff;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .hero p {
+      margin: 6px 0 0;
+      font-size: 14px;
+      color: #dcfce7;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .menu-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+
+    .menu-card h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .menu-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .menu-link {
+      display: inline-block;
+      text-decoration: none;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 8px;
+      padding: 8px 11px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .menu-link + .menu-link {
+      margin-left: 8px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+
+    .panel h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .logout-btn {
+      margin-top: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--text);
+      padding: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Belkhedma Admin</h1>
+        <p>Control panel</p>
+      </div>
+      <nav class="nav">
+        <a class="nav-link active" href="/admin/">Dashboard</a>
+        <a class="nav-link" href="/admin/home-promotions.html">Home Promotions</a>
+        <a class="nav-link" href="/admin/jobs.html">Crawler Jobs</a>
+        <a class="nav-link" href="/hangfire">Background Jobs</a>
+        <a class="nav-link" href="/swagger">API Explorer</a>
+        <a class="nav-link" href="/api/marketplace/providers">Providers API</a>
+        <a class="nav-link" href="/api/marketplace/home-promotions?includeInactive=true">Promotions API</a>
+      </nav>
+      <button id="logoutBtn" class="logout-btn" type="button">Logout</button>
+    </aside>
+
+    <main class="main">
+      <div class="container">
+        <section class="hero">
+          <h1>Dashboard</h1>
+          <p>Main admin menu for control panel pages, operations, and API tools.</p>
+        </section>
+
+        <section class="menu-grid">
+          <article class="menu-card">
+            <h2>Home Promotions</h2>
+            <p>Manage slider photos and links shown in the mobile app home screen.</p>
+            <a class="menu-link" href="/admin/home-promotions.html">Open Panel</a>
+          </article>
+
+          <article class="menu-card">
+            <h2>Crawler Jobs</h2>
+            <p>Run daily provider crawlers manually and start provider-specific crawler jobs.</p>
+            <a class="menu-link" href="/admin/jobs.html">Open Jobs</a>
+          </article>
+
+          <article class="menu-card">
+            <h2>Background Jobs</h2>
+            <p>Monitor and inspect provider collection runs from the Hangfire dashboard.</p>
+            <a class="menu-link" href="/hangfire">Open Hangfire</a>
+          </article>
+
+          <article class="menu-card">
+            <h2>API Explorer</h2>
+            <p>Browse and test all backend endpoints from Swagger UI.</p>
+            <a class="menu-link" href="/swagger">Open Swagger</a>
+          </article>
+        </section>
+
+        <section class="panel">
+          <h3>Quick API links</h3>
+          <a class="menu-link" href="/api/marketplace/providers">Providers</a>
+          <a class="menu-link" href="/api/marketplace/offers">Service Offers</a>
+          <a class="menu-link" href="/api/marketplace/prices/latest">Latest Prices</a>
+          <a class="menu-link" href="/api/marketplace/home-promotions?includeInactive=true">Promotions JSON</a>
+          <a class="menu-link" href="/api/admin-auth/me">Admin Me</a>
+          <ul>
+            <li>Open <code>/admin/</code> to access this dashboard menu.</li>
+            <li>Use the panel links to jump directly to admin tools.</li>
+            <li>Admin pages require login: <code>/admin/auth/login.html</code></li>
+          </ul>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script>
+    async function ensureAuthenticated() {
+      try {
+        const response = await fetch("/api/admin-auth/me", { credentials: "include" });
+        if (!response.ok) {
+          throw new Error("Unauthorized");
+        }
+      } catch {
+        window.location.replace("/admin/auth/login.html?returnUrl=" + encodeURIComponent(window.location.pathname + window.location.search));
+      }
+    }
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      try {
+        await fetch("/api/admin-auth/logout", { method: "POST", credentials: "include" });
+      } finally {
+        window.location.replace("/admin/auth/login.html");
+      }
+    });
+
+    ensureAuthenticated();
+  </script>
+</body>
+</html>

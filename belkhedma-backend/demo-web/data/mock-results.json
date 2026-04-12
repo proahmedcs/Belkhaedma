@@ -1,0 +1,29 @@
+{
+  "generated_at_utc": "2026-04-04T00:00:00Z",
+  "hourly_results": [
+    {
+      "provider_id": "enaya",
+      "service_id": "hourly_cleaning",
+      "final_price_sar": 75,
+      "original_price_sar": 147.2,
+      "availability_state": "available",
+      "confidence": "high"
+    },
+    {
+      "provider_id": "tamkeen",
+      "service_id": "hourly_cleaning",
+      "final_price_sar": 89,
+      "original_price_sar": 124,
+      "availability_state": "available",
+      "confidence": "high"
+    },
+    {
+      "provider_id": "mueen",
+      "service_id": "hourly_cleaning",
+      "final_price_sar": 95,
+      "original_price_sar": 120,
+      "availability_state": "limited",
+      "confidence": "medium"
+    }
+  ]
+}

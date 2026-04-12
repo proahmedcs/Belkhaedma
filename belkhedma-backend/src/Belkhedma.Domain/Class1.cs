@@ -1,0 +1,300 @@
+﻿namespace Belkhedma.Domain;
+
+public enum ServiceMode
+{
+    Hourly = 1,
+    Monthly = 2,
+    Resident = 3,
+    Business = 4
+}
+
+public enum ServiceAttributeType
+{
+    OptionSet = 1,
+    Date = 2,
+    Int = 3,
+    Input = 4,
+    Float = 5
+}
+
+[Flags]
+public enum ServiceAttributeFilterScope
+{
+    None = 0,
+    Hourly = 1,
+    Monthly = 2,
+    Resident = 4,
+    Business = 8,
+    All = Hourly | Monthly | Resident | Business
+}
+
+public enum DataSourceType
+{
+    Api = 1,
+    Scraper = 2
+}
+
+[Flags]
+public enum ProviderIntegrationWays
+{
+    None = 0,
+    Api = 1,
+    Website = 2,
+    ManualScrape = 4
+}
+
+[Flags]
+public enum ProviderCommunicationWays
+{
+    None = 0,
+    Api = 1,
+    Email = 2,
+    WebsitePortal = 4,
+    ManualOperations = 8
+}
+
+public enum ProviderContractMode
+{
+    LeadOnly = 1,
+    FullContract = 2,
+    Hybrid = 3
+}
+
+public enum PaymentCollectionMode
+{
+    NoPayment = 1,
+    CustomerPaysProvider = 2,
+    CustomerPaysBelkhedma = 3,
+    Configurable = 4
+}
+
+public enum JobRunStatus
+{
+    Succeeded = 1,
+    Failed = 2
+}
+
+public sealed class Provider
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Code { get; set; } = string.Empty;
+    public string NameAr { get; set; } = string.Empty;
+    public string NameEn { get; set; } = string.Empty;
+    public string ProviderType { get; set; } = string.Empty;
+    public bool HasApiAccess { get; set; }
+    public bool SupportsHourly { get; set; }
+    public bool SupportsMonthly { get; set; }
+    public bool SupportsB2B { get; set; }
+    public bool SupportsRecruitment { get; set; }
+    public string IntegrationModeKey { get; set; } = "manual_rfq";
+    public ProviderIntegrationWays IntegrationWays { get; set; } = ProviderIntegrationWays.ManualScrape;
+    public ProviderCommunicationWays CommunicationWays { get; set; } = ProviderCommunicationWays.ManualOperations;
+    public ProviderContractMode ContractMode { get; set; } = ProviderContractMode.LeadOnly;
+    public PaymentCollectionMode PaymentCollectionMode { get; set; } = PaymentCollectionMode.Configurable;
+    public bool RequirePaymentBeforeSubmission { get; set; }
+    public string? ApiBaseUrl { get; set; }
+    public string? WebsiteUrl { get; set; }
+    public string? AppUrl { get; set; }
+    public string? TinyUrl { get; set; }
+    public string? LogoUrl { get; set; }
+    public string? BookingEmail { get; set; }
+    public string? OperationsEmail { get; set; }
+    public string Notes { get; set; } = string.Empty;
+    public int PricingExpirationHours { get; set; } = 6;
+    public int SessionExpirationHours { get; set; } = 2;
+    public int ContractDraftExpirationHours { get; set; } = 24;
+    public string SettingsJson { get; set; } = "{}";
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class ServiceOffer
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProviderId { get; set; }
+    public string ProviderServiceId { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+    public ServiceMode ServiceMode { get; set; }
+    public string NameAr { get; set; } = string.Empty;
+    public string NameEn { get; set; } = string.Empty;
+    public string HourlyHoursJson { get; set; } = "[]";
+    public string NationalityGroupsJson { get; set; } = "[]";
+    public bool IsAvailable { get; set; } = true;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class ServiceAttribute
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ServiceOfferId { get; set; }
+    public string AttributeKey { get; set; } = string.Empty;
+    public string NameAr { get; set; } = string.Empty;
+    public string NameEn { get; set; } = string.Empty;
+    public ServiceAttributeType Type { get; set; } = ServiceAttributeType.OptionSet;
+    public string? OptionSetJson { get; set; }
+    public bool IsMandatory { get; set; }
+    public ServiceAttributeFilterScope FilterScope { get; set; } = ServiceAttributeFilterScope.All;
+    public int DisplayOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class ProviderAttributeValueMapper
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProviderId { get; set; }
+    public Guid? ServiceOfferId { get; set; }
+    public ServiceMode? ServiceMode { get; set; }
+    public string RawAttributeKey { get; set; } = string.Empty;
+    public string RawValue { get; set; } = string.Empty;
+    public string? RawTextEn { get; set; }
+    public string? RawTextAr { get; set; }
+    public string NormalizedAttributeKey { get; set; } = string.Empty;
+    public string NormalizedValue { get; set; } = string.Empty;
+    public string NormalizedTextEn { get; set; } = string.Empty;
+    public string NormalizedTextAr { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class PriceSnapshot
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProviderId { get; set; }
+    public Guid ServiceOfferId { get; set; }
+    public decimal FinalPriceSar { get; set; }
+    public decimal? OriginalPriceSar { get; set; }
+    public decimal? VatAmountSar { get; set; }
+    public string Currency { get; set; } = "SAR";
+    public DataSourceType SourceType { get; set; }
+    public string RawPayload { get; set; } = "{}";
+    public DateTime CollectedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAtUtc { get; set; } = DateTime.UtcNow.AddHours(6);
+}
+
+public sealed class ProviderJsonDocument
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProviderId { get; set; }
+    public Guid ServiceOfferId { get; set; }
+    public string DocumentKey { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public ServiceMode? ServiceMode { get; set; }
+    public string JsonAttributes { get; set; } = "{}";
+    public string JsonData { get; set; } = "{}";
+    public bool IsActive { get; set; } = true;
+    public DateTime ExpiresAtUtc { get; set; } = DateTime.UtcNow.AddMonths(6);
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class HomePromotion
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Code { get; set; } = string.Empty;
+    public string CompanyNameAr { get; set; } = string.Empty;
+    public string CompanyNameEn { get; set; } = string.Empty;
+    public string TitleAr { get; set; } = string.Empty;
+    public string TitleEn { get; set; } = string.Empty;
+    public string SubtitleAr { get; set; } = string.Empty;
+    public string SubtitleEn { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public string? TargetUrl { get; set; }
+    public string? DeepLink { get; set; }
+    public string ItemsJson { get; set; } = "[]";
+    public string? ProviderCode { get; set; }
+    public int DisplayOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class CollectionJobRun
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProviderId { get; set; }
+    public DataSourceType SourceType { get; set; }
+    public JobRunStatus Status { get; set; }
+    public string Details { get; set; } = string.Empty;
+    public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime FinishedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class CustomerSavedLocation
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string CustomerReference { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string District { get; set; } = string.Empty;
+    public decimal Latitude { get; set; }
+    public decimal Longitude { get; set; }
+    public string? GoogleMapsUrl { get; set; }
+    public string? GooglePlaceId { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class CustomerAccount
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string CustomerReference { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string MobileNumber { get; set; } = string.Empty;
+    public string NormalizedMobileNumber { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class CustomerServiceRequest
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid CustomerAccountId { get; set; }
+    public string CustomerReference { get; set; } = string.Empty;
+    public Guid? CustomerSavedLocationId { get; set; }
+    public string LocationLabel { get; set; } = string.Empty;
+    public string LocationCity { get; set; } = string.Empty;
+    public string LocationDistrict { get; set; } = string.Empty;
+    public decimal? LocationLatitude { get; set; }
+    public decimal? LocationLongitude { get; set; }
+    public string? LocationGoogleMapsUrl { get; set; }
+    public string? LocationGooglePlaceId { get; set; }
+    public Guid ProviderId { get; set; }
+    public Guid ServiceOfferId { get; set; }
+    public Guid? PriceSnapshotId { get; set; }
+    public ServiceMode ServiceMode { get; set; } = ServiceMode.Hourly;
+    public string PackageNameAr { get; set; } = string.Empty;
+    public string PackageNameEn { get; set; } = string.Empty;
+    public decimal FinalPriceSar { get; set; }
+    public decimal? OriginalPriceSar { get; set; }
+    public decimal? VatAmountSar { get; set; }
+    public string Currency { get; set; } = "SAR";
+    public string? ServiceDate { get; set; }
+    public string? SelectedShift { get; set; }
+    public string? SelectedNationality { get; set; }
+    public string? SelectedContractDuration { get; set; }
+    public int? SelectedWorkersCount { get; set; }
+    public int? SelectedHoursPerVisit { get; set; }
+    public int? SelectedWeeklyVisits { get; set; }
+    public string? SelectedDeliveryWindow { get; set; }
+    public string? SelectedProviderSource { get; set; }
+    public string Notes { get; set; } = string.Empty;
+    public string PackageAttributesJson { get; set; } = "[]";
+    public string Status { get; set; } = "submitted";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class CustomerAuthSession
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid CustomerAccountId { get; set; }
+    public string RefreshToken { get; set; } = string.Empty;
+    public string? ReplacedByRefreshToken { get; set; }
+    public DateTime? RevokedAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAtUtc { get; set; } = DateTime.UtcNow.AddDays(30);
+    public DateTime LastUsedAtUtc { get; set; } = DateTime.UtcNow;
+    public bool IsRevoked { get; set; }
+}

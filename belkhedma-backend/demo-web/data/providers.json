@@ -1,0 +1,140 @@
+{
+  "providers": [
+    {
+      "id": "enaya",
+      "nameAr": "شركة عناية",
+      "nameEn": "Enaya",
+      "tier": "A",
+      "websiteUrl": "https://enaya.sa/home",
+      "appUrl": "https://enaya.sa/home",
+      "tinyUrl": "https://tinyurl.com/belkhedma-enaya",
+      "logoUrl": "https://logo.clearbit.com/enaya.sa",
+      "integrationMode": "hybrid_simulated",
+      "supports": {
+        "hourly": true,
+        "monthlyResident": true,
+        "b2b": true,
+        "recruitment": true
+      }
+    },
+    {
+      "id": "tamkeen",
+      "nameAr": "تمكين",
+      "nameEn": "Tamkeen HR",
+      "tier": "A",
+      "websiteUrl": "https://tamkeenhr.sa/",
+      "appUrl": "https://tamkeenhr.sa/",
+      "tinyUrl": "https://tinyurl.com/belkhedma-tamkeen",
+      "logoUrl": "https://logo.clearbit.com/tamkeenhr.sa",
+      "integrationMode": "hybrid_simulated",
+      "supports": {
+        "hourly": true,
+        "monthlyResident": true,
+        "b2b": true,
+        "recruitment": true
+      }
+    },
+    {
+      "id": "almutahidah",
+      "nameAr": "المتحدة",
+      "nameEn": "Almutahidah",
+      "tier": "A",
+      "websiteUrl": "https://almutahidah.com/home",
+      "appUrl": "https://almutahidah.com/home",
+      "tinyUrl": "https://tinyurl.com/belkhedma-almutahidah",
+      "logoUrl": "https://logo.clearbit.com/almutahidah.com",
+      "integrationMode": "price_only_api",
+      "supports": {
+        "hourly": true,
+        "monthlyResident": true,
+        "b2b": false,
+        "recruitment": true
+      }
+    },
+    {
+      "id": "mueen",
+      "nameAr": "معين",
+      "nameEn": "Mueen",
+      "tier": "B",
+      "websiteUrl": "https://www.mueen.com.sa/",
+      "appUrl": "https://www.mueen.com.sa/",
+      "tinyUrl": "https://tinyurl.com/belkhedma-mueen",
+      "logoUrl": "https://logo.clearbit.com/mueen.com.sa",
+      "integrationMode": "hybrid_simulated",
+      "supports": {
+        "hourly": true,
+        "monthlyResident": false,
+        "b2b": false,
+        "recruitment": false
+      }
+    },
+    {
+      "id": "esad-talents",
+      "nameAr": "إسناد تالنتس",
+      "nameEn": "Esad Talents",
+      "tier": "B",
+      "websiteUrl": "https://esadtalents.com/",
+      "appUrl": "https://esadtalents.com/",
+      "tinyUrl": "https://tinyurl.com/belkhedma-esad",
+      "logoUrl": "https://logo.clearbit.com/esadtalents.com",
+      "integrationMode": "hybrid_simulated",
+      "supports": {
+        "hourly": true,
+        "monthlyResident": true,
+        "b2b": true,
+        "recruitment": true
+      }
+    },
+    {
+      "id": "emdad-hr",
+      "nameAr": "إمداد HR",
+      "nameEn": "Emdad HR",
+      "tier": "B",
+      "websiteUrl": "https://emdadhr.com/#/fawran",
+      "appUrl": "https://emdadhr.com/#/fawran",
+      "tinyUrl": "https://tinyurl.com/belkhedma-emdad",
+      "logoUrl": "https://logo.clearbit.com/emdadhr.com",
+      "integrationMode": "hybrid_simulated",
+      "supports": {
+        "hourly": true,
+        "monthlyResident": false,
+        "b2b": true,
+        "recruitment": false
+      }
+    },
+    {
+      "id": "irc-saudi",
+      "nameAr": "IRC السعودية",
+      "nameEn": "IRC Saudi",
+      "tier": "C",
+      "websiteUrl": "https://own.irc.sa/home",
+      "appUrl": "https://own.irc.sa/home",
+      "tinyUrl": "https://tinyurl.com/belkhedma-irc",
+      "logoUrl": "https://logo.clearbit.com/irc.sa",
+      "integrationMode": "manual_rfq",
+      "supports": {
+        "hourly": false,
+        "monthlyResident": true,
+        "b2b": true,
+        "recruitment": true
+      }
+    },
+    {
+      "id": "eitinaa",
+      "nameAr": "اعتناء",
+      "nameEn": "Eitinaa",
+      "tier": "C",
+      "websiteUrl": "https://eitinaa.com/ar",
+      "appUrl": "https://eitinaa.com/ar",
+      "tinyUrl": "https://tinyurl.com/belkhedma-eitinaa",
+      "logoUrl": "https://logo.clearbit.com/eitinaa.com",
+      "integrationMode": "manual_rfq",
+      "supports": {
+        "hourly": false,
+        "monthlyResident": true,
+        "b2b": false,
+        "recruitment": true
+      }
+    }
+  ]
+}

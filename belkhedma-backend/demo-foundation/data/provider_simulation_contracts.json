@@ -1,0 +1,45 @@
+{
+  "simulation_metadata": {
+    "version": "v2",
+    "language": "ar-en",
+    "purpose": "demo_provider_integration_contracts",
+    "sequence_rule": "data_then_simulation_then_routes_then_screens"
+  },
+  "provider_tiers": {
+    "tier_a": ["enaya", "tamkeen", "almutahidah"],
+    "tier_b": ["mueen", "esad-talents", "emdad-hr"],
+    "tier_c": ["irc-saudi", "eitinaa"]
+  },
+  "providers": [
+    { "provider_id": "mueen", "integration_mode": "hybrid_simulated" },
+    { "provider_id": "tamkeen", "integration_mode": "hybrid_simulated" },
+    { "provider_id": "almutahidah", "integration_mode": "price_only_api" },
+    { "provider_id": "irc-saudi", "integration_mode": "manual_rfq" },
+    { "provider_id": "enaya", "integration_mode": "hybrid_simulated" },
+    { "provider_id": "esad-talents", "integration_mode": "hybrid_simulated" },
+    { "provider_id": "emdad-hr", "integration_mode": "hybrid_simulated" },
+    { "provider_id": "eitinaa", "integration_mode": "manual_rfq" }
+  ],
+  "rules": {
+    "pricing_modes": [
+      "fixed_package",
+      "hourly_per_visit",
+      "monthly_price",
+      "quote_based"
+    ],
+    "availability_modes": [
+      "slot_availability_hourly",
+      "lead_time_monthly",
+      "quantity_capacity_rfq",
+      "partial_availability"
+    ],
+    "fallback_scenarios": [
+      "provider_unavailable",
+      "no_slot_available",
+      "partial_quote",
+      "changed_price",
+      "payment_success_booking_fail",
+      "booking_success_payment_incomplete"
+    ]
+  }
+}

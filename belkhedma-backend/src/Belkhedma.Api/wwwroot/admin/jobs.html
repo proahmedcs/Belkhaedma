@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Belkhedma Admin - Jobs</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #102a43;
+      --muted: #5c6f82;
+      --primary: #0f766e;
+      --danger: #b42318;
+      --border: #d8e1eb;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: Inter, "Segoe UI", Tahoma, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #ffffff;
+      border-right: 1px solid var(--border);
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .brand {
+      border-radius: 12px;
+      padding: 12px;
+      background: linear-gradient(135deg, #0f766e, #115e59);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      box-shadow: 0 4px 16px rgba(16, 42, 67, 0.06);
+    }
+
+    .nav-link,
+    .nav-button {
+      display: block;
+      text-decoration: none;
+      color: var(--text);
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .nav-link.active {
+      border-color: #0f766e;
+      background: #ecfdf5;
+      color: #065f46;
+    }
+
+    .nav-button {
+      margin-top: auto;
+      background: #fff;
+    }
+
+    .main {
+      padding: 24px 16px 24px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(16, 42, 67, 0.06);
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .muted {
+      color: var(--muted);
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .status {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+    }
+
+    button.secondary {
+      background: #475467;
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      padding: 10px 8px;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      background: #f7fafc;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      color: var(--text);
+    }
+
+    .badge.active {
+      border-color: #14532d;
+      background: #ecfdf3;
+      color: #14532d;
+    }
+
+    .badge.inactive {
+      border-color: #7f1d1d;
+      background: #fef2f2;
+      color: #7f1d1d;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Belkhedma Admin</div>
+      <a class="nav-link" href="/admin/">Dashboard</a>
+      <a class="nav-link" href="/admin/home-promotions.html">Home Promotions</a>
+      <a class="nav-link active" href="/admin/jobs.html">Jobs</a>
+      <a class="nav-link" href="/hangfire">Background Jobs</a>
+      <a class="nav-link" href="/swagger">API Explorer</a>
+      <button type="button" class="nav-button" id="logoutBtn">Logout</button>
+    </aside>
+    <main class="main">
+      <div class="container">
+        <div class="card">
+          <div style="margin-bottom: 10px;">
+            <a href="/admin/" style="color:#0f766e;font-weight:700;text-decoration:none;">← Back to Admin Dashboard</a>
+          </div>
+          <h1>Crawler Jobs</h1>
+          <p class="muted">Start crawler jobs manually per provider or for all providers.</p>
+          <div class="status" id="status"></div>
+          <div class="row">
+            <button id="runDailyBtn">Run Daily Crawler Job</button>
+            <button id="runAllBtn" class="secondary">Start All Providers</button>
+            <a class="nav-link" style="display:inline-block;width:auto;" href="/hangfire">Open Hangfire Dashboard</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 style="margin-top:0;">Providers</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Integration</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const rowsEl = document.getElementById("rows");
+    const runDailyBtn = document.getElementById("runDailyBtn");
+    const runAllBtn = document.getElementById("runAllBtn");
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message || "";
+      statusEl.style.color = isError ? "#b42318" : "#5c6f82";
+    }
+
+    function escapeHtml(value) {
+      return (value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    async function ensureAuthenticated() {
+      try {
+        const response = await fetch("/api/admin-auth/me", { credentials: "include" });
+        if (!response.ok) {
+          throw new Error("Unauthorized");
+        }
+      } catch {
+        window.location.replace("/admin/auth/login.html?returnUrl=" + encodeURIComponent(window.location.pathname + window.location.search));
+      }
+    }
+
+    async function postJob(url) {
+      const response = await fetch(url, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Failed to queue job.");
+      }
+
+      return payload;
+    }
+
+    function getIntegrationLabel(provider) {
+      if (provider.integrationModeKey) return provider.integrationModeKey;
+      return provider.hasApiAccess ? "api" : "scraper";
+    }
+
+    async function queueProvider(providerCode) {
+      try {
+        setStatus(`Queueing crawler for '${providerCode}'...`);
+        const payload = await postJob(`/api/Jobs/crawler/start/${encodeURIComponent(providerCode)}`);
+        setStatus(payload?.message || `Crawler job queued for '${providerCode}'.`);
+      } catch (error) {
+        setStatus(error.message || "Queue failed.", true);
+      }
+    }
+
+    async function renderRows() {
+      setStatus("Loading providers...");
+      try {
+        const response = await fetch("/api/marketplace/providers", { credentials: "include" });
+        if (!response.ok) {
+          throw new Error("Failed loading providers.");
+        }
+
+        const providers = await response.json();
+        rowsEl.innerHTML = "";
+        for (const provider of providers) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${escapeHtml(provider.nameEn)}<br><span class="muted">${escapeHtml(provider.nameAr)}</span></td>
+            <td><code>${escapeHtml(provider.code)}</code></td>
+            <td>${escapeHtml(provider.providerType)}</td>
+            <td>${escapeHtml(getIntegrationLabel(provider))}</td>
+            <td>
+              <span class="badge ${provider.isActive ? "active" : "inactive"}">
+                ${provider.isActive ? "Active" : "Inactive"}
+              </span>
+            </td>
+            <td>
+              <button data-start="${escapeHtml(provider.code)}" ${provider.isActive ? "" : "disabled"}>
+                Start Crawler Job
+              </button>
+            </td>
+          `;
+          rowsEl.appendChild(tr);
+        }
+
+        rowsEl.querySelectorAll("button[data-start]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const providerCode = button.getAttribute("data-start");
+            if (!providerCode) return;
+            button.disabled = true;
+            try {
+              await queueProvider(providerCode);
+            } finally {
+              button.disabled = false;
+            }
+          });
+        });
+
+        setStatus(`Loaded ${providers.length} providers.`);
+      } catch (error) {
+        setStatus(error.message || "Failed loading providers.", true);
+      }
+    }
+
+    async function logout() {
+      try {
+        await fetch("/api/admin-auth/logout", {
+          method: "POST",
+          credentials: "include"
+        });
+      } finally {
+        window.location.href = "/admin/auth/login.html";
+      }
+    }
+
+    runDailyBtn.addEventListener("click", async () => {
+      runDailyBtn.disabled = true;
+      try {
+        setStatus("Queueing daily crawler job...");
+        const payload = await postJob("/api/Jobs/crawler/start-daily");
+        setStatus(payload?.message || "Daily crawler job queued.");
+      } catch (error) {
+        setStatus(error.message || "Failed to queue daily crawler job.", true);
+      } finally {
+        runDailyBtn.disabled = false;
+      }
+    });
+
+    runAllBtn.addEventListener("click", async () => {
+      runAllBtn.disabled = true;
+      try {
+        setStatus("Queueing all providers crawler jobs...");
+        const payload = await postJob("/api/Jobs/crawler/start-all");
+        setStatus(payload?.message || "All providers crawler jobs queued.");
+      } catch (error) {
+        setStatus(error.message || "Failed to queue all providers crawler jobs.", true);
+      } finally {
+        runAllBtn.disabled = false;
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", logout);
+
+    ensureAuthenticated();
+    renderRows();
+  </script>
+</body>
+</html>
